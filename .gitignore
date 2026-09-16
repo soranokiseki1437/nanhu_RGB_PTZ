@@ -1,0 +1,37 @@
+# ===== 构建产物（qmake/make 生成，可随时重建） =====
+build/
+debug/
+release/
+Makefile
+Makefile.Debug
+Makefile.Release
+.qmake.stash
+ui_*.h
+moc_*.cpp
+qrc_*.cpp
+*.o
+*.obj
+*.exe
+
+# ===== IDE / 编辑器 =====
+.qtcreator/
+*.pro.user
+.vscode/
+.idea/
+
+# ===== 大体积第三方依赖（本地保留，不入库；下载方式见 README「环境准备」） =====
+ffmpeg-8.1-full_build-shared/
+
+# ===== SDK 二进制文档（不入库；dll/lib/h 保留入库） =====
+sdk/SDK 说明文档.pdf
+
+# ===== 运行时输出 =====
+/日志/
+
+# ===== Node（scripts/ 文档生成工具链） =====
+node_modules/
+
+# ===== 系统杂项 =====
+Thumbs.db
+Desktop.ini
+*.lnk

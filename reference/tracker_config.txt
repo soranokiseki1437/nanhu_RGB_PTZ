@@ -1,0 +1,25 @@
+# DSST Tracker 配置文件示例
+# ============================================
+# 此文件用于配置跟踪器的初始参数
+
+# ========== 视频/图像序列设置 ==========
+# 视频文件路径（支持 mp4, avi 等格式）
+video_path D:/DSST-KF-SA-MD/sequences/02/imgs/
+
+# 是否是图像序列（true=是，false=否，使用视频文件）
+is_image_sequence true
+
+# 如果是图像序列，设置以下参数：
+image_pattern %04d.bmp    # 图像文件名格式（C风格格式化字符串）
+image_start_index 0              # 起始帧索引（从0或1开始）
+
+# ========== 目标初始位置（左上角坐标）==========
+start_x 124                      # 目标框的x坐标
+start_y 127                      # 目标框的y坐标
+target_width 9                 # 目标框宽度
+target_height 9                # 目标框高度
+
+# ========== 跟踪模式 ==========
+# visible - 可见光模式（使用HOG特征）
+# infrared - 红外模式（使用GST特征处理）
+mode infrared

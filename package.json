@@ -1,0 +1,16 @@
+{
+  "name": "rgb_ptz_integrated",
+  "version": "1.0.0",
+  "description": "> RGB相机 + PTZ云台集成跟踪系统 — 基于DSST+Kalman Filter的目标视觉跟踪，通过Pelco-D串口与SDK协同控制云台。",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "docx": "^9.7.1"
+  }
+}
