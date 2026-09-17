@@ -18,6 +18,9 @@ public:
     void pushData(const QByteArray &data);
     void stop();
 
+    // 设置相机编码类型（UNIV_DEV_VIDEO_ENC_PARAM.videoEncType），进入 run() 时生效
+    void setEncType(int encType) { m_encType = encType; }
+
 signals:
     void frameDecoded(const QImage &frame);
 
@@ -28,6 +31,7 @@ private:
     ThreadSafeQueue<QByteArray> m_dataQueue;
     VideoDecoder m_decoder;
     std::atomic<bool> m_running;
+    int m_encType = 0;   // 0-h264, 1-MPEG4, 2-MJPEG, 3-h265
 };
 
 #endif // DECODETHREAD_H

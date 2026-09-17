@@ -22,6 +22,9 @@ public:
     QImage decodeFrame(const uint8_t* data, int size);
     bool isInitialized() const { return m_codecContext != nullptr; }
 
+    // 相机编码类型（UNIV_DEV_VIDEO_ENC_PARAM.videoEncType：0-h264,1-MPEG4,2-MJPEG,3-h265）→ FFmpeg 解码器
+    static AVCodecID codecIdFromEncType(int encType);
+
 private:
     const AVCodec* m_codec;
     AVCodecContext* m_codecContext;
@@ -32,6 +35,7 @@ private:
     int m_rgbLinesize[4];
     int m_width;
     int m_height;
+    int m_format;   // 像素格式：与分辨率一起参与 sws 上下文重建判断
     bool m_initialized;
 };
 

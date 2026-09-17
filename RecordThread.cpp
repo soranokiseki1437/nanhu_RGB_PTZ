@@ -12,6 +12,11 @@ RecordThread::RecordThread(QObject *parent)
     , m_height(1080)
     , m_pts(0)
     , m_encoderFailCount(0)
+    , m_encType(0)
+    , m_inputW(-1)
+    , m_inputH(-1)
+    , m_inputFmt(-1)
+    , m_writeFailCount(0)
     , m_formatContext(nullptr)
     , m_videoStream(nullptr)
     , m_encoder(nullptr)
@@ -164,12 +169,10 @@ bool RecordThread::initRecord(const QString& filePath, int frameRate)
         dir.mkpath(".");
     }
 
-    // 初始化解码器
-    if (!m_decoder.isInitialized()) {
-        if (!m_decoder.init(AV_CODEC_ID_H264)) {
-            emit errorOccurred("无法初始化解码器");
-            return false;
-        }
+    // 初始化解码器（按相机实际编码类型，避免 H.265 流下录像全黑）
+    if (!m_decoder.init(VideoDecoder::codecIdFromEncType(m_encType))) {
+        emit errorOccurred("无法初始化解码器");
+        return false;
     }
 
     // 先不用初始化编码器，等得到第一帧后知道准确分辨率再初始化
@@ -210,13 +213,29 @@ bool RecordThread::writeVideoFrame(AVFrame* frame)
         return false;
     }
 
-    // RGB 转 YUV
-    if (!m_swsCtx) {
+    // RGB 转 YUV：输入分辨率/像素格式变化时必须重建 sws 上下文，
+    // 否则 sws_scale 仍按旧尺寸读取源数据，直接越界崩溃（相机切子码流/变倍时会发生）
+    if (!m_swsCtx || m_inputW != frame->width || m_inputH != frame->height
+        || m_inputFmt != frame->format) {
+        if (m_swsCtx) {
+            sws_freeContext(m_swsCtx);
+            m_swsCtx = nullptr;
+        }
         m_swsCtx = sws_getContext(
-            frame->width, frame->height, (AVPixelFormat)frame->format,
+            frame->width, frame->height, static_cast<AVPixelFormat>(frame->format),
             m_width, m_height, AV_PIX_FMT_YUV420P,
             SWS_BILINEAR, nullptr, nullptr, nullptr
         );
+        m_inputW = frame->width;
+        m_inputH = frame->height;
+        m_inputFmt = frame->format;
+        // 编码分辨率固定为编码器初始化时的分辨率，输入变化由 sws 缩放吸收
+        // （因此 m_yuvBuffer / m_yuvFrame 不需要跟着重建）
+    }
+
+    if (!m_swsCtx) {
+        qWarning() << "[RecordThread] sws 上下文创建失败，跳过当前帧";
+        return false;
     }
 
     if (m_swsCtx) {
@@ -246,8 +265,20 @@ bool RecordThread::writeVideoFrame(AVFrame* frame)
 
         m_packet->stream_index = m_videoStream->index;
         av_packet_rescale_ts(m_packet, m_encoderCtx->time_base, m_videoStream->time_base);
-        av_interleaved_write_frame(m_formatContext, m_packet);
+        const int writeRet = av_interleaved_write_frame(m_formatContext, m_packet);
         av_packet_unref(m_packet);
+
+        // 磁盘满/IO 错误时必须暴露出来，否则文件静默损坏、无人知晓
+        if (writeRet < 0) {
+            if (++m_writeFailCount >= 10) {
+                qCritical() << "[RecordThread] 录像写入连续失败" << m_writeFailCount << "次:" << writeRet;
+                emit errorOccurred(QString("录像写入连续失败(%1)，已停止录像").arg(writeRet));
+                m_running = false;  // 交回 run() 循环收尾（写 trailer、关闭文件）
+                break;
+            }
+        } else {
+            m_writeFailCount = 0;
+        }
     }
 
     return true;

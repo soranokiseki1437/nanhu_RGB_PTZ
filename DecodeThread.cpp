@@ -1,5 +1,6 @@
 #include "DecodeThread.h"
 #include <QDebug>
+#include <QElapsedTimer>
 
 DecodeThread::DecodeThread(QObject *parent) : QThread(parent), m_running(true)
 {
@@ -27,15 +28,16 @@ void DecodeThread::run()
 {
     qDebug() << "[DecodeThread] 解码线程已启动";
 
-    // 初始化解码器
-    if (!m_decoder.isInitialized()) {
-        if (!m_decoder.init(AV_CODEC_ID_H264)) {
-            qCritical() << "[DecodeThread] 视频解码器初始化失败";
-            return;
-        }
+    // 初始化解码器：按相机实际编码类型（H.264/H.265/MJPEG），
+    // 每次进入线程都重建，保证切换编码类型后仍能解码
+    if (!m_decoder.init(VideoDecoder::codecIdFromEncType(m_encType))) {
+        qCritical() << "[DecodeThread] 视频解码器初始化失败，encType =" << m_encType;
+        return;
     }
 
     QByteArray data;
+    QElapsedTimer statsTimer;
+    statsTimer.start();
     while (m_running.load()) {
         // 等待队列数据
         if (m_dataQueue.waitAndPop(data, 1000)) {
@@ -51,6 +53,16 @@ void DecodeThread::run()
             } catch (...) {
                 qDebug() << "[DecodeThread] 解码异常，跳过当前帧";
             }
+        }
+
+        // 每 5s 汇总一次丢帧，便于评估跟踪输入质量（队列满会丢最旧帧）
+        if (statsTimer.elapsed() >= 5000) {
+            const int dropped = m_dataQueue.droppedCount();
+            if (dropped > 0) {
+                qWarning() << "[DecodeThread] 解码队列积压，最近 5s 丢弃最旧帧:" << dropped;
+                m_dataQueue.resetDropped();
+            }
+            statsTimer.restart();
         }
     }
 

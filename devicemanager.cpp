@@ -439,6 +439,19 @@ bool DeviceManager::startStream()
         return true;
     }
 
+    // 按相机实际编码类型（H.264/H.265/MJPEG）初始化解码器，避免换编码后预览全黑
+    {
+        UNIV_DEV_VIDEO_ENC_PARAM encParam;
+        memset(&encParam, 0, sizeof(encParam));
+        encParam.stream = MAIN;
+        if (UNIV_DEV_GetConfig(m_userID, UNIV_CFG_VIDEO_ENCODE, &encParam, sizeof(encParam)) == SUCCESS) {
+            m_decodeThread->setEncType(encParam.videoEncType);
+            qDebug() << "[Stream] 相机视频编码类型 videoEncType =" << encParam.videoEncType;
+        } else {
+            qWarning() << "[Stream] 获取视频编码配置失败，按 H.264 处理";
+        }
+    }
+
     // 启动解码线程
     if (!m_decodeThread->isRunning()) {
         m_decodeThread->start();
@@ -630,6 +643,9 @@ bool DeviceManager::startRecord(const QString& filePath)
         connect(m_recordThread, &RecordThread::errorOccurred, this, &DeviceManager::onRecordError);
         connect(m_recordThread, &RecordThread::recordFinished, this, &DeviceManager::onRecordFinished);
     }
+
+    // 录像侧的解码器同样按相机实际编码类型初始化
+    m_recordThread->setEncType(ret == SUCCESS ? videoParam.videoEncType : 0);
 
     // 初始化录像
     if (!m_recordThread->initRecord(filePath, frameRate)) {

@@ -21,6 +21,7 @@ public:
 
         if (m_queue.size() >= m_maxSize) {
             m_queue.dequeue();
+            ++m_dropped;        // 队列满：丢最旧帧并计数，供上层评估输入质量
         }
         m_queue.enqueue(item);
         m_cond.wakeOne();
@@ -55,12 +56,17 @@ public:
     int size() const { QMutexLocker locker(&m_mutex); return m_queue.size(); }
     bool isEmpty() const { QMutexLocker locker(&m_mutex); return m_queue.isEmpty(); }
 
+    // 丢帧统计（队列满时丢最旧帧的次数）
+    int droppedCount() const { QMutexLocker locker(&m_mutex); return m_dropped; }
+    void resetDropped() { QMutexLocker locker(&m_mutex); m_dropped = 0; }
+
 private:
     mutable QMutex m_mutex;
     QWaitCondition m_cond;
     QQueue<T> m_queue;
     int m_maxSize;
     bool m_stopped;
+    int m_dropped = 0;
 };
 
 #endif // THREADSAFEQUEUE_H

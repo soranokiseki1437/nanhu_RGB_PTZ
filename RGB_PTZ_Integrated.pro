@@ -24,7 +24,9 @@ SOURCES += \
     objecttracker.cpp \
     trackingcontroller.cpp \
     fftutils.cpp \
-    logmanager.cpp
+    logmanager.cpp \
+    logging_categories.cpp \
+    imagematconvert.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -43,7 +45,9 @@ HEADERS += \
     objecttracker.h \
     trackingcontroller.h \
     fftutils.h \
-    logmanager.h
+    logmanager.h \
+    logging_categories.h \
+    imagematconvert.h
 
 FORMS += \
     mainwindow.ui
@@ -68,6 +72,15 @@ LIBS += -L$$FFMPEG_DIR/lib \
         -lswscale \
         -lswresample
 
+# ===== OpenCV 依赖（DSST 跟踪器，源码编译的最小集 core+imgproc，见 待执行方案/03） =====
+OPENCV_DIR = $$PWD/opencv/install
+INCLUDEPATH += $$OPENCV_DIR/include
+
+win32: LIBS += -L$$OPENCV_DIR/x64/mingw/lib \
+    -lopencv_core4100 \
+    -lopencv_imgproc4100
+# 运行时需把 libopencv_core4100.dll / libopencv_imgproc4100.dll 放到 exe 同目录
+
 # 避免C语言相关警告
 DEFINES += _CRT_SECURE_NO_WARNINGS
 
@@ -75,10 +88,8 @@ DEFINES += _CRT_SECURE_NO_WARNINGS
 DEFINES += PROJECT_VERSION=\\\"1.0.0\\\"
 DEFINES += PROJECT_NAME=\\\"RGB_PTZ_Integrated\\\"
 
-# 修复P3#29: 生产环境下禁用qDebug（通过qmake配置控制）
+# Release 下不再一刀切关闭 qDebug（QT_NO_DEBUG_OUTPUT 会让 qCDebug 在编译期整体失效），
+# 改为运行时用 QLoggingCategory 分类开关，默认策略见 main.cpp
 CONFIG(debug, debug|release) {
     DEFINES += QT_MESSAGELOGCONTEXT
-} else {
-    # Release模式下，将qDebug替换为void以避免输出
-    DEFINES += QT_NO_DEBUG_OUTPUT
 }

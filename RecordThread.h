@@ -25,6 +25,9 @@ public:
     void pushData(const QByteArray &data);
     void stopRecord();
 
+    // 设置相机编码类型（UNIV_DEV_VIDEO_ENC_PARAM.videoEncType），在 initRecord 前调用
+    void setEncType(int encType) { m_encType = encType; }
+
 signals:
     void errorOccurred(const QString &error);
     void recordFinished(const QString &filePath);
@@ -46,6 +49,11 @@ private:
     int m_height;
     int64_t m_pts;
     int m_encoderFailCount;  // 编码器初始化连续失败计数
+    int m_encType;           // 相机编码类型：0-h264, 1-MPEG4, 2-MJPEG, 3-h265
+    int m_inputW;            // sws 输入宽（变化时需重建上下文，防止 sws_scale 越界）
+    int m_inputH;            // sws 输入高
+    int m_inputFmt;          // sws 输入像素格式
+    int m_writeFailCount;    // 录像写盘连续失败计数
 
     // 解码
     VideoDecoder m_decoder;

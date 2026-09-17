@@ -1,5 +1,6 @@
 #include "objecttracker.h"
 #include "fftutils.h"
+#include "logging_categories.h"
 #include <cmath>
 #include <algorithm>
 #include <QDebug>
@@ -159,7 +160,7 @@ std::vector<std::vector<float>> ObjectTracker::createCosWindow(int w, int h)
 bool ObjectTracker::init(const QImage& frame, const QRectF& targetRect)
 {
     reset();
-    qDebug() << "[Tracker] init 开始，目标框=" << targetRect;
+    qCDebug(trackerLog) << "[Tracker] init 开始，目标框=" << targetRect;
 
     if (frame.isNull() || targetRect.width() <= 0 || targetRect.height() <= 0) {
         qWarning() << "[ObjectTracker] 初始化失败: 无效图像或目标框";
@@ -200,7 +201,7 @@ bool ObjectTracker::init(const QImage& frame, const QRectF& targetRect)
     // nextPow2 会过度撑大模型区域，导致响应峰值稀释、计算量爆炸
     m_modelW = rawModelW;
     m_modelH = rawModelH;
-    qDebug() << "[Tracker] m_model=" << m_modelW << "x" << m_modelH
+    qCDebug(trackerLog) << "[Tracker] m_model=" << m_modelW << "x" << m_modelH
              << " pos=(" << m_posX << "," << m_posY << ")"
              << " target=" << m_targetW << "x" << m_targetH;
 
@@ -208,15 +209,15 @@ bool ObjectTracker::init(const QImage& frame, const QRectF& targetRect)
     m_yf = createGaussianLabel(m_modelW, m_modelH, sigma);
 
     m_cosWindow = createCosWindow(m_modelW, m_modelH);
-    qDebug() << "[Tracker] 高斯标签与余弦窗生成完毕";
+    qCDebug(trackerLog) << "[Tracker] 高斯标签与余弦窗生成完毕";
 
     try {
         std::vector<std::vector<float>> image = imageToGray(frame);
-        qDebug() << "[Tracker] imageToGray 完成，尺寸=" << image.size()
+        qCDebug(trackerLog) << "[Tracker] imageToGray 完成，尺寸=" << image.size()
                  << (image.empty() ? 0 : static_cast<int>(image[0].size()));
 
         std::vector<std::vector<float>> sample = getTranslationSample(image, m_posX, m_posY, m_currentScale);
-        qDebug() << "[Tracker] getTranslationSample 完成，sample=" << sample.size()
+        qCDebug(trackerLog) << "[Tracker] getTranslationSample 完成，sample=" << sample.size()
                  << (sample.empty() ? 0 : static_cast<int>(sample[0].size()));
 
         auto sampleComplex = realToComplex(sample);
@@ -231,7 +232,7 @@ bool ObjectTracker::init(const QImage& frame, const QRectF& targetRect)
 
         m_hfNumBackup = m_hfNum;
         m_hfDenBackup = m_hfDen;
-        qDebug() << "[Tracker] 平移滤波器训练完毕";
+        qCDebug(trackerLog) << "[Tracker] 平移滤波器训练完毕";
 
         // KF 初始化
         m_kf.x[0] = m_posX;
@@ -249,11 +250,11 @@ bool ObjectTracker::init(const QImage& frame, const QRectF& targetRect)
         int imgW = frame.width();
         float maxScale = std::floor(std::log(std::min(static_cast<float>(imgW) / m_targetW, static_cast<float>(imgH) / m_targetH)) / std::log(m_scaleStep));
         m_maxScaleFactor = std::pow(m_scaleStep, maxScale);
-        qDebug() << "[Tracker] scale bounds: min=" << m_minScaleFactor
+        qCDebug(trackerLog) << "[Tracker] scale bounds: min=" << m_minScaleFactor
                  << " max=" << m_maxScaleFactor;
 
         if (m_scaleEnabled) {
-            qDebug() << "[Tracker] scale 初始化，nScales=" << m_numScales;
+            qCDebug(trackerLog) << "[Tracker] scale 初始化，nScales=" << m_numScales;
             m_scaleFactors.resize(m_numScales);
             int centerIdx = (m_numScales + 1) / 2;
             for (int s = 0; s < m_numScales; ++s) {
@@ -273,7 +274,7 @@ bool ObjectTracker::init(const QImage& frame, const QRectF& targetRect)
             }
             m_scaleModelW = std::max(4, static_cast<int>(std::floor(m_targetW * scaleModelFactor)));
             m_scaleModelH = std::max(4, static_cast<int>(std::floor(m_targetH * scaleModelFactor)));
-            qDebug() << "[Tracker] scaleModel=" << m_scaleModelW << "x" << m_scaleModelH;
+            qCDebug(trackerLog) << "[Tracker] scaleModel=" << m_scaleModelW << "x" << m_scaleModelH;
 
             float scaleSigma = static_cast<float>(m_numScales) / std::sqrt(static_cast<float>(m_numScales));
             std::vector<float> ys(m_numScales, 0.0f);
@@ -286,15 +287,15 @@ bool ObjectTracker::init(const QImage& frame, const QRectF& targetRect)
             for (int i = 0; i < m_numScales; ++i)
                 m_ysf[i] = std::complex<float>(ys[i], 0.0f);
             fft1d(m_ysf, false);
-            qDebug() << "[Tracker] scale 标签 FFT 完毕";
+            qCDebug(trackerLog) << "[Tracker] scale 标签 FFT 完毕";
 
             auto scaleSample = getScaleSample(image, m_posX, m_posY);
-            qDebug() << "[Tracker] scaleSample 完成，rows="
+            qCDebug(trackerLog) << "[Tracker] scaleSample 完成，rows="
                      << scaleSample.size()
                      << (scaleSample.empty() ? 0 : static_cast<int>(scaleSample[0].size()));
             if (!scaleSample.empty()) {
                 initScaleFilter(scaleSample);
-                qDebug() << "[Tracker] initScaleFilter 完成";
+                qCDebug(trackerLog) << "[Tracker] initScaleFilter 完成";
             } else {
                 qWarning() << "[ObjectTracker] 尺度样本为空，禁用尺度估计";
                 m_scaleEnabled = false;
@@ -309,7 +310,7 @@ bool ObjectTracker::init(const QImage& frame, const QRectF& targetRect)
     }
 
     m_initialized = true;
-    qDebug() << "[ObjectTracker] 初始化成功, 模型尺寸:" << m_modelW << "x" << m_modelH
+    qCDebug(trackerLog) << "[ObjectTracker] 初始化成功, 模型尺寸:" << m_modelW << "x" << m_modelH
              << "目标:(" << m_posX << "," << m_posY << ") " << m_targetW << "x" << m_targetH;
     return true;
 }
@@ -766,7 +767,7 @@ TrackResult ObjectTracker::update(const QImage& frame)
         return result;
     }
 
-    qDebug() << "[Tracker] update 开始，frame=" << frame.width() << "x" << frame.height()
+    qCDebug(trackerLog) << "[Tracker] update 开始，frame=" << frame.width() << "x" << frame.height()
              << " format=" << static_cast<int>(frame.format())
              << " model=" << m_modelW << "x" << m_modelH
              << " pos=(" << m_posX << "," << m_posY << ") scale=" << m_currentScale;
@@ -776,7 +777,7 @@ TrackResult ObjectTracker::update(const QImage& frame)
         qWarning() << "[Tracker] 图像灰度转换失败，跳过当前帧";
         return result;
     }
-    qDebug() << "[Tracker] 图像灰度转换完成，尺寸="
+    qCDebug(trackerLog) << "[Tracker] 图像灰度转换完成，尺寸="
              << image.size() << "x" << (image.empty() ? 0 : image[0].size());
 
     // 保存当前位置作为上一帧位置（用于KF速度计算和重检测）
@@ -787,7 +788,7 @@ TrackResult ObjectTracker::update(const QImage& frame)
     kfPredict();
     float kfPredX = m_kf.x[0];
     float kfPredY = m_kf.x[1];
-    qDebug() << "[Tracker] KF预测=(" << kfPredX << "," << kfPredY << ")";
+    qCDebug(trackerLog) << "[Tracker] KF预测=(" << kfPredX << "," << kfPredY << ")";
 
     // === 提取检测样本（以KF预测位置为中心，加快运动目标鲁棒性）===
     auto sample = getTranslationSample(image, kfPredX, kfPredY, m_currentScale);
@@ -795,20 +796,20 @@ TrackResult ObjectTracker::update(const QImage& frame)
         qWarning() << "[Tracker] 平移采样为空，跳过当前帧";
         return result;
     }
-    qDebug() << "[Tracker] 采样完成，sample=" << sample.size() << "x" << sample[0].size()
+    qCDebug(trackerLog) << "[Tracker] 采样完成，sample=" << sample.size() << "x" << sample[0].size()
              << "开始响应计算";
     auto response = computeResponse(sample);
     if (response.empty() || response[0].empty()) {
         qWarning() << "[Tracker] 响应图为空，跳过当前帧";
         return result;
     }
-    qDebug() << "[Tracker] 响应计算完成，response 尺寸=" << response.size()
+    qCDebug(trackerLog) << "[Tracker] 响应计算完成，response 尺寸=" << response.size()
              << (response.empty() ? 0 : response[0].size());
 
     int maxRow = 0, maxCol = 0;
     findMaxResponse(response, maxRow, maxCol);
     float psr = computePSR(response);
-    qDebug() << "[Tracker] maxResponseIdx=(" << maxRow << "," << maxCol << ") psr=" << psr;
+    qCDebug(trackerLog) << "[Tracker] maxResponseIdx=(" << maxRow << "," << maxCol << ") psr=" << psr;
 
     // NaN/Inf 防护：如果检测位置发散，回退到 KF 预测位置
     float detX = kfPredX + (-m_modelW / 2.0f + maxCol) * m_currentScale;
@@ -1055,7 +1056,7 @@ void ObjectTracker::initScaleFilter(const std::vector<std::vector<float>>& scale
     m_sfNumBackup = m_sfNum;
     m_sfDenBackup = m_sfDen;
 
-    qDebug() << "[ObjectTracker] 尺度滤波器初始化完成, 像素数:" << nPixels
+    qCDebug(trackerLog) << "[ObjectTracker] 尺度滤波器初始化完成, 像素数:" << nPixels
              << "尺度:" << nScalesLocal
              << "模型尺寸:" << m_scaleModelW << "x" << m_scaleModelH;
 }
