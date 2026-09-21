@@ -180,7 +180,7 @@ flowchart LR
 - [x] 处置 2：对 `项目说明/方案/RGB_PTZ_Integrated_修复方案.md` 执行 `git rm` 提交删除（已在 `93c9f53` 闭环）。
 - [x] 处置 3：执行 `git checkout reference/main_zt.cpp sdk/sdk.h` 消除 CRLF 无效变动（已闭环）。
 - [x] 处置 4：将本 `checkpoint.md` 纳入 Git 跟踪并提交（已在 `93c9f53` 闭环）。
-- [ ] 处置 5：对已执行完毕的 `待执行方案/` 目录进行清理或归档（等待用户最终确认直接删除或移入项目说明）。
+- [x] 处置 5：彻底移除已全部执行完毕的 `待执行方案/` 目录（内容已全量沉淀至 `checkpoint.md`）。
 - [ ] 处置 6：将 `项目说明/` 下关键素材与图纸入库，`sdk/` 下非 Windows 压缩包加入 `.gitignore`。
 
 ### 阶段二：Step 7 实机联调验收（需连接相机与云台硬件）
@@ -195,6 +195,13 @@ flowchart LR
 ---
 
 ## 七、历史检查点记录（Checkpoint Log）
+
+### Checkpoint 2026-09-21 #3
+- **记录人**：Antigravity AI
+- **类型**：目录精简与方案清理
+- **核心内容**：
+  1. 彻底移除 `待执行方案/` 目录（3 个方案文件中的全部代码改造均已合入，45 项体检闭环与 Step 7 验收标准已由 `checkpoint.md` 全量继承）。
+  2. 根目录恢复至纯净状态，不再保留过时的“待执行”语义目录。
 
 ### Checkpoint 2026-09-21 #2 (HEAD @ `93c9f53`)
 - **记录人**：Antigravity AI
