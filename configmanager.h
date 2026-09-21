@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QMutex>
 
 class ConfigManager : public QObject
 {
@@ -53,6 +54,7 @@ public:
     void saveConfig();
 
 private:
+    mutable QMutex m_mutex;  // P7：保护全部配置字段的并发读写
     QString m_deviceIP;
     QString m_deviceUsername;
     QString m_devicePassword;

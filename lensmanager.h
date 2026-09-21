@@ -5,6 +5,7 @@
 #include <QString>
 #include <QMutex>
 #include <QThread>
+#include <QTimer>
 #include "sdk/sdk.h"
 
 // 工作者类 - 在独立线程中执行 SDK 调用
@@ -77,6 +78,7 @@ private slots:
     void onIrisModeSetResult(bool success, bool isManual);
     void onFocusModeGetResult(bool success, bool isManual);
     void onIrisModeGetResult(bool success, bool isManual);
+    void onModeSwitchTimeout(); // P6：模式切换等待超时
 
 signals:
     void errorOccurred(const QString &error);
@@ -100,6 +102,10 @@ private:
 
     FocusMode m_focusMode; // 本地缓存的聚焦模式
     bool m_isManualIris; // 本地缓存的光圈模式
+
+    // P6：onePushFocus 需要先切自动模式时，挂起待执行的命令（-1 表示无挂起）
+    int m_waitingModeSwitchFor = -1;
+    QTimer *m_modeSwitchTimer = nullptr; // 1 秒超时保护
 };
 
 #endif // LENSMANAGER_H

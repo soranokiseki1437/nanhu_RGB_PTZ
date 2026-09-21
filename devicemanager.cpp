@@ -16,7 +16,6 @@ DeviceManager::DeviceManager(QObject *parent) : QObject(parent)
     , m_streaming(false)
     , m_decodeThread(nullptr)
     , m_recordThread(nullptr)
-    , m_isRecording(false)
     , m_loginWatcher(new QFutureWatcher<LoginResult>(this))
     , m_lensManager(new LensManager(this))
     , m_dataRecorder(new DataRecorder(this))
@@ -383,7 +382,8 @@ void DeviceManager::OnException(uint32_t event, uint64_t userID)
         case EXCEPTION_KEEP_ALIVE:
             qDebug() << "保活失败，设备断开连接，用户ID:" << userID;
             emit safeInstance->errorOccurred("保活失败，设备断开连接");
-            safeInstance->logout();
+            // C5：SDK 异常回调在 SDK 内部线程，logout 涉及串口/信号量操作，切回对象所属线程执行
+            QMetaObject::invokeMethod(safeInstance, "logout", Qt::QueuedConnection);
             break;
         case EXCEPTION_SESSION_CLOSE:
             qDebug() << "会话断开连接，用户ID:" << userID;
@@ -425,6 +425,15 @@ QString DeviceManager::analyzeLoginError(int errorCode)
     }
 }
 
+void DeviceManager::requestStartStream()
+{
+    // C7：UNIV_DEV_RealPlay 为阻塞 SDK 调用，移到线程池执行，避免卡 UI 线程
+    (void)QtConcurrent::run([this]() {
+        const bool ok = startStream();
+        emit streamStarted(ok);  // auto-connection：跨线程排队回对象所属线程
+    });
+}
+
 bool DeviceManager::startStream()
 {
     QMutexLocker locker(&m_mutex);
@@ -452,10 +461,9 @@ bool DeviceManager::startStream()
         }
     }
 
-    // 启动解码线程
-    if (!m_decodeThread->isRunning()) {
-        m_decodeThread->start();
-    }
+    // 启动解码线程（C6：restart 复位队列 stopped 标志——stopStream 后线程已退出，
+    // 直接 start() 会导致线程空转、画面黑屏）
+    m_decodeThread->restart();
 
     uint64_t playHandle = 0;
     int ret = UNIV_DEV_RealPlay(m_userID, 0, MAIN, OnStreamData, &playHandle);
@@ -485,6 +493,14 @@ bool DeviceManager::stopStream()
 
     m_streaming = false;
     m_playHandle = 0;
+
+    // C6：同步停止解码线程（否则线程存活期间 SDK 停流后的残留数据继续解码，
+    // 且下次 startStream 依赖 restart() 复位队列）
+    if (m_decodeThread && m_decodeThread->isRunning()) {
+        m_decodeThread->stop();
+        m_decodeThread->wait();
+    }
+
     qDebug() << "[Stream] 停止预览成功";
     return true;
 }
@@ -703,16 +719,13 @@ void DeviceManager::onRecordFinished(const QString &filePath)
     emit recordStopped(filePath);
 }
 
-void DeviceManager::onPTZAngleReceived(float pan, float tilt)
+void DeviceManager::onPTZAngleReceived(float pan, float tilt, float panSpeed, float tiltSpeed)
 {
-    // 更新数据记录器的PTZ数据
+    // 更新数据记录器的PTZ数据（速度已随信号传入，C1）
     if (m_dataRecorder->isRecording()) {
-        // 假设PTZ速度暂时设为0，需要从PTZController获取实际速度
-        float panSpeed = 0.0f;
-        float tiltSpeed = 0.0f;
         m_dataRecorder->updatePTZData(pan, tilt, panSpeed, tiltSpeed);
     }
-    
+
     // 转发PTZ角度信号
     emit ptzAngleReceived(pan, tilt);
 }

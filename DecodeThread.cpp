@@ -24,6 +24,15 @@ void DecodeThread::stop()
     m_dataQueue.stop();
 }
 
+void DecodeThread::restart()
+{
+    m_dataQueue.reset();  // 清空残留并复位 stopped 标志，否则复活后 push 丢数据/waitAndPop 恒失败
+    if (!isRunning()) {
+        m_running = true;
+        start();
+    }
+}
+
 void DecodeThread::run()
 {
     qDebug() << "[DecodeThread] 解码线程已启动";

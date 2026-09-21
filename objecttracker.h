@@ -5,8 +5,8 @@
 #include <QRect>
 #include <QImage>
 #include <vector>
-#include <complex>
-#include "fftutils.h"
+#include <opencv2/core.hpp>
+#include "dsstcore.h"
 
 // 跟踪结果结构体
 struct TrackResult {
@@ -30,6 +30,9 @@ struct TrackResult {
 Q_DECLARE_METATYPE(TrackResult)
 
 // DSST + KF 目标跟踪器
+// 结构：DsstCore（纯算法内核：检测/尺度/模板更新）+ 本类外壳（KF平滑、遮挡三态机、重检测）
+// 外壳不再持有任何滤波器模型；模板更新由内核内部滑动平均完成，
+// 遮挡期间通过跳过内核 update + setLearningFrozen 实现冻结语义。
 class ObjectTracker : public QObject
 {
     Q_OBJECT
@@ -47,53 +50,46 @@ public:
     // 重置跟踪器
     void reset();
 
-    // 获取当前目标位置
+    // 获取当前目标框
     QRectF getCurrentBBox() const;
 
     // 是否正在跟踪
     bool isTracking() const { return m_initialized; }
 
-    // 设置参数
-    void setPadding(float padding) { m_padding = padding; }
-    void setLearningRate(float lr) { m_learningRate = lr; }
-    void setLambda(float lambda) { m_lambda = lambda; }
+    // 红外模式（须在 init 前设置：改变内核特征通道数）
+    void setInfraredMode(bool ir) { m_infraredMode = ir; }
+    bool isInfraredMode() const { return m_infraredMode; }
 
-    // 调试辅助
-    QString modelSize() const { return QString("%1x%2").arg(m_modelW).arg(m_modelH); }
-    QString scaleModelSize() const { return QString("%1x%2").arg(m_scaleModelW).arg(m_scaleModelH); }
+    // 调试辅助：内核模型尺寸 "宽x高"
+    QString modelSize() const;
 
 signals:
     void trackingLost();
     void trackingRecovered();
     void trackingDone(const TrackResult& result);  // 跨线程通知跟踪结果
+    void initDone(bool ok, const QString& modelInfo);  // C9：异步初始化完成通知
 
 public slots:
     // 跨线程帧处理入口（在 worker thread 中调用）
     void processFrameSlot(const QImage& frame);
 
+    // C9：异步初始化入口（投递到 worker 线程执行，避免 init 卡 UI 线程）
+    void initSlot(const QImage& frame, const QRectF& targetRect);
+
 private:
-    // === 核心DSST相关 ===
-    bool m_initialized;
+    // === DsstCore 内核 + 模式 ===
+    DsstCore m_core;
+    bool m_infraredMode = false;
 
-    // 目标状态
-    float m_posX, m_posY;           // 目标中心位置
-    float m_targetW, m_targetH;     // 基础目标尺寸
-    float m_currentScale;           // 当前尺度因子
+    // === 外壳状态 ===
+    bool m_initialized = false;
 
-    // 模型尺寸（含padding）
-    int m_modelW, m_modelH;
+    // 目标状态（每帧从内核同步）
+    float m_posX = 0.0f, m_posY = 0.0f;       // 目标中心位置
+    float m_targetW = 0.0f, m_targetH = 0.0f; // 基础目标尺寸（未乘尺度）
+    float m_currentScale = 1.0f;              // 当前尺度因子（来自内核）
 
-    // 滤波器模型
-    std::vector<std::vector<std::complex<float>>> m_hfNum;  // 平移滤波器分子
-    std::vector<std::vector<float>> m_hfDen;                // 平移滤波器分母
-    std::vector<std::vector<std::complex<float>>> m_hfNumBackup;
-    std::vector<std::vector<float>> m_hfDenBackup;
-
-    // 余弦窗
-    std::vector<std::vector<float>> m_cosWindow;
-
-    // 高斯标签
-    std::vector<std::vector<std::complex<float>>> m_yf;
+    int m_frameCount = 0;                     // 用于日志节流（每100帧输出一次）
 
     // === 卡尔曼滤波相关 ===
     struct KFState {
@@ -101,94 +97,29 @@ private:
         float P[4][4];  // 协方差
     } m_kf;
 
-    float m_kfQ[4][4];  // 过程噪声（正常模式）
+    float m_kfQ[4][4];     // 过程噪声（正常模式）
     float m_kfQLost[4][4]; // 过程噪声（遮挡模式，更大不确定性）
-    float m_kfR[2][2];  // 观测噪声
+    float m_kfR[2][2];     // 观测噪声
 
     // === 遮挡检测相关 ===
-    bool m_inOcclusion;
-    int m_lostCount;
-    float m_psrBaseline;
-    bool m_baselineLocked;
+    bool m_inOcclusion = false;
+    int m_lostCount = 0;
+    float m_psrBaseline = 0.0f;
+    bool m_baselineLocked = false;
     std::vector<float> m_psrHistory;
 
-    // === 尺度估计（灰度像素展平 + 多尺度滤波器） ===
-    bool m_scaleEnabled;                    // 是否启用尺度估计
-    int m_scaleModelW, m_scaleModelH;       // 尺度模型尺寸（基于目标大小缩放）
-    std::vector<float> m_scaleFactors;      // 尺度因子数组
-    std::vector<float> m_scaleWindow;       // 尺度Hann窗
-    std::vector<std::vector<std::complex<float>>> m_sfNum;   // 尺度滤波器分子 (像素×尺度，频域)
-    std::vector<float> m_sfDen;             // 尺度滤波器分母 (1×尺度，频域能量求和)
-    std::vector<std::vector<std::complex<float>>> m_sfNumBackup;
-    std::vector<float> m_sfDenBackup;
-    std::vector<std::complex<float>> m_ysf;     // 尺度高斯标签的FFT
-
-    FHOGConfig m_fhogConfig;               // FHOG配置
-
-    // === 参数 ===
-    float m_padding;
-    float m_outputSigmaFactor;
-    float m_lambda;
-    float m_learningRate;
-    float m_scaleStep;
-    int m_numScales;
-    float m_minScaleFactor;
-    float m_maxScaleFactor;
-
     // === 内部方法 ===
-    // QImage转灰度矩阵
-    std::vector<std::vector<float>> imageToGray(const QImage& img);
-
-    // 提取平移样本
-    std::vector<std::vector<float>> getTranslationSample(
-        const std::vector<std::vector<float>>& image,
-        float cx, float cy, float scale);
-
-    // 计算响应图
-    std::vector<std::vector<float>> computeResponse(
-        const std::vector<std::vector<float>>& sample);
-
-    // 计算PSR
-    float computePSR(const std::vector<std::vector<float>>& response);
-
-    // 更新滤波器（adaptAppearance=true时使用加速学习率）
-    void updateFilter(const std::vector<std::vector<float>>& sample,
-                      bool adaptAppearance = false);
+    // 计算PSR（吃内核响应图，半径5圆形峰值抑制）
+    float computePSR(const cv::Mat& response);
 
     // 卡尔曼滤波预测
     void kfPredict();
 
-    // 卡尔曼滤波更新（仅使用位置测量，速度由KF内部通过状态转移隐式估计
+    // 卡尔曼滤波更新（仅使用位置测量，速度由KF内部通过状态转移隐式估计）
     void kfUpdate(float measX, float measY);
 
-    // 生成高斯标签
-    std::vector<std::vector<std::complex<float>>> createGaussianLabel(
-        int w, int h, float sigma);
-
-    // 生成余弦窗
-    std::vector<std::vector<float>> createCosWindow(int w, int h);
-
-    // 矩阵工具
-    float findMaxResponse(const std::vector<std::vector<float>>& response, int& row, int& col);
-
-    // 遮挡重检测（传入上一帧位置用于KF速度计算）
-    bool reDetect(const std::vector<std::vector<float>>& image,
-                  float prevPosX = 0.0f, float prevPosY = 0.0f);
-
-    // === 尺度估计内部方法 ===
-    // 提取尺度样本（33个尺度的FHOG特征矩阵）
-    std::vector<std::vector<float>> getScaleSample(
-        const std::vector<std::vector<float>>& image,
-        float cx, float cy);
-
-    // 初始化尺度滤波器（首帧调用）
-    void initScaleFilter(const std::vector<std::vector<float>>& scaleSample);
-
-    // 计算尺度响应，返回最佳尺度索引
-    int computeScaleResponse(const std::vector<std::vector<float>>& scaleSample);
-
-    // 更新尺度滤波器
-    void updateScaleFilter(const std::vector<std::vector<float>>& scaleSample);
+    // 遮挡重检测：九宫格偏移 + 内核 detectOnly，成功后混合备份模型并同步内核位置
+    bool reDetect(const cv::Mat& image);
 };
 
 #endif // OBJECTTRACKER_H

@@ -32,7 +32,7 @@ TrackingController::~TrackingController()
 
 void TrackingController::startSelection()
 {
-    if (m_state == Tracking || m_state == Selecting) {
+    if (m_state == Tracking || m_state == Selecting || m_state == Initializing) {
         stopTracking();
     }
     m_state = Selecting;
@@ -65,36 +65,12 @@ void TrackingController::setTarget(const QImage& frame, const QRectF& targetRect
     m_trackerThread = nullptr;
     qDebug() << "[TrackCtrl] 旧 tracker 清理完毕";
 
-    // 创建独立工作线程
+    // C9：创建 tracker + 线程后投递异步初始化（init 含核响应运算，移出 UI 线程）
     m_trackerThread = new QThread(this);
     m_tracker = new ObjectTracker(nullptr);
-    qDebug() << "[TrackCtrl] 新 tracker 创建完毕，开始 init()...";
+    m_tracker->setInfraredMode(m_infraredMode);  // 模式须在 init 前设置
 
-    bool ok = false;
-    try {
-        ok = m_tracker->init(frame, targetRect);
-    } catch (const std::exception &e) {
-        qCritical() << "[TrackCtrl] tracker->init() 抛出异常:" << e.what();
-        ok = false;
-    } catch (...) {
-        qCritical() << "[TrackCtrl] tracker->init() 抛出未知异常";
-        ok = false;
-    }
-
-    if (!ok) {
-        qWarning() << "[TrackCtrl] tracker init 失败，释放资源";
-        delete m_tracker;
-        m_tracker = nullptr;
-        delete m_trackerThread;
-        m_trackerThread = nullptr;
-        emit statusMessage("跟踪器初始化失败，请重新框选");
-        m_state = Idle;
-        emit stateChanged(m_state);
-        return;
-    }
-    qDebug() << "[TrackCtrl] tracker init 成功，model=" << m_tracker->modelSize()
-             << " scaleModel=" << m_tracker->scaleModelSize();
-
+    connect(m_tracker, &ObjectTracker::initDone, this, &TrackingController::onTrackerInitDone);
     connect(m_tracker, &ObjectTracker::trackingDone, this, [this](const TrackResult& result) {
         m_lastResult = result;
         emit trackingResult(result);
@@ -110,20 +86,44 @@ void TrackingController::setTarget(const QImage& frame, const QRectF& targetRect
     connect(m_tracker, &ObjectTracker::trackingRecovered, this, &TrackingController::onTrackingRecovered);
 
     m_tracker->moveToThread(m_trackerThread);
+    // Step6：跟踪为计算密集型，降低调度优先级，避免挤占 UI/取流线程
+    m_trackerThread->setPriority(QThread::LowPriority);
     m_trackerThread->start();
-    qDebug() << "[TrackCtrl] 工作线程启动完毕";
 
-    m_state = Tracking;
+    QMetaObject::invokeMethod(m_tracker, "initSlot",
+                              Qt::QueuedConnection,
+                              Q_ARG(QImage, frame), Q_ARG(QRectF, targetRect));
+
+    // 状态先置 Initializing：初始化完成前 processFrame 自动丢帧
+    m_state = Initializing;
     m_lastResult = TrackResult();
-    m_lastResult.valid = true;
-    m_lastResult.bbox = targetRect;
-
     resetPidState();
 
     emit stateChanged(m_state);
-    emit statusMessage("目标跟踪已启动");
+    emit statusMessage("跟踪器初始化中...");
     emit drawTrackingBox(targetRect, false);
-    qDebug() << "[TrackCtrl] setTarget done, state=Tracking";
+    qDebug() << "[TrackCtrl] setTarget done, state=Initializing（异步 init 已投递）";
+}
+
+// C9：异步初始化回调（worker 线程 emit，队列到主线程）
+void TrackingController::onTrackerInitDone(bool ok, const QString& modelInfo)
+{
+    // 初始化期间用户可能已取消框选/重新框选，仅在 Initializing 态下生效
+    if (m_state != Initializing) {
+        return;
+    }
+
+    if (!ok) {
+        qWarning() << "[TrackCtrl] tracker 异步 init 失败";
+        stopTracking();
+        emit statusMessage("跟踪器初始化失败，请重新框选");
+        return;
+    }
+
+    qDebug() << "[TrackCtrl] tracker 异步 init 成功，model=" << modelInfo;
+    m_state = Tracking;
+    emit stateChanged(m_state);
+    emit statusMessage("目标跟踪已启动");
 }
 
 void TrackingController::processFrame(const QImage& frame)
@@ -307,6 +307,14 @@ void TrackingController::pauseTracking()
         emit stateChanged(m_state);
         emit statusMessage("跟踪已暂停");
     }
+}
+
+void TrackingController::setInfraredMode(bool ir)
+{
+    if (m_infraredMode == ir) return;
+    m_infraredMode = ir;
+    qDebug() << "[TrackCtrl] 跟踪源模式切换为" << (ir ? "红外" : "可见光")
+             << "（下次框选生效）";
 }
 
 void TrackingController::resumeTracking()

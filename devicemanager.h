@@ -5,6 +5,7 @@
 #include <QString>
 #include <QMutex>
 #include <QFutureWatcher>
+#include <atomic>
 #include "sdk/sdk.h"
 #include "DecodeThread.h"
 #include "RecordThread.h"
@@ -32,6 +33,8 @@ public slots:
     bool logout();
     bool startStream();
     bool stopStream();
+    // C7：异步开启预览（UNIV_DEV_RealPlay 阻塞调用在 QtConcurrent 线程执行，完成后发 streamStarted）
+    void requestStartStream();
     bool startRecord(const QString& filePath);
     void stopRecord();
     
@@ -58,6 +61,7 @@ signals:
     void connectionStatusChanged(bool connected);
     void errorOccurred(const QString &error);
     void frameReceived(const QImage &frame);
+    void streamStarted(bool ok);   // C7：requestStartStream 完成通知
     void recordStarted();
     void recordStopped(const QString &filePath);
     
@@ -76,7 +80,7 @@ private:
     bool m_streaming;
     DecodeThread* m_decodeThread;
     RecordThread* m_recordThread;
-    bool m_isRecording;
+    std::atomic<bool> m_isRecording{false};  // C4：SDK 流回调线程会读，须原子
     QFutureWatcher<LoginResult>* m_loginWatcher;
     LensManager* m_lensManager;
     DataRecorder* m_dataRecorder;  // 数据记录器
@@ -89,7 +93,7 @@ private:
     QString analyzeLoginError(int errorCode);
 
 public slots:
-    void onPTZAngleReceived(float pan, float tilt);  // PTZ角度接收槽
+    void onPTZAngleReceived(float pan, float tilt, float panSpeed, float tiltSpeed);  // PTZ角度接收槽
 
 private slots:
     void onFrameDecoded(const QImage &frame);

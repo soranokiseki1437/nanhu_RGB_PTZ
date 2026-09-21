@@ -30,6 +30,7 @@ public:
     enum TrackingState {
         Idle,           // 空闲
         Selecting,      // 等待用户框选目标
+        Initializing,   // C9：跟踪器后台初始化中（框选完成到 Tracking 之间丢帧）
         Tracking,       // 正在跟踪
         Lost,           // 目标丢失
         Paused          // 暂停
@@ -78,6 +79,11 @@ public slots:
     void pauseTracking();
     void resumeTracking();
 
+    // 跟踪源模式（可见光/红外）。内核要求 init 前设置特征通道数，
+    // 故在下次 setTarget 时生效
+    void setInfraredMode(bool ir);
+    bool isInfraredMode() const { return m_infraredMode; }
+
 signals:
     // 跟踪结果信号
     void trackingResult(const TrackResult& result);
@@ -99,10 +105,13 @@ signals:
 private slots:
     void onTrackingLost();
     void onTrackingRecovered();
+    void onTrackerInitDone(bool ok, const QString& modelInfo);  // C9：异步初始化回调
 
 private:
     ObjectTracker* m_tracker;
     QThread* m_trackerThread;
+
+    bool m_infraredMode = false;  // 跟踪源模式：false=可见光，true=红外
 
     TrackingState m_state;
     TrackResult m_lastResult;

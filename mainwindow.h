@@ -41,7 +41,7 @@ private slots:
     void on_btnStop_clicked();
     void on_btnQuery_clicked();
     void on_btnReset_clicked();
-    void handleAngleReceived(float pan, float tilt);
+    void handleAngleReceived(float pan, float tilt, float panSpeed, float tiltSpeed);
     void onConnectionTimeout();
     
     // RGB 图像捕获相关槽
@@ -101,6 +101,7 @@ private:
     void updateTrackingUIState();
     // 显示 RGB 图像
     void displayImage(const QImage &image);
+    QPixmap drawTrackBoxOnPixmap(const QPixmap &base) const;  // C8：在缓存的缩放 pixmap 上叠画跟踪框
     // 添加到 RGB 历史记录
     void addToHistory(const QImage &image, const QString &filePath);
     // 格式化时间显示
@@ -137,6 +138,8 @@ private:
     bool m_trackBoxVisible;         // 是否显示跟踪框
     bool m_trackBoxOccluded;        // 跟踪框是否遮挡状态
     QImage m_lastFrame;             // 最后一帧（用于框选时初始化）
+    QPixmap m_scaledPixmap;         // C8：displayImage 缓存的缩放结果（跟踪框重绘复用）
+    QSize m_scaledFrameSize;        // C8：m_scaledPixmap 对应的原始帧尺寸（坐标换算用）
 
 protected:
     // 鼠标事件（用于框选目标）

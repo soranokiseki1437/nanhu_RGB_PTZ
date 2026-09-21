@@ -51,6 +51,15 @@ public:
         m_cond.wakeAll();
     }
 
+    // C6：复位 stopped 标志并清空残留数据，用于线程复活（DecodeThread::restart）
+    void reset()
+    {
+        QMutexLocker locker(&m_mutex);
+        m_queue.clear();
+        m_stopped = false;
+        m_dropped = 0;
+    }
+
     bool isStopped() const { QMutexLocker locker(&m_mutex); return m_stopped; }
     void clear() { QMutexLocker locker(&m_mutex); m_queue.clear(); }
     int size() const { QMutexLocker locker(&m_mutex); return m_queue.size(); }

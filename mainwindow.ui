@@ -920,6 +920,23 @@
            </property>
           </widget>
          </item>
+         <item row="2" column="0" colspan="2">
+          <widget class="QComboBox" name="cmbTrackSource">
+           <property name="currentIndex">
+            <number>0</number>
+           </property>
+           <item>
+            <property name="text">
+             <string>可见光</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>红外</string>
+            </property>
+           </item>
+          </widget>
+         </item>
         </layout>
        </widget>
       </item>

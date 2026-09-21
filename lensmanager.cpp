@@ -247,6 +247,12 @@ LensManager::LensManager(QObject *parent)
     connect(m_worker, &LensWorker::irisModeGetResult,
             this, &LensManager::onIrisModeGetResult,
             Qt::QueuedConnection);
+
+    // P6：模式切换等待超时定时器（onePushFocus 用）
+    m_modeSwitchTimer = new QTimer(this);
+    m_modeSwitchTimer->setSingleShot(true);
+    connect(m_modeSwitchTimer, &QTimer::timeout,
+            this, &LensManager::onModeSwitchTimeout);
 }
 
 LensManager::~LensManager()
@@ -341,9 +347,32 @@ void LensManager::onFocusModeSetResult(bool success, bool isManual)
         locker.unlock();
         emit focusModeChanged(isManual);
         qDebug() << "[LensManager] 聚焦模式更新成功:" << (isManual ? "手动" : "自动");
+
+        // P6：onePushFocus 等待模式切换成功后再下发一键聚焦命令
+        if (m_waitingModeSwitchFor == static_cast<int>(FOCUS_ONEPUSH)) {
+            m_waitingModeSwitchFor = -1;
+            m_modeSwitchTimer->stop();
+            emit commandQueued(FOCUS_ONEPUSH, 50, 0);
+            qDebug() << "[LensManager] 模式切换完成，下发一键聚焦";
+        }
     } else {
+        // P6：切换失败同样终止挂起状态（错误已提示，无需等超时）
+        if (m_waitingModeSwitchFor == static_cast<int>(FOCUS_ONEPUSH)) {
+            m_waitingModeSwitchFor = -1;
+            m_modeSwitchTimer->stop();
+        }
         emit errorOccurred("设置聚焦模式失败");
         qWarning() << "[LensManager] 聚焦模式设置失败";
+    }
+}
+
+void LensManager::onModeSwitchTimeout()
+{
+    // P6：等待模式切换结果超时，放弃挂起的一键聚焦命令
+    if (m_waitingModeSwitchFor == static_cast<int>(FOCUS_ONEPUSH)) {
+        m_waitingModeSwitchFor = -1;
+        emit errorOccurred("模式切换超时，one-push 未执行");
+        qWarning() << "[LensManager] onePushFocus 模式切换等待超时";
     }
 }
 
@@ -448,11 +477,15 @@ void LensManager::onePushFocus()
     locker.unlock();
     
     if (needsModeSwitch) {
-        // 先切换到自动模式
-        qDebug() << "[LensManager] 一键聚焦前自动切换到自动模式";
+        // P6：先切自动模式，等 onFocusModeSetResult 成功后再下发一键聚焦，
+        // 避免模式切换与聚焦命令在设备端时序竞争
+        qDebug() << "[LensManager] 一键聚焦前自动切换到自动模式（等待切换成功）";
+        m_waitingModeSwitchFor = static_cast<int>(FOCUS_ONEPUSH);
+        m_modeSwitchTimer->start(1000);
         setFocusMode(false);
+        return;
     }
-    
+
     // 执行一键聚焦使用默认速度 50，stop 为 0
     emit commandQueued(FOCUS_ONEPUSH, 50, 0);
 }

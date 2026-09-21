@@ -40,6 +40,7 @@ public:
 
     bool isInitialized() const;
     cv::Point2f position() const;
+    void setPosition(const cv::Point2f& p) { m_pos = p; }  // 外壳重检测成功后回同步位置
     float currentScale() const;
     cv::Size targetSize() const;
     cv::Size modelSize() const;

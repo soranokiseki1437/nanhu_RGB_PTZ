@@ -7,9 +7,14 @@
 #include <QApplication>
 #include <QLoggingCategory>
 
+#include <opencv2/core.hpp>
+
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+
+    // Step6：限制 OpenCV 内部线程池，避免与 Qt/解码线程过度争抢 CPU
+    cv::setNumThreads(2);
 
     // 日志分级默认策略：不再用 QT_NO_DEBUG_OUTPUT 一刀切，
     // 默认关闭 debug 级输出（保持安静），现场排障时用环境变量打开，例如：

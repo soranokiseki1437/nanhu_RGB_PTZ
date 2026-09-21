@@ -18,6 +18,9 @@ public:
     void pushData(const QByteArray &data);
     void stop();
 
+    // C6：复位数据队列的 stopped 标志并重新启动线程（stopStream 后复活用）
+    void restart();
+
     // 设置相机编码类型（UNIV_DEV_VIDEO_ENC_PARAM.videoEncType），进入 run() 时生效
     void setEncType(int encType) { m_encType = encType; }
 

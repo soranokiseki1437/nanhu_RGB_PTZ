@@ -1,11 +1,16 @@
 #include "configmanager.h"
 #include <QSettings>
+#include <QMutexLocker>
 #include <QDebug>
 
+// P7/P8：
+// - 所有 getter/setter 加互斥锁（配置可能被 UI 线程与工作线程并发读写）
+// - 密码不再内置明文默认值，仅从 QSettings 读取；无则 UI 输入
+// - 析构不再 saveConfig()，由 MainWindow 在 aboutToQuit 时调用（QApplication
+//   销毁阶段 QSettings 不可靠）
 ConfigManager::ConfigManager(QObject *parent) : QObject(parent)
     , m_deviceIP("192.168.1.68")
     , m_deviceUsername("admin")
-    , m_devicePassword("nanhu315")
     , m_captureInterval(10)
     , m_captureQuality(80)
     , m_savePath("./captures")
@@ -26,90 +31,144 @@ ConfigManager::ConfigManager(QObject *parent) : QObject(parent)
 
 ConfigManager::~ConfigManager()
 {
-    saveConfig();
+    // P8：保存时机移至 aboutToQuit（见 MainWindow 构造），析构不再写盘
 }
 
 QString ConfigManager::getDeviceIP() const
 {
+    QMutexLocker locker(&m_mutex);
     return m_deviceIP;
 }
 
 void ConfigManager::setDeviceIP(const QString &ip)
 {
+    QMutexLocker locker(&m_mutex);
     m_deviceIP = ip;
 }
 
 QString ConfigManager::getDeviceUsername() const
 {
+    QMutexLocker locker(&m_mutex);
     return m_deviceUsername;
 }
 
 void ConfigManager::setDeviceUsername(const QString &username)
 {
+    QMutexLocker locker(&m_mutex);
     m_deviceUsername = username;
 }
 
 QString ConfigManager::getDevicePassword() const
 {
+    QMutexLocker locker(&m_mutex);
     return m_devicePassword;
 }
 
 void ConfigManager::setDevicePassword(const QString &password)
 {
+    QMutexLocker locker(&m_mutex);
     m_devicePassword = password;
 }
 
 int ConfigManager::getCaptureInterval() const
 {
+    QMutexLocker locker(&m_mutex);
     return m_captureInterval;
 }
 
 void ConfigManager::setCaptureInterval(int interval)
 {
+    QMutexLocker locker(&m_mutex);
     m_captureInterval = interval;
 }
 
 int ConfigManager::getCaptureQuality() const
 {
+    QMutexLocker locker(&m_mutex);
     return m_captureQuality;
 }
 
 void ConfigManager::setCaptureQuality(int quality)
 {
+    QMutexLocker locker(&m_mutex);
     m_captureQuality = quality;
 }
 
 QString ConfigManager::getSavePath() const
 {
+    QMutexLocker locker(&m_mutex);
     return m_savePath;
 }
 
 void ConfigManager::setSavePath(const QString &path)
 {
+    QMutexLocker locker(&m_mutex);
     m_savePath = path;
 }
 
 // M5: PTZ 串口配置
-QString ConfigManager::getPtzPortName() const { return m_ptzPortName; }
-int ConfigManager::getPtzBaudRate() const { return m_ptzBaudRate; }
-int ConfigManager::getPtzAddress() const { return m_ptzAddress; }
+QString ConfigManager::getPtzPortName() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_ptzPortName;
+}
+int ConfigManager::getPtzBaudRate() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_ptzBaudRate;
+}
+int ConfigManager::getPtzAddress() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_ptzAddress;
+}
 void ConfigManager::setPtzConfig(const QString &port, int baud, int addr)
 {
+    QMutexLocker locker(&m_mutex);
     m_ptzPortName = port;
     m_ptzBaudRate = baud;
     m_ptzAddress = addr;
 }
 
 // M5: 跟踪参数
-float ConfigManager::getTrackKp() const { return m_trackKp; }
-float ConfigManager::getTrackKi() const { return m_trackKi; }
-float ConfigManager::getTrackKd() const { return m_trackKd; }
-float ConfigManager::getTrackKff() const { return m_trackKff; }
-int ConfigManager::getTrackTPredict() const { return m_trackTPredict; }
-int ConfigManager::getTrackDeadZone() const { return m_trackDeadZone; }
-int ConfigManager::getTrackMaxSpeed() const { return m_trackMaxSpeed; }
+float ConfigManager::getTrackKp() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_trackKp;
+}
+float ConfigManager::getTrackKi() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_trackKi;
+}
+float ConfigManager::getTrackKd() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_trackKd;
+}
+float ConfigManager::getTrackKff() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_trackKff;
+}
+int ConfigManager::getTrackTPredict() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_trackTPredict;
+}
+int ConfigManager::getTrackDeadZone() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_trackDeadZone;
+}
+int ConfigManager::getTrackMaxSpeed() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_trackMaxSpeed;
+}
 void ConfigManager::setTrackParams(float kp, float ki, float kd, float kff, int tPred, int dz, int maxSpd)
 {
+    QMutexLocker locker(&m_mutex);
     m_trackKp = kp;
     m_trackKi = ki;
     m_trackKd = kd;
@@ -120,11 +179,20 @@ void ConfigManager::setTrackParams(float kp, float ki, float kd, float kff, int 
 }
 
 // M5: 录像路径
-QString ConfigManager::getVideoSavePath() const { return m_videoSavePath; }
-void ConfigManager::setVideoSavePath(const QString &path) { m_videoSavePath = path; }
+QString ConfigManager::getVideoSavePath() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_videoSavePath;
+}
+void ConfigManager::setVideoSavePath(const QString &path)
+{
+    QMutexLocker locker(&m_mutex);
+    m_videoSavePath = path;
+}
 
 void ConfigManager::saveConfig()
 {
+    QMutexLocker locker(&m_mutex);
     QSettings settings("RGB_PTZ", "RGB_PTZ_Integrated");
     settings.setValue("device/ip", m_deviceIP);
     settings.setValue("device/username", m_deviceUsername);
@@ -149,10 +217,12 @@ void ConfigManager::saveConfig()
 
 void ConfigManager::loadConfig()
 {
+    // 加载于构造函数（单线程阶段），无需加锁
     QSettings settings("RGB_PTZ", "RGB_PTZ_Integrated");
     m_deviceIP = settings.value("device/ip", "192.168.1.68").toString();
     m_deviceUsername = settings.value("device/username", "admin").toString();
-    m_devicePassword = settings.value("device/password", "nanhu315").toString();
+    // P8：密码不设明文默认值，QSettings 无记录时为空 → UI 密码框留空待输入
+    m_devicePassword = settings.value("device/password").toString();
     m_captureInterval = settings.value("capture/interval", 10).toInt();
     m_captureQuality = settings.value("capture/quality", 80).toInt();
     m_savePath = settings.value("capture/savePath", "./captures").toString();

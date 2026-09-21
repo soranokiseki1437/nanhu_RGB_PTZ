@@ -30,10 +30,8 @@ public:
     // 获取当前角度
     float getCurrentPan() const { return m_currentPan; }
     float getCurrentTilt() const { return m_currentTilt; }
-    
-    // 获取当前速度
-    float getCurrentPanSpeed() const { return m_currentPanSpeed; }
-    float getCurrentTiltSpeed() const { return m_currentTiltSpeed; }
+
+    // 速度值随 angleReceived 信号携带（C1），不再提供跨线程 getter
 
 public slots:
     // --- 初始化函数 --- 在对象移动到线程后调用
@@ -57,7 +55,7 @@ public slots:
 
 signals:
     // 信号：当收到云台角度数据时触发
-    void angleReceived(float pan, float tilt);
+    void angleReceived(float pan, float tilt, float panSpeed, float tiltSpeed);
     //Hex 数据监控信号的声明
     void rawDataInout(bool isTx, QByteArray data);
     void serialError(const QString &errorString);  // L3: 串口错误通知上层

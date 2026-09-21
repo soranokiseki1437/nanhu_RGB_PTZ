@@ -342,7 +342,8 @@ void PTZController::onReadyRead()
         if (cmd2 == 0x59) {
             // 水平角度回传，直接赋值
             m_currentPan = angle;
-            emit angleReceived(m_currentPan, m_currentTilt);
+            // C1：速度值在串口线程内取好随信号发出，避免接收方跨线程调 getter
+            emit angleReceived(m_currentPan, m_currentTilt, m_currentPanSpeed, m_currentTiltSpeed);
         } else if (cmd2 == 0x5B) {
             // 俯仰角度回传
             // 【核心修复】：因为物理限位最大只有 40°，所以如果回传的角度非常大（比如大于270°）
@@ -353,7 +354,7 @@ void PTZController::onReadyRead()
             } else {
                 m_currentTilt = angle;
             }
-            emit angleReceived(m_currentPan, m_currentTilt);
+            emit angleReceived(m_currentPan, m_currentTilt, m_currentPanSpeed, m_currentTiltSpeed);
         }
 
         m_buffer.remove(0, packetLen);

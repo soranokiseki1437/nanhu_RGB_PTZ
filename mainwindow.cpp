@@ -41,11 +41,19 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(m_deviceManager, &DeviceManager::connectionStatusChanged, this, &MainWindow::onConnectionStatusChanged);
     connect(m_deviceManager, &DeviceManager::errorOccurred, this, &MainWindow::onErrorOccurred);
     connect(m_deviceManager, &DeviceManager::frameReceived, this, &MainWindow::onFrameReceived);
+    connect(m_deviceManager, &DeviceManager::streamStarted, this, [this](bool ok){
+        if (!ok) ui->statusbar->showMessage("开启视频预览失败", 3000);
+    });
     connect(m_deviceManager, &DeviceManager::recordStarted, this, &MainWindow::onRecordStarted);
     connect(m_deviceManager, &DeviceManager::recordStopped, this, &MainWindow::onRecordStopped);
     connect(m_captureManager, &CaptureManager::captureFinished, this, &MainWindow::onCaptureFinished);
     connect(m_captureManager, &CaptureManager::errorOccurred, this, &MainWindow::onErrorOccurred);
     connect(m_imageProcessor, &ImageProcessor::errorOccurred, this, &MainWindow::onErrorOccurred);
+
+    // P8：退出时保存配置（ConfigManager 析构不再写盘，QApplication 收尾阶段 QSettings 不可靠）
+    connect(qApp, &QCoreApplication::aboutToQuit, this, [this](){
+        m_configManager->saveConfig();
+    });
 
     // 连接目标跟踪信号槽
     connect(m_trackingController, &TrackingController::stateChanged, this, &MainWindow::onTrackStateChanged);
@@ -311,6 +319,11 @@ void MainWindow::initTrackingModule()
     connect(ui->btnTrackSelect, &QPushButton::clicked, this, &MainWindow::on_btnTrackSelect_clicked);
     connect(ui->btnTrackStart, &QPushButton::clicked, this, &MainWindow::on_btnTrackStart_clicked);
     connect(ui->btnTrackStop, &QPushButton::clicked, this, &MainWindow::on_btnTrackStop_clicked);
+
+    // 跟踪源模式选择（可见光/红外），下次框选生效
+    connect(ui->cmbTrackSource, &QComboBox::currentIndexChanged, this, [this](int index){
+        m_trackingController->setInfraredMode(index == 1);
+    });
 }
 
 void MainWindow::updateTrackingUIState()
@@ -320,7 +333,8 @@ void MainWindow::updateTrackingUIState()
 
     ui->btnTrackSelect->setEnabled(canTrack && (state == TrackingController::Idle));
     ui->btnTrackStart->setEnabled(canTrack && (state == TrackingController::Selecting));
-    ui->btnTrackStop->setEnabled(state == TrackingController::Tracking ||
+    ui->btnTrackStop->setEnabled(state == TrackingController::Initializing ||
+                                 state == TrackingController::Tracking ||
                                  state == TrackingController::Lost ||
                                  state == TrackingController::Paused);
 
@@ -329,6 +343,7 @@ void MainWindow::updateTrackingUIState()
     switch (state) {
     case TrackingController::Idle: statusText = "空闲"; break;
     case TrackingController::Selecting: statusText = "等待框选..."; break;
+    case TrackingController::Initializing: statusText = "初始化中..."; break;
     case TrackingController::Tracking: statusText = "跟踪中"; break;
     case TrackingController::Lost: statusText = "目标丢失"; break;
     case TrackingController::Paused: statusText = "已暂停"; break;
@@ -434,21 +449,28 @@ void MainWindow::displayImage(const QImage &image)
     // 保存最后一帧（用于框选初始化）
     m_lastFrame = image.copy();
 
-    // 显示图片
+    // 显示图片（C8：缩放结果缓存到 m_scaledPixmap，跟踪框重绘时复用）
     QPixmap pixmap = QPixmap::fromImage(image);
     QSize labelSize = ui->rgbLabelImage->size();
-    QPixmap scaledPixmap = pixmap.scaled(labelSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    m_scaledPixmap = pixmap.scaled(labelSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    m_scaledFrameSize = image.size();
 
-    // 如果有跟踪框，绘制上去
-    if (m_trackBoxVisible && !m_trackBox.isEmpty()) {
-        QPainter painter(&scaledPixmap);
+    ui->rgbLabelImage->setPixmap(drawTrackBoxOnPixmap(m_scaledPixmap));
+}
+
+// C8：在缩放 pixmap 上叠画跟踪框（QPixmap 写时复制，只有实际有框时才 detach 一次像素拷贝）
+QPixmap MainWindow::drawTrackBoxOnPixmap(const QPixmap &base) const
+{
+    QPixmap pm = base;
+    if (m_trackBoxVisible && !m_trackBox.isEmpty() && !pm.isNull() && m_scaledFrameSize.isValid()) {
+        QPainter painter(&pm);
         painter.setRenderHint(QPainter::Antialiasing);
 
         // 计算缩放比例
-        float scaleX = static_cast<float>(scaledPixmap.width()) / image.width();
-        float scaleY = static_cast<float>(scaledPixmap.height()) / image.height();
+        const float scaleX = static_cast<float>(pm.width()) / m_scaledFrameSize.width();
+        const float scaleY = static_cast<float>(pm.height()) / m_scaledFrameSize.height();
 
-        QRectF scaledBox(
+        const QRectF scaledBox(
             m_trackBox.x() * scaleX,
             m_trackBox.y() * scaleY,
             m_trackBox.width() * scaleX,
@@ -463,14 +485,13 @@ void MainWindow::displayImage(const QImage &image)
         painter.drawRect(scaledBox);
 
         // 绘制中心十字
-        QPointF center = scaledBox.center();
+        const QPointF center = scaledBox.center();
         painter.drawLine(QPointF(center.x() - 8, center.y()), QPointF(center.x() + 8, center.y()));
         painter.drawLine(QPointF(center.x(), center.y() - 8), QPointF(center.x(), center.y() + 8));
 
         painter.end();
     }
-
-    ui->rgbLabelImage->setPixmap(scaledPixmap);
+    return pm;
 }
 
 void MainWindow::addToHistory(const QImage & /*image*/, const QString &filePath)
@@ -644,26 +665,20 @@ void MainWindow::on_btnReset_clicked()
     emit ptzMoveTo(0.0f, 0.0f, speed);
 }
 
-void MainWindow::handleAngleReceived(float pan, float tilt)
+void MainWindow::handleAngleReceived(float pan, float tilt, float panSpeed, float tiltSpeed)
 {
     // 如果是处于握手状态收到了数据，说明真的是云台！
     if (m_isConnecting) {
         m_isConnecting = false;
         m_connTimer->stop();
-        
+
         m_ptzConnected = true;
         ui->btnConnect->setEnabled(true);
         updatePTZUIState();
     }
-    
-    // 获取当前速度信息
-    float panSpeed = 0.0f;
-    float tiltSpeed = 0.0f;
-    if (m_ptzController) {
-        panSpeed = m_ptzController->getCurrentPanSpeed();
-        tiltSpeed = m_ptzController->getCurrentTiltSpeed();
-    }
-    
+
+    // C1：速度已随信号传入（PTZ 线程内取值），不再跨线程调 getter
+
     // 更新 DataRecorder 的 PTZ 数据（包含速度）
     if (m_deviceManager && m_deviceManager->getDataRecorder()) {
         m_deviceManager->getDataRecorder()->updatePTZData(pan, tilt, panSpeed, tiltSpeed);
@@ -889,7 +904,7 @@ void MainWindow::onConnectionStatusChanged(bool connected)
 
     if (connected) {
         qDebug() << "[MainWindow] 设备连接成功，开始视频预览";
-        m_deviceManager->startStream();
+        m_deviceManager->requestStartStream();  // C7：RealPlay 移出 UI 线程
     } else {
         qDebug() << "[MainWindow] 设备断开连接，停止视频预览";
         // 断开时停止跟踪
@@ -1073,6 +1088,7 @@ void MainWindow::onTrackStateChanged(TrackingController::TrackingState state)
     switch (state) {
     case TrackingController::Idle: msg = "跟踪已停止"; break;
     case TrackingController::Selecting: msg = "请框选目标"; break;
+    case TrackingController::Initializing: msg = "跟踪器初始化中"; break;
     case TrackingController::Tracking: msg = "跟踪运行中"; break;
     case TrackingController::Lost: msg = "目标丢失，尝试恢复"; break;
     case TrackingController::Paused: msg = "跟踪已暂停"; break;
@@ -1099,9 +1115,9 @@ void MainWindow::onTrackBoxDraw(const QRectF& bbox, bool occluded)
     m_trackBoxVisible = !bbox.isEmpty();
     m_trackBoxOccluded = occluded;
 
-    // 触发重绘（通过请求新帧或强制刷新）
-    if (!m_lastFrame.isNull()) {
-        displayImage(m_lastFrame);
+    // C8：直接复用缓存的缩放 pixmap 叠画跟踪框，省去 fromImage+scaled 全量重算
+    if (!m_scaledPixmap.isNull()) {
+        ui->rgbLabelImage->setPixmap(drawTrackBoxOnPixmap(m_scaledPixmap));
     }
 }
 

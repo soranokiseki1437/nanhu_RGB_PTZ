@@ -23,7 +23,7 @@ SOURCES += \
     datarecorder.cpp \
     objecttracker.cpp \
     trackingcontroller.cpp \
-    fftutils.cpp \
+    dsstcore.cpp \
     logmanager.cpp \
     logging_categories.cpp \
     imagematconvert.cpp
@@ -44,7 +44,7 @@ HEADERS += \
     datarecorder.h \
     objecttracker.h \
     trackingcontroller.h \
-    fftutils.h \
+    dsstcore.h \
     logmanager.h \
     logging_categories.h \
     imagematconvert.h
