@@ -9,21 +9,10 @@
 // ========================
 ObjectTracker::ObjectTracker(QObject *parent)
     : QObject(parent)
+    , m_kfQ(cv::Matx44f::eye() * 100.0f)
+    , m_kfQLost(cv::Matx44f::eye() * 900.0f)
+    , m_kfR(cv::Matx22f::eye() * 100.0f)
 {
-    // 初始化卡尔曼滤波噪声矩阵
-    // 正常模式: w_sigma=10, Q = 100*I(4)
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            m_kfQ[i][j] = (i == j) ? 100.0f : 0.0f;
-
-    // 遮挡模式: w_sigma*3=30, Q_lost = 900*I(4)（增大不确定性，恢复后更快信任新测量）
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            m_kfQLost[i][j] = (i == j) ? 900.0f : 0.0f;
-
-    for (int i = 0; i < 2; ++i)
-        for (int j = 0; j < 2; ++j)
-            m_kfR[i][j] = (i == j) ? 100.0f : 0.0f;  // v_sigma^2 = 10^2
 }
 
 ObjectTracker::~ObjectTracker()
@@ -106,13 +95,8 @@ bool ObjectTracker::init(const QImage& frame, const QRectF& targetRect)
     }
 
     // KF 初始化
-    m_kf.x[0] = m_posX;
-    m_kf.x[1] = m_posY;
-    m_kf.x[2] = 0.0f;
-    m_kf.x[3] = 0.0f;
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            m_kf.P[i][j] = (i == j) ? 8.0f : 0.0f;
+    m_kf.x = cv::Vec4f(m_posX, m_posY, 0.0f, 0.0f);
+    m_kf.P = cv::Matx44f::eye() * 8.0f;
 
     m_initialized = true;
     qCDebug(trackerLog) << "[ObjectTracker] 初始化成功, 模型尺寸:" << modelSize()
@@ -158,44 +142,25 @@ void ObjectTracker::kfPredict()
     bool pDirty = false;
     for (int i = 0; i < 4 && !pDirty; ++i) {
         for (int j = 0; j < 4 && !pDirty; ++j) {
-            if (std::isnan(m_kf.P[i][j]) || std::isinf(m_kf.P[i][j]) || std::abs(m_kf.P[i][j]) > 1e8f) {
+            if (std::isnan(m_kf.P(i, j)) || std::isinf(m_kf.P(i, j)) || std::abs(m_kf.P(i, j)) > 1e8f) {
                 pDirty = true;
             }
         }
     }
     if (pDirty) {
         qWarning() << "[kfPredict] P矩阵异常，已重置为初始值";
-        for (int i = 0; i < 4; ++i)
-            for (int j = 0; j < 4; ++j)
-                m_kf.P[i][j] = (i == j) ? 8.0f : 0.0f;
+        m_kf.P = cv::Matx44f::eye() * 8.0f;
     }
 
     // 状态转移矩阵 A = [1 0 T 0; 0 1 0 T; 0 0 1 0; 0 0 0 1], T=1
-    float xPred[4];
-    xPred[0] = m_kf.x[0] + m_kf.x[2];
-    xPred[1] = m_kf.x[1] + m_kf.x[3];
-    xPred[2] = m_kf.x[2];
-    xPred[3] = m_kf.x[3];
+    const cv::Matx44f A(1.0f, 0.0f, 1.0f, 0.0f,
+                        0.0f, 1.0f, 0.0f, 1.0f,
+                        0.0f, 0.0f, 1.0f, 0.0f,
+                        0.0f, 0.0f, 0.0f, 1.0f);
 
-    // P_pred = A*P*A' + Q，直接展开 A*P*A'（利用 A 的特殊结构）
-    const auto& P = m_kf.P;
-    float PPred[4][4] = {
-        { P[0][0] + 2*P[0][2] + P[2][2],   P[0][1] + P[0][3] + P[1][2] + P[2][3],   P[0][2] + P[2][2],             P[0][3] + P[2][3] },
-        { P[1][0] + P[3][0] + P[1][2] + P[3][2],   P[1][1] + 2*P[1][3] + P[3][3],         P[1][2] + P[3][2],             P[1][3] + P[3][3] },
-        { P[2][0] + P[2][2],                     P[2][1] + P[2][3],                       P[2][2],                         P[2][3] },
-        { P[3][0] + P[3][2],                     P[3][1] + P[3][3],                       P[3][2],                         P[3][3] }
-    };
-    // 根据遮挡状态选择Q：遮挡时使用更大的过程噪声，允许位置不确定性更快增长
-    const float (*activeQ)[4] = m_inOcclusion ? m_kfQLost : m_kfQ;
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            PPred[i][j] += activeQ[i][j];
-
-    for (int i = 0; i < 4; ++i)
-        m_kf.x[i] = xPred[i];
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            m_kf.P[i][j] = PPred[i][j];
+    m_kf.x = A * m_kf.x;
+    const cv::Matx44f& activeQ = m_inOcclusion ? m_kfQLost : m_kfQ;
+    m_kf.P = A * m_kf.P * A.t() + activeQ;
 }
 
 // ========================
@@ -208,38 +173,32 @@ void ObjectTracker::kfUpdate(float measX, float measY)
     if (std::isnan(measY) || std::isinf(measY)) measY = m_kf.x[1];
 
     // H = [1 0 0 0; 0 1 0 0]，S = H*P*H' + R
-    float S[2][2];
-    S[0][0] = m_kf.P[0][0] + m_kfR[0][0];
-    S[0][1] = m_kf.P[0][1] + m_kfR[0][1];
-    S[1][0] = m_kf.P[1][0] + m_kfR[1][0];
-    S[1][1] = m_kf.P[1][1] + m_kfR[1][1];
+    const cv::Matx<float, 2, 4> H(1.0f, 0.0f, 0.0f, 0.0f,
+                                  0.0f, 1.0f, 0.0f, 0.0f);
+    cv::Matx22f S = H * m_kf.P * H.t() + m_kfR;
 
     // 防止S元素溢出（当P变得非常大时）
-    for (int i = 0; i < 2; ++i)
-        for (int j = 0; j < 2; ++j)
-            if (std::isnan(S[i][j]) || std::isinf(S[i][j]) || std::abs(S[i][j]) > 1e10f)
-                S[i][j] = (i == j) ? m_kfR[i][j] : 0.0f;
+    for (int i = 0; i < 2; ++i) {
+        for (int j = 0; j < 2; ++j) {
+            if (std::isnan(S(i, j)) || std::isinf(S(i, j)) || std::abs(S(i, j)) > 1e10f) {
+                S(i, j) = (i == j) ? m_kfR(i, j) : 0.0f;
+            }
+        }
+    }
 
     // 分母epsilon防护除零
-    float detS = S[0][0] * S[1][1] - S[0][1] * S[1][0];
+    float detS = S(0, 0) * S(1, 1) - S(0, 1) * S(1, 0);
     static constexpr float epsilon = 1e-10f;
-    if (std::abs(detS) < epsilon) detS = epsilon;
+    if (std::abs(detS) < epsilon) detS = (detS < 0) ? -epsilon : epsilon;
 
     // K = P*H'*inv(S)
-    float K[4][2];
-    K[0][0] = (m_kf.P[0][0] * S[1][1] - m_kf.P[0][1] * S[1][0]) / detS;
-    K[0][1] = (-m_kf.P[0][0] * S[0][1] + m_kf.P[0][1] * S[0][0]) / detS;
-    K[1][0] = (m_kf.P[1][0] * S[1][1] - m_kf.P[1][1] * S[1][0]) / detS;
-    K[1][1] = (-m_kf.P[1][0] * S[0][1] + m_kf.P[1][1] * S[0][0]) / detS;
-    K[2][0] = (m_kf.P[2][0] * S[1][1] - m_kf.P[2][1] * S[1][0]) / detS;
-    K[2][1] = (-m_kf.P[2][0] * S[0][1] + m_kf.P[2][1] * S[0][0]) / detS;
-    K[3][0] = (m_kf.P[3][0] * S[1][1] - m_kf.P[3][1] * S[1][0]) / detS;
-    K[3][1] = (-m_kf.P[3][0] * S[0][1] + m_kf.P[3][1] * S[0][0]) / detS;
+    const cv::Matx22f Sinv(S(1, 1) / detS, -S(0, 1) / detS,
+                           -S(1, 0) / detS, S(0, 0) / detS);
+    const cv::Matx<float, 4, 2> K = m_kf.P * H.t() * Sinv;
 
-    // 更新状态
-    const float y[2] = { measX - m_kf.x[0], measY - m_kf.x[1] };
-    for (int i = 0; i < 4; ++i)
-        m_kf.x[i] += K[i][0] * y[0] + K[i][1] * y[1];
+    // 更新状态: x = x + K * (z - H * x)
+    const cv::Vec2f z(measX, measY);
+    m_kf.x += K * (z - H * m_kf.x);
 
     // 状态溢出保护：如果任何状态值非法，重置为安全值
     for (int i = 0; i < 4; ++i) {
@@ -251,46 +210,17 @@ void ObjectTracker::kfUpdate(float measX, float measY)
     }
 
     // 更新协方差 P = (I - K*H)*P
-    float I_KH[4][4];
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            I_KH[i][j] = (i == j) ? 1.0f : 0.0f;
-    I_KH[0][0] -= K[0][0];
-    I_KH[0][1] -= K[0][1];
-    I_KH[1][0] -= K[1][0];
-    I_KH[1][1] -= K[1][1];
-    I_KH[2][0] -= K[2][0];
-    I_KH[2][1] -= K[2][1];
-    I_KH[3][0] -= K[3][0];
-    I_KH[3][1] -= K[3][1];
-
-    float PNew[4][4];
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j) {
-            PNew[i][j] = 0.0f;
-            for (int k = 0; k < 4; ++k)
-                PNew[i][j] += I_KH[i][k] * m_kf.P[k][j];
-        }
-
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            m_kf.P[i][j] = PNew[i][j];
+    const cv::Matx44f I = cv::Matx44f::eye();
+    m_kf.P = (I - K * H) * m_kf.P;
 
     // 协方差矩阵对称化 P = (P + P')/2，防止数值误差导致非对称
-    for (int i = 0; i < 4; ++i) {
-        for (int j = i + 1; j < 4; ++j) {
-            const float avg = (m_kf.P[i][j] + m_kf.P[j][i]) * 0.5f;
-            m_kf.P[i][j] = avg;
-            m_kf.P[j][i] = avg;
-        }
-    }
+    m_kf.P = (m_kf.P + m_kf.P.t()) * 0.5f;
 
     // P矩阵溢出保护：如果协方差变得非常大，重置为初始值
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
-            if (std::isnan(m_kf.P[i][j]) || std::isinf(m_kf.P[i][j])
-                || std::abs(m_kf.P[i][j]) > 1e10f) {
-                m_kf.P[i][j] = (i == j) ? 8.0f : 0.0f;
+            if (std::isnan(m_kf.P(i, j)) || std::isinf(m_kf.P(i, j)) || std::abs(m_kf.P(i, j)) > 1e10f) {
+                m_kf.P(i, j) = (i == j) ? 8.0f : 0.0f;
             }
         }
     }

@@ -93,13 +93,13 @@ private:
 
     // === 卡尔曼滤波相关 ===
     struct KFState {
-        float x[4];     // [px, py, vx, vy]
-        float P[4][4];  // 协方差
+        cv::Vec4f x;       // [px, py, vx, vy]
+        cv::Matx44f P;     // 协方差
     } m_kf;
 
-    float m_kfQ[4][4];     // 过程噪声（正常模式）
-    float m_kfQLost[4][4]; // 过程噪声（遮挡模式，更大不确定性）
-    float m_kfR[2][2];     // 观测噪声
+    cv::Matx44f m_kfQ;     // 过程噪声（正常模式）
+    cv::Matx44f m_kfQLost; // 过程噪声（遮挡模式，更大不确定性）
+    cv::Matx22f m_kfR;     // 观测噪声
 
     // === 遮挡检测相关 ===
     bool m_inOcclusion = false;
