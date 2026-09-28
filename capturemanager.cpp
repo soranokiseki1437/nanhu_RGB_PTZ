@@ -7,6 +7,7 @@
 #include <QDir>
 #include <QtConcurrent>
 #include <QThreadPool>
+#include <QCoreApplication>
 
 // 静态实例指针
 CaptureManager *CaptureManager::instance = nullptr;
@@ -15,7 +16,7 @@ QMutex CaptureManager::s_instanceMutex;
 CaptureManager::CaptureManager(QObject *parent) : QObject(parent)
     , m_deviceManager(nullptr)
     , m_imageProcessor(nullptr)
-    , m_savePath("./captures")
+    , m_savePath(QCoreApplication::applicationDirPath() + "/captures")
     , m_timer(new QTimer(this))
     , m_captureInterval(1000)
     , m_quality(70)
@@ -107,7 +108,7 @@ bool CaptureManager::captureOnce(uint8_t quality, uint16_t width, uint16_t heigh
     
     // 执行单次抓图
     uint64_t userID = m_deviceManager->getUserID();
-    int ret = UNIV_DEV_SnapOnce(userID, 0, (UNIV_RealDataCallBack)OnSnapData, quality, width, height);
+    int ret = UNIV_DEV_SnapOnce(userID, 0, OnSnapData, quality, width, height);
     qDebug()<<"ret:"<<ret;
     if (ret != SUCCESS) {
         emit errorOccurred(QString("抓图失败: %1").arg(ret));
@@ -159,6 +160,12 @@ void CaptureManager::onRawSnapDataReceived(QByteArray data, QString savePath)
 {
     if (!m_imageProcessor) {
         emit errorOccurred("图像处理未初始化");
+        return;
+    }
+
+    // R-08: 重入保护——前序异步处理未完成时拒绝新请求
+    if (m_processWatcher->isRunning()) {
+        qWarning() << "[CaptureManager] 前序抓图处理尚未完成，丢弃当前请求";
         return;
     }
 
@@ -230,8 +237,9 @@ void CaptureManager::onTimerCapture()
 }
 
 // C-CDK抓图回调函数，数据搬运工，不直接在这里处理业务
-void CaptureManager::OnSnapData(uint64_t /*snapHandle*/, uint8_t /*dataType*/, UNIV_DEV_SNAP_DATA* pData, uint32_t /*dataSize*/)
+void UNIV_CALLBACK CaptureManager::OnSnapData(uint64_t snapHandle, uint8_t dataType, void* pData, uint32_t dataSize)
 {
+    UNIV_DEV_SNAP_DATA* snapData = reinterpret_cast<UNIV_DEV_SNAP_DATA*>(pData);
     // 先安全检查并临时获取 instance
     CaptureManager* safeInstance = nullptr;
     {
@@ -239,10 +247,10 @@ void CaptureManager::OnSnapData(uint64_t /*snapHandle*/, uint8_t /*dataType*/, U
         safeInstance = instance;
     }
     
-    if (!safeInstance || !pData || pData->dataSize == 0) return;
+    if (!safeInstance || !pData || snapData->dataSize == 0) return;
 
     // 将 C 指针里的裸数据立刻拷贝为受 Qt 管理的 QByteArray，脱离 SDK 的内存周期
-    QByteArray safeData(reinterpret_cast<const char*>(pData->data), pData->dataSize);
+    QByteArray safeData(reinterpret_cast<const char*>(snapData->data), snapData->dataSize);
     
     // 捕获保存路径（此时 safeInstance 仍然有效）
     QString savePath = safeInstance->m_savePath;

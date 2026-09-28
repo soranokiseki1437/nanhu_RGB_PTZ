@@ -87,6 +87,7 @@ private:
     
     // 静态回调保护标志
     static QMutex s_instanceMutex;
+    static std::atomic<int> s_activeCallbacks;
 
     bool initSDK();
     void cleanupSDK();
@@ -104,8 +105,8 @@ private slots:
     void onDataRecordStopped(const QString &filePath);
 
 private:
-    static void OnException(uint32_t event, uint64_t userID);
-    static void OnStreamData(uint64_t handle, uint8_t dataType, void* pData, uint32_t dataSize);
+    static void UNIV_CALLBACK OnException(uint32_t event, uint64_t userID);
+    static void UNIV_CALLBACK OnStreamData(uint64_t handle, uint8_t dataType, void* pData, uint32_t dataSize);
     void disableCameraOSDTime();
     void printVideoConfig(uint8_t streamType);
     static LoginResult loginInBackground(QString ip, QString username, QString password);

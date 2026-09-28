@@ -1,12 +1,15 @@
 #include "devicemanager.h"
 #include <QDebug>
 #include <QtConcurrent>
+#include <QElapsedTimer>
+#include <atomic>
 #include "sdk/sdk.h"
 #include "ptzcontroller.h"
 
 // 静态实例指针
 DeviceManager *DeviceManager::instance = nullptr;
 QMutex DeviceManager::s_instanceMutex;
+std::atomic<int> DeviceManager::s_activeCallbacks{0};
 
 DeviceManager::DeviceManager(QObject *parent) : QObject(parent)
     , m_sdkInitialized(false)
@@ -45,37 +48,48 @@ DataRecorder* DeviceManager::getDataRecorder()
 
 DeviceManager::~DeviceManager()
 {
-    // 1. 停止录像
-    stopRecord();
-    
-    // 2. 停止流播放
-    stopStream();
-    
-    // 3. 先设置 instance = nullptr，阻止新的 SDK 回调进入
+    // R-04: 1. 先将 instance 置空，阻止新回调获取实例
     {
         QMutexLocker lock(&s_instanceMutex);
         if (instance == this) {
             instance = nullptr;
         }
     }
-    
-    // 4. 确保 QFutureWatcher 完成或取消正在进行的任务
+
+    // 2. 停止录像
+    stopRecord();
+
+    // 3. 停止流播放（SDK StopRealPlay 阻断新回调触发）
+    stopStream();
+
+    // 4. 带超时等待在途回调排空
+    QElapsedTimer drainTimer;
+    drainTimer.start();
+    while (s_activeCallbacks.load(std::memory_order_acquire) > 0) {
+        if (drainTimer.elapsed() > 500) {
+            qWarning() << "[~DeviceManager] 回调排空超时500ms，强制继续析构";
+            break;
+        }
+        QThread::yieldCurrentThread();
+    }
+
+    // 5. 确保 QFutureWatcher 完成
     if (m_loginWatcher) {
         m_loginWatcher->cancel();
         m_loginWatcher->waitForFinished();
     }
-    
-    // 5. 清理 SDK 相关资源
+
+    // 6. 清理 SDK
     cleanupSDK();
-    
-    // 6. 停止并清理解码线程
+
+    // 7. 停止解码线程
     if (m_decodeThread) {
         m_decodeThread->stop();
         m_decodeThread->wait();
         m_decodeThread = nullptr;
     }
-    
-    // 7. 清理录像线程
+
+    // 8. 清理录像线程
     if (m_recordThread) {
         m_recordThread->stopRecord();
         m_recordThread->wait();
@@ -108,7 +122,7 @@ bool DeviceManager::initSDK()
     UNIV_SDK_SetLogLevel(2);
     
     // 设置异常回调
-    UNIV_SDK_SetExceptionCallBack((UNIV_ExceptionCallBack)OnException);
+    UNIV_SDK_SetExceptionCallBack(OnException);
     
     m_sdkInitialized = true;
     qDebug() << "SDK初始化成功";
@@ -364,7 +378,7 @@ uint64_t DeviceManager::getUserID() const
     return m_userID;
 }
 
-void DeviceManager::OnException(uint32_t event, uint64_t userID)
+void UNIV_CALLBACK DeviceManager::OnException(uint32_t event, uint64_t userID)
 {
     // 先安全检查并临时获取 instance
     DeviceManager* safeInstance = nullptr;
@@ -517,8 +531,11 @@ bool DeviceManager::isRecording() const
     return m_isRecording;
 }
 
-void DeviceManager::OnStreamData(uint64_t /*handle*/, uint8_t dataType, void* pData, uint32_t dataSize)
+void UNIV_CALLBACK DeviceManager::OnStreamData(uint64_t /*handle*/, uint8_t dataType, void* pData, uint32_t dataSize)
 {
+    // R-04: 引用计数——入口递增，确保析构等待在途回调完成
+    s_activeCallbacks.fetch_add(1, std::memory_order_acq_rel);
+
     // 先安全检查并临时获取 instance
     DeviceManager* safeInstance = nullptr;
     {
@@ -527,6 +544,7 @@ void DeviceManager::OnStreamData(uint64_t /*handle*/, uint8_t dataType, void* pD
     }
     
     if (!safeInstance || !pData || dataSize == 0) {
+        s_activeCallbacks.fetch_sub(1, std::memory_order_acq_rel);
         return;
     }
 
@@ -545,6 +563,8 @@ void DeviceManager::OnStreamData(uint64_t /*handle*/, uint8_t dataType, void* pD
             // 静默丢弃当前帧，避免回调中崩溃
         }
     }
+
+    s_activeCallbacks.fetch_sub(1, std::memory_order_acq_rel);
 }
 
 void DeviceManager::disableCameraOSDTime()

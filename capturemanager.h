@@ -68,7 +68,7 @@ private:
     static QMutex s_instanceMutex;
 
 private:
-    static void OnSnapData(uint64_t snapHandle, uint8_t dataType, UNIV_DEV_SNAP_DATA* pData, uint32_t dataSize);
+    static void UNIV_CALLBACK OnSnapData(uint64_t snapHandle, uint8_t dataType, void* pData, uint32_t dataSize);
     static ProcessResult processImageInBackground(QByteArray data, QString savePath, ImageProcessor* processor);
 };
 
