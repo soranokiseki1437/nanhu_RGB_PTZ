@@ -34,7 +34,7 @@ flowchart LR
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
 | **代码分支** | `main` | 与远程 `origin/main` 保持一致 |
-| **最新提交** | `f1b5b98` | *P1修复：统一默认值权威源/PTZ速度溢出保护/DataRecorder智能指针* |
+| **最新提交** | `8a7006e` | *重构(P2)：KF 卡尔曼滤波改用标准 cv::Matx 矩阵运算表示* |
 | **编译状态** | 🟢 **通过（0 告警）** | Release 构建已通过，Qt 6.10 / C++17 / MinGW 64-bit |
 | **算法移植进度** | 🟢 **Step 1~6 全部完成** | DsstCore 纯算法移植完成；ObjectTracker 已接线 DsstCore；红外模式 UI 与多线程调优完成 |
 | **体检修复进度** | 🟢 **49/53 项已闭环 (92.5%)** | 原 45 项体检闭环 41 项 + R-02~R-10 共 8 项闭环（背压/速度方向/增量写盘/ABI约定/排空等待/框选缓存/极小尺度兜底/重入保护） |
@@ -192,6 +192,7 @@ flowchart LR
 - [x] 处置 6：将 `项目说明/` 下关键素材与图纸入库，`sdk/` 下非 Windows 压缩包加入 `.gitignore`（已在 `845c3bc` 闭环）。
 - [x] 处置 7：完成 R-02~R-10（8 项）功能与并发安全修复提交入库（Commit `ff21548`, `a60184f`）。
 - [x] 处置 8：完成 P1 三项修复（统一默认值权威源、PTZ 速度溢出限幅、DataRecorder 智能指针，Commit `f1b5b98`）。
+- [x] 处置 9：完成 P2 两项改进（.pro 补充 unix OpenCV 依赖路径、KF 改用 cv::Matx44f/Matx22f 标准矩阵计算，Commit `f7a0e0a`, `8a7006e`）。
 
 ### 阶段二：Step 7 实机联调验收（需连接相机与云台硬件）
 - [ ] **7.1 可见光实时性**：25fps 预览稳定，无丢帧告警，跟踪框平滑无拉扯（验证 KF 预测与 PID）。
@@ -228,7 +229,10 @@ flowchart LR
      - 统一以 ConfigManager 为参数唯一权威源，TrackingController 构造参数设为占位值，在 `initTrackingModule()` 阶段从 ConfigManager 读取并同步到 UI 控件与 TrackingController，同步更新 `README.md`。
      - `onPtzControlDelta()` 中对速度输出增加 `qBound(0, speed, 63)` 安全限幅，防止有符号负数强转 uint8_t 造成云台全速失控。
      - `DataRecorder` 内部 `m_csvFile` 和 `m_csvStream` 升级为 `std::unique_ptr` 自动管理；并在 `aboutToQuit` 中显式调用 `stopRecording()` 确保异常退出时文件正常关闭。
-  5. **下一步计划**：
+  5. **P2 优化推进 (P2, Commit `f7a0e0a`, `8a7006e`)**：
+     - `RGB_PTZ_Integrated.pro` 增加 `unix:` 下 OpenCV 依赖分支，提升跨平台工程通用性。
+     - `ObjectTracker` 内 Kalman Filter 状态与协方差矩阵全面改用 `cv::Matx44f`、`cv::Matx22f`、`cv::Vec4f`、`cv::Vec2f` 标准矩阵代数写法，替代原有 120 余行易错展开循环，零堆内存分配且可维护性大幅提升。
+  6. **下一步计划**：
      - 推进 Step 7 实机联调验收。
 
 ### Checkpoint 2026-09-21 #3
