@@ -29,17 +29,17 @@ flowchart LR
 
 ---
 
-## 二、当前项目状态快照（2026-09-21 最新）
+## 二、当前项目状态快照（2026-09-28 最新）
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
 | **代码分支** | `main` | 与远程 `origin/main` 保持一致 |
-| **最新提交** | `93c9f53` | *文档：建立 checkpoint.md 机制，清理历史备份归档* |
+| **最新提交** | `f1b5b98` | *P1修复：统一默认值权威源/PTZ速度溢出保护/DataRecorder智能指针* |
 | **编译状态** | 🟢 **通过（0 告警）** | Release 构建已通过，Qt 6.10 / C++17 / MinGW 64-bit |
 | **算法移植进度** | 🟢 **Step 1~6 全部完成** | DsstCore 纯算法移植完成；ObjectTracker 已接线 DsstCore；红外模式 UI 与多线程调优完成 |
-| **体检修复进度** | 🟢 **41/45 项已闭环 (91%)** | 阶段 0 (PTZ)、阶段 1 (日志)、阶段 2 (FFmpeg)、阶段 3 (线程)、阶段 4 (UI缓存)、阶段 5 (配置/镜头) 全部合入 |
+| **体检修复进度** | 🟢 **49/53 项已闭环 (92.5%)** | 原 45 项体检闭环 41 项 + R-02~R-10 共 8 项闭环（背压/速度方向/增量写盘/ABI约定/排空等待/框选缓存/极小尺度兜底/重入保护） |
 | **待执行核心任务** | 🟡 **Step 7 实机联调** | 依赖硬件环境：云台串口通讯闭环、实时25fps、遮挡恢复、PSR曲线、24h稳定性 |
-| **Git 工作区状态** | 🟢 **已大幅清洁** | `_archive` 废弃代码与旧方案已提交删除；换行符已还原；无未暂存修改 |
+| **Git 工作区状态** | 🟢 **已清洁** | 历史归档已清理；图纸资料与方案入库；P0/P1代码修复全部入库推送到远程 |
 
 ---
 
@@ -170,6 +170,14 @@ flowchart LR
 | **R4** | P2 | reference 1-based 坐标系混淆 | ✅ **已闭环** | DsstCore 统一采用 0-based 半开区间标准几何（Commit `aa3aaba`） |
 | **R5** | P3 | reference 依赖 gz0084 硬件私有库 | ℹ️ *参考库* | 生产代码（上位机）完全不依赖该库 |
 | **R6** | P3 | reference 复数乘法逐像素低效遍历 | ✅ **已闭环** | DsstCore 改用 cv::mulSpectrums 硬件级加速（Commit `aa3aaba`） |
+| **R-02**| P1 | 跟踪帧无背压控制导致处理队列积压 | ✅ **已闭环** | `m_isProcessingFrame` 原子标志位控制，单帧在途多余丢弃（Commit `a60184f`） |
+| **R-03**| P1 | 云台控制方向依据脱靶量而非速度输出符号 | ✅ **已闭环** | 改用速度输出符号决定 Pelco-D 指令码（Commit `a60184f`） |
+| **R-04**| P0 | SDK 回调无排空机制导致析构后野指针调用 | ✅ **已闭环** | `s_activeCallbacks` 原子引用计数 + 500ms 超时排空（Commit `ff21548`） |
+| **R-05**| P1 | DataRecorder 内存无限增长且程序崩溃丢数据 | ✅ **已闭环** | 增量流式写盘 + 环形缓存 + unique_ptr 管理（Commit `a60184f`, `f1b5b98`） |
+| **R-06**| P1 | 录像未写 header 即调 trailer 导致崩溃 | ✅ **已闭环** | `m_headerWritten` 显式标记与状态校验（Commit `a60184f`） |
+| **R-08**| P1 | 抓图异步处理缺少重入保护 | ✅ **已闭环** | `m_processWatcher->isRunning()` 拦截重入请求（Commit `ff21548`） |
+| **R-09**| P2 | 鼠标框选每次拖动全量缩放 1080P 画面 | ✅ **已闭环** | 复用 `m_scaledPixmap` 局部绘制（Commit `a60184f`） |
+| **R-10**| P1 | 极小目标 minScale > maxScale 导致尺度发散 | ✅ **已闭环** | `if (m_minScale > m_maxScale) m_minScale = m_maxScale` 兜底（Commit `a60184f`） |
 
 ---
 
@@ -181,7 +189,9 @@ flowchart LR
 - [x] 处置 3：执行 `git checkout reference/main_zt.cpp sdk/sdk.h` 消除 CRLF 无效变动（已闭环）。
 - [x] 处置 4：将本 `checkpoint.md` 纳入 Git 跟踪并提交（已在 `93c9f53` 闭环）。
 - [x] 处置 5：彻底移除已全部执行完毕的 `待执行方案/` 目录（内容已全量沉淀至 `checkpoint.md`）。
-- [ ] 处置 6：将 `项目说明/` 下关键素材与图纸入库，`sdk/` 下非 Windows 压缩包加入 `.gitignore`。
+- [x] 处置 6：将 `项目说明/` 下关键素材与图纸入库，`sdk/` 下非 Windows 压缩包加入 `.gitignore`（已在 `845c3bc` 闭环）。
+- [x] 处置 7：完成 R-02~R-10（8 项）功能与并发安全修复提交入库（Commit `ff21548`, `a60184f`）。
+- [x] 处置 8：完成 P1 三项修复（统一默认值权威源、PTZ 速度溢出限幅、DataRecorder 智能指针，Commit `f1b5b98`）。
 
 ### 阶段二：Step 7 实机联调验收（需连接相机与云台硬件）
 - [ ] **7.1 可见光实时性**：25fps 预览稳定，无丢帧告警，跟踪框平滑无拉扯（验证 KF 预测与 PID）。
@@ -195,6 +205,31 @@ flowchart LR
 ---
 
 ## 七、历史检查点记录（Checkpoint Log）
+
+### Checkpoint 2026-09-28 #4 (HEAD @ `f1b5b98`)
+- **记录人**：Gemini 3.8 Flash
+- **类型**：P0 缺陷提交 + P1 代码修复与权威源统一
+- **核心内容**：
+  1. **SDK 回调签名与安全排空 (P0, Commit `ff21548`)**：
+     - 回调函数签名统一加上 `UNIV_CALLBACK` 调用约定，消除 ABI 崩溃风险（R-04）。
+     - 增加 `s_activeCallbacks` 原子引用计数并在 `~DeviceManager` 中设置 500ms 超时排空机制，杜绝析构后野指针崩溃（R-04）。
+     - CaptureManager 增加异步任务重入保护（R-08）。
+  2. **功能缺陷修复入库 (P0, Commit `a60184f`)**：
+     - R-02：TrackingController 增加 `m_isProcessingFrame` 标志位实现背压控制，防止多帧在队列堆积造成延迟。
+     - R-03：PTZ 转向根据速度输出符号（而非脱靶量）决定，保证负反馈闭环正确性。
+     - R-05：DataRecorder 改造为流式增量写入 CSV + 内存环形缓冲（上限 3600 条），防止爆内存及崩溃丢数据。
+     - R-06：RecordThread 增加 `m_headerWritten` 标志，防止未成功写头时调用 trailer 导致 FFmpeg 崩溃。
+     - R-09：鼠标框选拖动复用 `m_scaledPixmap` 局部绘制，消除高频 1080P 缩放卡顿。
+     - R-10：DsstCore 增加极小目标尺度下溢兜底 `m_minScale = m_maxScale`。
+  3. **未跟踪文件与文档素材整理 (P0, Commit `845c3bc`)**：
+     - 将 `sdk/univisionsdk-0.3.2/` 补充进 `.gitignore`。
+     - 将系统说明书图纸素材、参考资料、待执行方案全量入库并推送到远程仓库。
+  4. **P1 修复与参数权威源统一 (P1, Commit `f1b5b98`)**：
+     - 统一以 ConfigManager 为参数唯一权威源，TrackingController 构造参数设为占位值，在 `initTrackingModule()` 阶段从 ConfigManager 读取并同步到 UI 控件与 TrackingController，同步更新 `README.md`。
+     - `onPtzControlDelta()` 中对速度输出增加 `qBound(0, speed, 63)` 安全限幅，防止有符号负数强转 uint8_t 造成云台全速失控。
+     - `DataRecorder` 内部 `m_csvFile` 和 `m_csvStream` 升级为 `std::unique_ptr` 自动管理；并在 `aboutToQuit` 中显式调用 `stopRecording()` 确保异常退出时文件正常关闭。
+  5. **下一步计划**：
+     - 推进 Step 7 实机联调验收。
 
 ### Checkpoint 2026-09-21 #3
 - **记录人**：Antigravity AI
