@@ -79,6 +79,7 @@ INCLUDEPATH += $$OPENCV_DIR/include
 win32: LIBS += -L$$OPENCV_DIR/x64/mingw/lib \
     -lopencv_core4100 \
     -lopencv_imgproc4100
+unix: LIBS += -L$$OPENCV_DIR/lib -lopencv_core -lopencv_imgproc
 # 运行时需把 libopencv_core4100.dll / libopencv_imgproc4100.dll 放到 exe 同目录
 
 # 避免C语言相关警告
