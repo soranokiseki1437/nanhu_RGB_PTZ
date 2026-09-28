@@ -53,6 +53,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     // P8：退出时保存配置（ConfigManager 析构不再写盘，QApplication 收尾阶段 QSettings 不可靠）
     connect(qApp, &QCoreApplication::aboutToQuit, this, [this](){
         m_configManager->saveConfig();
+        if (m_deviceManager && m_deviceManager->getDataRecorder()) {
+            m_deviceManager->getDataRecorder()->stopRecording();
+        }
     });
 
     // 连接目标跟踪信号槽
@@ -307,13 +310,24 @@ void MainWindow::initTrackingModule()
     // UI 控件已在 mainwindow.ui 中添加，直接使用 ui-> 访问
     ui->btnTrackStart->setEnabled(false);
     ui->btnTrackStop->setEnabled(false);
-    ui->spinTrackDeadZone->setValue(20);
-    ui->spinTrackMaxSpeed->setValue(20);
-    ui->spinTrackKp->setValue(50);      // 0.50 * 100
-    ui->spinTrackKi->setValue(2);       // 0.02 * 100
-    ui->spinTrackKd->setValue(30);      // 0.30 * 100
-    ui->spinTrackKff->setValue(15);     // 0.15 * 100
-    ui->spinTrackPredict->setValue(2);
+
+    // 从 ConfigManager 读取默认值并同步到 UI 控件
+    ui->spinTrackDeadZone->setValue(m_configManager->getTrackDeadZone());
+    ui->spinTrackMaxSpeed->setValue(m_configManager->getTrackMaxSpeed());
+    ui->spinTrackKp->setValue(qRound(m_configManager->getTrackKp() * 100.0f));
+    ui->spinTrackKi->setValue(qRound(m_configManager->getTrackKi() * 100.0f));
+    ui->spinTrackKd->setValue(qRound(m_configManager->getTrackKd() * 100.0f));
+    ui->spinTrackKff->setValue(qRound(m_configManager->getTrackKff() * 100.0f));
+    ui->spinTrackPredict->setValue(m_configManager->getTrackTPredict());
+
+    // 同步到 TrackingController
+    m_trackingController->setDeadZonePixels(m_configManager->getTrackDeadZone());
+    m_trackingController->setMaxSpeed(m_configManager->getTrackMaxSpeed());
+    m_trackingController->setProportionalGain(m_configManager->getTrackKp());
+    m_trackingController->setIntegralGain(m_configManager->getTrackKi());
+    m_trackingController->setDerivativeGain(m_configManager->getTrackKd());
+    m_trackingController->setFeedforwardGain(m_configManager->getTrackKff());
+    m_trackingController->setPredictHorizon(m_configManager->getTrackTPredict());
 
     // 连接跟踪按钮
     connect(ui->btnTrackSelect, &QPushButton::clicked, this, &MainWindow::on_btnTrackSelect_clicked);
@@ -1146,18 +1160,18 @@ void MainWindow::onPtzControlDelta(int deltaX, int deltaY, int speedX, int speed
     // R-03: 根据速度输出的符号（而非脱靶量）决定方向
     if (speedX > 0) {
         cmd2 |= 0x02;  // 右
-        hSpeed = static_cast<uint8_t>(speedX);
+        hSpeed = static_cast<uint8_t>(qBound(0, speedX, 63));
     } else if (speedX < 0) {
         cmd2 |= 0x04;  // 左
-        hSpeed = static_cast<uint8_t>(-speedX);
+        hSpeed = static_cast<uint8_t>(qBound(0, -speedX, 63));
     }
 
     if (speedY > 0) {
         cmd2 |= 0x10;  // 下
-        vSpeed = static_cast<uint8_t>(speedY);
+        vSpeed = static_cast<uint8_t>(qBound(0, speedY, 63));
     } else if (speedY < 0) {
         cmd2 |= 0x08;  // 上
-        vSpeed = static_cast<uint8_t>(-speedY);
+        vSpeed = static_cast<uint8_t>(qBound(0, -speedY, 63));
     }
 
     if (cmd2 != 0x00) {

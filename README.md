@@ -168,10 +168,10 @@ RGB_PTZ_Integrated/
  8. 发射 ptzControlDelta(Δx, Δy, |speedX|, |speedY|)
 ```
 
-**参数默认值**（在 TrackingController 构造函数初始化）：
-- Kp = 0.5, Ki = 0.02, Kd = 0.3, K_ff = 0.15
-- T_predict = 2 帧（补偿云台延迟 ≈ 80 ms @ 25 fps）
-- deadZone = 20 px, maxSpeed = 20, I_max = 15
+**参数默认值**（默认值由 ConfigManager 持久化管理，首次运行使用上述值）：
+- Kp = 0.15, Ki = 0.005, Kd = 0.03, Kff = 0.5
+- T_predict = 5 帧（补偿云台延迟 ≈ 80 ms @ 25 fps）
+- deadZone = 15 px, maxSpeed = 20, I_max = 15
 
 **UI 调参入口**：`mainwindow.cpp on_btnTrackStart_clicked` 读取 7 个 `spin*` 控件并调用 `setDeadZonePixels / setMaxSpeed / setProportionalGain / setIntegralGain / setDerivativeGain / setFeedforwardGain / setPredictHorizon`。运行中不实时生效，需重新点击"开始跟踪"。**注意**：`I_max`（积分饱和上限，默认 15）无 UI 调参入口，需在 `TrackingController` 构造函数中修改。
 

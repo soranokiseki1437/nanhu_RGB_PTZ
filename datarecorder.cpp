@@ -47,16 +47,15 @@ bool DataRecorder::startRecording(const QString &baseFilePath)
     m_frameCounter = 0;
     
     // R-05: 立即打开 CSV 文件并写入 BOM + 表头
-    m_csvFile = new QFile(m_csvFilePath);
+    m_csvFile = std::make_unique<QFile>(m_csvFilePath);
     if (!m_csvFile->open(QIODevice::WriteOnly | QIODevice::Text)) {
         emit errorOccurred(QString("无法打开CSV文件: %1").arg(m_csvFile->errorString()));
-        delete m_csvFile;
-        m_csvFile = nullptr;
+        m_csvFile.reset();
         return false;
     }
     // Qt 6 手动写入 UTF-8 BOM
     m_csvFile->write("\xEF\xBB\xBF");
-    m_csvStream = new QTextStream(m_csvFile);
+    m_csvStream = std::make_unique<QTextStream>(m_csvFile.get());
     m_csvStream->setEncoding(QStringConverter::Utf8);
     *m_csvStream << "序号,时间戳(ms),日期时间,帧序号,"
                  << "水平角度(°),俯仰角度(°),水平速度,俯仰速度,"
@@ -91,13 +90,11 @@ void DataRecorder::stopRecording()
     // R-05: 关闭增量写入的文件
     if (m_csvStream) {
         m_csvStream->flush();
-        delete m_csvStream;
-        m_csvStream = nullptr;
+        m_csvStream.reset();
     }
     if (m_csvFile) {
         m_csvFile->close();
-        delete m_csvFile;
-        m_csvFile = nullptr;
+        m_csvFile.reset();
     }
     
     m_recording = false;
