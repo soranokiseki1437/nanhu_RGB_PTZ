@@ -54,6 +54,7 @@ private:
     int m_inputH;            // sws 输入高
     int m_inputFmt;          // sws 输入像素格式
     int m_writeFailCount;    // 录像写盘连续失败计数
+    bool m_headerWritten = false;  // R-06: avformat_write_header 是否成功
 
     // 解码
     VideoDecoder m_decoder;

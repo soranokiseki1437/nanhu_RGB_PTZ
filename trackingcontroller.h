@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QTimer>
 #include <QThread>
+#include <atomic>
 #include "objecttracker.h"
 
 // PTZ自动跟踪控制器
@@ -136,6 +137,7 @@ private:
     float m_prevErrorY;     // 上一帧Y误差（用于D项）
     float m_I_max;          // 积分上限（防饱和）
     bool m_pidInitialized;  // PID是否已完成首帧初始化
+    std::atomic<bool> m_isProcessingFrame{false};  // R-02: 帧处理背压标志
 
     // 计算PTZ控制量
     void computePTZControl(const TrackResult& result);

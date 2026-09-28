@@ -72,6 +72,7 @@ void TrackingController::setTarget(const QImage& frame, const QRectF& targetRect
 
     connect(m_tracker, &ObjectTracker::initDone, this, &TrackingController::onTrackerInitDone);
     connect(m_tracker, &ObjectTracker::trackingDone, this, [this](const TrackResult& result) {
+        m_isProcessingFrame.store(false);  // R-02: 帧处理完成，允许下一帧进入
         m_lastResult = result;
         emit trackingResult(result);
         emit drawTrackingBox(result.bbox, result.occluded);
@@ -143,6 +144,11 @@ void TrackingController::processFrame(const QImage& frame)
         m_frameHeight = frame.height();
     }
 
+    // R-02: 背压控制——如果上一帧还在处理中，丢弃当前帧
+    if (m_isProcessingFrame.exchange(true)) {
+        return;  // 丢弃，保证队列最多1帧
+    }
+
     // 跨线程异步调用：帧数据发送到 worker 线程处理
     QMetaObject::invokeMethod(m_tracker, "processFrameSlot",
                               Qt::QueuedConnection,
@@ -157,6 +163,7 @@ void TrackingController::resetPidState()
     m_prevErrorX = 0.0f;
     m_prevErrorY = 0.0f;
     m_pidInitialized = false;
+    m_isProcessingFrame.store(false);  // R-02: PID重置时一并重置
 }
 
 // ==============================
@@ -267,11 +274,12 @@ void TrackingController::computePTZControl(const TrackResult& result)
     speedXf = qBound(-static_cast<float>(m_maxSpeed), speedXf, static_cast<float>(m_maxSpeed));
     speedYf = qBound(-static_cast<float>(m_maxSpeed), speedYf, static_cast<float>(m_maxSpeed));
 
-    // === 7. 输出（带方向信息的脱靶量用于 MainWindow 决定Pelco-D命令码）===
+    // === 7. 输出 ===
+    // R-03: speedX/speedY 保留正负号，由 MainWindow 根据符号决定方向
     const int outDeltaX = qRound(errorXEffective);
     const int outDeltaY = qRound(errorYEffective);
-    const int outSpeedX = qRound(std::abs(speedXf));
-    const int outSpeedY = qRound(std::abs(speedYf));
+    const int outSpeedX = qRound(speedXf);
+    const int outSpeedY = qRound(speedYf);
 
     emit ptzControlDelta(outDeltaX, outDeltaY, outSpeedX, outSpeedY);
 }
@@ -294,6 +302,7 @@ void TrackingController::stopTracking()
         delete m_trackerThread;
         m_trackerThread = nullptr;
     }
+    m_isProcessingFrame.store(false);  // R-02: 停止跟踪时重置
     m_state = Idle;
     emit stateChanged(m_state);
     emit statusMessage("跟踪已停止");

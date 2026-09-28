@@ -1133,7 +1133,7 @@ void MainWindow::onPtzControlDelta(int deltaX, int deltaY, int speedX, int speed
         return;
     }
 
-    // 脱靶量转PTZ方向指令（负反馈闭环）
+    // 速度输出转PTZ方向指令（负反馈闭环）
     // deltaX > 0: 目标在右侧，云台右转 (cmd2 = 0x02)
     // deltaX < 0: 目标在左侧，云台左转 (cmd2 = 0x04)
     // deltaY > 0: 目标在下方，云台下转 (cmd2 = 0x10)
@@ -1143,20 +1143,21 @@ void MainWindow::onPtzControlDelta(int deltaX, int deltaY, int speedX, int speed
     uint8_t hSpeed = 0;
     uint8_t vSpeed = 0;
 
-    if (deltaX > 0) {
+    // R-03: 根据速度输出的符号（而非脱靶量）决定方向
+    if (speedX > 0) {
         cmd2 |= 0x02;  // 右
         hSpeed = static_cast<uint8_t>(speedX);
-    } else if (deltaX < 0) {
+    } else if (speedX < 0) {
         cmd2 |= 0x04;  // 左
-        hSpeed = static_cast<uint8_t>(speedX);
+        hSpeed = static_cast<uint8_t>(-speedX);
     }
 
-    if (deltaY > 0) {
+    if (speedY > 0) {
         cmd2 |= 0x10;  // 下
         vSpeed = static_cast<uint8_t>(speedY);
-    } else if (deltaY < 0) {
+    } else if (speedY < 0) {
         cmd2 |= 0x08;  // 上
-        vSpeed = static_cast<uint8_t>(speedY);
+        vSpeed = static_cast<uint8_t>(-speedY);
     }
 
     if (cmd2 != 0x00) {
@@ -1233,13 +1234,13 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event)
         m_selectBox = QRectF(imgX, imgY, imgW, imgH);
 
         // 实时显示框选（在缩放的画布上绘制，坐标需偏移）
-        QPixmap pixmap = QPixmap::fromImage(m_lastFrame);
-        QPixmap scaledPixmap = pixmap.scaled(labelSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        QPainter painter(&scaledPixmap);
+        // R-09: 复用已缓存的 m_scaledPixmap，避免每次拖动都缩放 1080P 图像
+        QPixmap overlay = m_scaledPixmap.copy();
+        QPainter painter(&overlay);
         painter.setPen(QPen(Qt::yellow, 2, Qt::DashLine));
         painter.drawRect(QRectF(x - offsetX, y - offsetY, w, h));
         painter.end();
-        ui->rgbLabelImage->setPixmap(scaledPixmap);
+        ui->rgbLabelImage->setPixmap(overlay);
     }
 }
 

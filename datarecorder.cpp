@@ -46,6 +46,26 @@ bool DataRecorder::startRecording(const QString &baseFilePath)
     m_dataPoints.clear();
     m_frameCounter = 0;
     
+    // R-05: 立即打开 CSV 文件并写入 BOM + 表头
+    m_csvFile = new QFile(m_csvFilePath);
+    if (!m_csvFile->open(QIODevice::WriteOnly | QIODevice::Text)) {
+        emit errorOccurred(QString("无法打开CSV文件: %1").arg(m_csvFile->errorString()));
+        delete m_csvFile;
+        m_csvFile = nullptr;
+        return false;
+    }
+    // Qt 6 手动写入 UTF-8 BOM
+    m_csvFile->write("\xEF\xBB\xBF");
+    m_csvStream = new QTextStream(m_csvFile);
+    m_csvStream->setEncoding(QStringConverter::Utf8);
+    *m_csvStream << "序号,时间戳(ms),日期时间,帧序号,"
+                 << "水平角度(°),俯仰角度(°),水平速度,俯仰速度,"
+                 << "目标检测有效,目标X,目标Y,X脱靶量,Y脱靶量,置信度,"
+                 << "KF_X,KF_Y,KF_Vx,KF_Vy,PSR,跟踪状态,"
+                 << "PTZ指令X,PTZ指令Y,PTZ速度X,PTZ速度Y\n";
+    m_csvStream->flush();
+    m_writeCounter = 0;
+
     m_startTimeMs = QDateTime::currentMSecsSinceEpoch();
     m_recording = true;
     
@@ -68,11 +88,16 @@ void DataRecorder::stopRecording()
     
     m_recordTimer->stop();
     
-    // 导出数据
-    if (!m_dataPoints.isEmpty()) {
-        locker.unlock();
-        exportToCsv(m_csvFilePath);
-        locker.relock();
+    // R-05: 关闭增量写入的文件
+    if (m_csvStream) {
+        m_csvStream->flush();
+        delete m_csvStream;
+        m_csvStream = nullptr;
+    }
+    if (m_csvFile) {
+        m_csvFile->close();
+        delete m_csvFile;
+        m_csvFile = nullptr;
     }
     
     m_recording = false;
@@ -178,6 +203,44 @@ void DataRecorder::onRecordTimer()
     point.ptzSpeedY = m_currentPtzSpeedY;
     
     m_dataPoints.append(point);
+
+    // R-05: 内存环形缓冲
+    if (m_dataPoints.size() > kMaxMemoryPoints) {
+        m_dataPoints.removeFirst();
+    }
+
+    // R-05: 增量写入 CSV
+    if (m_csvStream) {
+        int seq = ++m_writeCounter;
+        *m_csvStream << seq << ","
+            << point.timestampMs << ","
+            << point.dateTime.toString("yyyy-MM-dd hh:mm:ss.zzz") << ","
+            << point.frameIndex << ","
+            << QString::number(point.ptz.panAngle, 'f', 2) << ","
+            << QString::number(point.ptz.tiltAngle, 'f', 2) << ","
+            << QString::number(point.ptz.panSpeed, 'f', 2) << ","
+            << QString::number(point.ptz.tiltSpeed, 'f', 2) << ","
+            << (point.detection.valid ? "1" : "0") << ","
+            << QString::number(point.detection.targetX, 'f', 2) << ","
+            << QString::number(point.detection.targetY, 'f', 2) << ","
+            << QString::number(point.detection.offsetX, 'f', 2) << ","
+            << QString::number(point.detection.offsetY, 'f', 2) << ","
+            << QString::number(point.detection.confidence, 'f', 3) << ","
+            << QString::number(point.kfX, 'f', 2) << ","
+            << QString::number(point.kfY, 'f', 2) << ","
+            << QString::number(point.kfVx, 'f', 2) << ","
+            << QString::number(point.kfVy, 'f', 2) << ","
+            << QString::number(point.psr, 'f', 2) << ","
+            << point.trackState << ","
+            << point.ptzCmdX << ","
+            << point.ptzCmdY << ","
+            << point.ptzSpeedX << ","
+            << point.ptzSpeedY << "\n";
+        if (seq % 50 == 0) {
+            m_csvStream->flush();
+        }
+    }
+
     int pointCount = m_dataPoints.size();
     
     // 提前解锁，避免在信号发送期间持有锁

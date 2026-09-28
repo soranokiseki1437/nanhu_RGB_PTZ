@@ -475,6 +475,8 @@ bool DsstCore::init(const cv::Mat& image, const cv::Rect& bbox)
                           std::floor(std::log(std::min((float)image.rows / m_targetSz.height,
                                                        (float)image.cols / m_targetSz.width))
                                      / std::log(m_scaleStep)));
+    // R-10: 极小目标兜底——防止 minScale > maxScale 导致尺度搜索发散
+    if (m_minScale > m_maxScale) m_minScale = m_maxScale;
 
     std::vector<cv::Mat> xl = getTranslationSample(image, m_pos, m_scale);
     if (xl.empty()) return false;

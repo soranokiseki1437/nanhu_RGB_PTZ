@@ -6,6 +6,8 @@
 #include <QMutex>
 #include <QVector>
 #include <QDateTime>
+#include <QFile>
+#include <QTextStream>
 #include "datatypes.h"
 
 class DataRecorder : public QObject
@@ -50,6 +52,11 @@ private:
     QTimer *m_recordTimer;
     QVector<DataPoint> m_dataPoints;
     
+    QFile* m_csvFile = nullptr;          // R-05: 持久化文件句柄
+    QTextStream* m_csvStream = nullptr;  // R-05: 文本流
+    int m_writeCounter = 0;              // R-05: flush 计数器
+    static constexpr int kMaxMemoryPoints = 3600;  // R-05: 内存最多保留6分钟数据
+
     bool m_recording;
     qint64 m_startTimeMs;
     QString m_baseFilePath;

@@ -2,6 +2,8 @@
 #include <QSettings>
 #include <QMutexLocker>
 #include <QDebug>
+#include <QCoreApplication>
+#include <QDir>
 
 // P7/P8：
 // - 所有 getter/setter 加互斥锁（配置可能被 UI 线程与工作线程并发读写）
@@ -13,7 +15,7 @@ ConfigManager::ConfigManager(QObject *parent) : QObject(parent)
     , m_deviceUsername("admin")
     , m_captureInterval(10)
     , m_captureQuality(80)
-    , m_savePath("./captures")
+    , m_savePath(QCoreApplication::applicationDirPath() + "/captures")
     , m_ptzPortName("COM1")
     , m_ptzBaudRate(9600)
     , m_ptzAddress(1)
@@ -24,7 +26,7 @@ ConfigManager::ConfigManager(QObject *parent) : QObject(parent)
     , m_trackTPredict(5)
     , m_trackDeadZone(15)
     , m_trackMaxSpeed(20)
-    , m_videoSavePath("./videos")
+    , m_videoSavePath(QCoreApplication::applicationDirPath() + "/videos")
 {
     loadConfig();
 }
@@ -225,7 +227,7 @@ void ConfigManager::loadConfig()
     m_devicePassword = settings.value("device/password").toString();
     m_captureInterval = settings.value("capture/interval", 10).toInt();
     m_captureQuality = settings.value("capture/quality", 80).toInt();
-    m_savePath = settings.value("capture/savePath", "./captures").toString();
+    m_savePath = settings.value("capture/savePath", QCoreApplication::applicationDirPath() + "/captures").toString();
     // M5: 加载扩展配置
     m_ptzPortName = settings.value("ptz/portName", "COM1").toString();
     m_ptzBaudRate = settings.value("ptz/baudRate", 9600).toInt();
@@ -237,6 +239,6 @@ void ConfigManager::loadConfig()
     m_trackTPredict = settings.value("track/tPredict", 5).toInt();
     m_trackDeadZone = settings.value("track/deadZone", 15).toInt();
     m_trackMaxSpeed = settings.value("track/maxSpeed", 20).toInt();
-    m_videoSavePath = settings.value("video/savePath", "./videos").toString();
+    m_videoSavePath = settings.value("video/savePath", QCoreApplication::applicationDirPath() + "/videos").toString();
     qDebug() << "Config loaded";
 }

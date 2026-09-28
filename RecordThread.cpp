@@ -17,6 +17,7 @@ RecordThread::RecordThread(QObject *parent)
     , m_inputH(-1)
     , m_inputFmt(-1)
     , m_writeFailCount(0)
+    , m_headerWritten(false)
     , m_formatContext(nullptr)
     , m_videoStream(nullptr)
     , m_encoder(nullptr)
@@ -68,7 +69,7 @@ void RecordThread::cleanup()
     }
     
     if (m_formatContext) {
-        if (m_initialized && m_formatContext->pb) {
+        if (m_headerWritten && m_formatContext->pb) {
             av_write_trailer(m_formatContext);
         }
         if (m_formatContext->pb) {
@@ -79,6 +80,7 @@ void RecordThread::cleanup()
     }
     m_videoStream = nullptr;
     m_initialized = false;
+    m_headerWritten = false;
 }
 
 bool RecordThread::initEncoder(int width, int height)
@@ -335,12 +337,13 @@ void RecordThread::run()
                         // 写文件头
                         AVDictionary* options = nullptr;
                         av_dict_set(&options, "movflags", "faststart", 0);
-                        if (avformat_write_header(m_formatContext, &options) < 0) {
+                        int headerRet = avformat_write_header(m_formatContext, &options);
+                        av_dict_free(&options);
+                        if (headerRet < 0) {
                             emit errorOccurred("无法写入文件头");
-                            av_dict_free(&options);
                             break;
                         }
-                        av_dict_free(&options);
+                        m_headerWritten = true;  // R-06: 标记 header 写入成功
 
                         encoderReady = true;
                         qDebug() << "[RecordThread] 录制开始";
