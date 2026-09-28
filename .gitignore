@@ -39,3 +39,7 @@ testdata/**/imgs/
 Thumbs.db
 Desktop.ini
 *.lnk
+
+# ===== Linux/ARM SDK 源码包（不入库） =====
+sdk/univisionsdk-0.3.2/
+

@@ -1,0 +1,140 @@
+<title>【系统说明书】系统三：RGB_PTZ_Integrated 相机—云台目标跟踪系统</title>
+
+<h1 seq="auto">系统概述</h1>
+<p>系统三 <b>RGB_PTZ_Integrated</b>（代码目录：<code>D:\PyProjects\RGB_PTZ_Integrated</code>）是一套"可见光机芯 + 双轴云台"的联动目标跟踪系统，基于 Qt 6.10 / C++17 开发。它的目标是：在视频画面中框选任意目标后，由跟踪算法解算目标位置，驱动云台自动跟随目标转动。</p>
+<p>技术栈：Qt 6.10、C++17、FFmpeg 8.1（录像）、Univision SDK（机芯）。</p>
+<p><b>运行状态：部分成功。</b>视频链路（录像、抓图、变焦）与云台链路（手动控制、角度回传）均已实测正常；但"跟踪算法 + 跟踪→云台联动"这条闭环未能正常工作，导致跟踪算法本身也暂无法验证。</p>
+
+<h2 seq="auto">硬件清单</h2>
+<table>
+<thead>
+<tr><th background-color="light-gray"><p>设备</p></th><th background-color="light-gray"><p>型号 / 规格</p></th><th background-color="light-gray"><p>连接方式</p></th></tr>
+</thead>
+<tbody>
+<tr><td><p>相机机芯（含镜头）</p></td><td><p>UV-ZNH2130DHA-P，200 万黑光级、30 倍变焦，镜头与成像电路集成在机芯内部</p></td><td><p>JP1（36P）排线 → 接口板</p></td></tr>
+<tr><td><p>接口板（转换板）</p></td><td><p>机芯配套转接板，把 36P 私有接口转成标准 RJ45 网口</p></td><td><p>P1（RJ45）独立网线 → 电脑；PWR1 独立 DC12V 供电</p></td></tr>
+<tr><td><p>云台</p></td><td><p>YZ-BY025W 双轴云台，水平 0°~360° 连续、俯仰 -90°~40°，Pelco-D 协议 @9600bps，定位精度 ±0.1°，支持角度回传</p></td><td><p>下部出线 RS485 → USB 转 RS485 → 电脑 USB；DC24V 供电</p></td></tr>
+<tr><td><p>电脑（上位机）</p></td><td><p>Windows，运行 <code>RGB_PTZ_Integrated.exe</code></p></td><td><p>有线网口 + USB 口</p></td></tr>
+</tbody>
+</table>
+
+<h1 seq="auto">物理连接链路</h1>
+<img path="@./导出图片/系统3_物理连接.png" caption="图 1　系统三物理连接链路图"/>
+<p>系统在物理上分为<b>两条互不相连的链路</b>：相机机芯与云台为分体安装（非顶载），两者之间没有任何物理连线，只在电脑软件层汇合。</p>
+
+<h2 seq="auto">视频链路（上排）</h2>
+<p>机芯通过一根 <b>36P 排线</b>接到接口板的 JP1；接口板把机芯的网络差分信号直通到 P1 的 RJ45 网口，再由一根<b>独立网线</b>接到电脑网口。接口板本身由独立的 DC12V 适配器供电，并把这路 12V 转供给机芯。</p>
+
+<h2 seq="auto">云台链路（下排）</h2>
+<p>云台只使用<b>下部出线</b>中的两路：一路 RS485（A/B 两线）经 USB 转 RS485 转换器接入电脑 USB 口，用于下发 Pelco-D 控制指令和回收角度；一路 DC24V 输入，用于给云台供电（整机功耗 ≤90W）。</p>
+
+<h2 seq="auto">线缆明细</h2>
+<table>
+<thead>
+<tr><th background-color="light-gray"><p>连接</p></th><th background-color="light-gray"><p>线缆</p></th><th background-color="light-gray"><p>关键信号</p></th></tr>
+</thead>
+<tbody>
+<tr><td><p>机芯 JP1 ↔ 接口板 JP1</p></td><td><p>36P 排线</p></td><td><p>网络差分对 TPTX±/TPRX±、机芯 DC12V 供电、串口 232_TX/RX、报警 I/O、SD 卡信号</p></td></tr>
+<tr><td><p>接口板 P1 ↔ 电脑网口</p></td><td><p>以太网网线（独立布线）</p></td><td><p>视频流 ↑、SDK 指令 ↓（登录、抓图、录像、镜头变焦/聚焦/光圈）</p></td></tr>
+<tr><td><p>DC12V 适配器 → 接口板 PWR1</p></td><td><p>DC 电源线</p></td><td><p>DC12V（接口板与机芯供电）</p></td></tr>
+<tr><td><p>云台下部 ↔ USB 转 RS485</p></td><td><p>RS485 双绞线（A/B）</p></td><td><p>Pelco-D 控制指令 ↓、角度回传 ↑（9600bps）</p></td></tr>
+<tr><td><p>USB 转 RS485 ↔ 电脑 USB</p></td><td><p>USB 2.0 线</p></td><td><p>串口数据双向（虚拟 COM 口）</p></td></tr>
+<tr><td><p>DC24V 电源 → 云台下部</p></td><td><p>DC 电源线</p></td><td><p>DC24V + GND（云台供电，≤90W）</p></td></tr>
+</tbody>
+</table>
+
+<h2 seq="auto">为什么整台相机只用一根 36P 排线</h2>
+<p>本项目使用的是<b>裸机芯</b>而非成品相机。机芯内部已经集成了镜头马达、CMOS 传感器、图像处理、H.264 编码和网络协议栈，但它对外只留一个 36 针的板对板排线口——因为机芯体积太小，装不下 RJ45、电源座这类接插件。</p>
+<p>接口板就是厂家配套的"扇出板"：把 36P 这一个口拆成标准接口。其中第 12~15 脚是 4 根网络差分线，被直通到 P1 的 RJ45，相当于把机芯的网口"延长"成一根标准网线；第 1~3 脚是机芯的 DC12V 输入。</p>
+<p>正因为机芯是 SoC，<b>镜头控制也不需要额外接线</b>：上位机 SDK 把变焦/聚焦指令打成 IP 包发到机芯（经 P1 → 接口板 → JP1 差分对 → 机芯网络栈），机芯内部自己驱动镜头马达。抓图、录像同理。整条链路只走这一根排线。</p>
+
+<h1 seq="auto">数据链路</h1>
+<img path="@./导出图片/系统3_数据链路.png" caption="图 2　系统三数据链路图（软件模块 / 线程 / 信号）"/>
+<p>软件层由 5 条线程组成，用虚线框表示模块归属；连线按类型分色：蓝色为视频数据流，橙色为控制指令流，灰色为串口/USB 通道，红色虚线为跟踪闭环（未成功）。</p>
+
+<h2 seq="auto">视频数据流</h2>
+<p>机芯内部编码后的 H.264 码流经 36P 排线、接口板、网线进入电脑，由 <code>DeviceManager</code> 完成 SDK 登录与取流，再交给 <code>DecodeThread</code> 解码为 YUV420 并转成 <code>QImage</code>；解码线程通过 <code>newFrame(QImage)</code> 信号把每一帧送回主线程的 <code>MainWindow</code>，由它分发到视频显示（QLabel 绘制）、录像线程和跟踪模块。</p>
+
+<h2 seq="auto">镜头控制流</h2>
+<p><code>LensManager</code> 通过 SDK 下发变焦/聚焦/光圈指令，指令走同一条视频链路的以太网通道到机芯，机芯内部驱动镜头马达。这条链路已实测正常。</p>
+
+<h2 seq="auto">云台控制与角度回传</h2>
+<p>控制下行：主线程（手动按钮或跟踪控制器）→ <code>PTZController</code> 组装 Pelco-D 帧 → <code>QSerialPort</code> → USB 转 RS485 → 云台。<br/>回传上行：上位机定时发查询指令，云台经 RS485 回传当前水平/俯仰角度，<code>QSerialPort</code> 的 <code>readyRead</code> 触发解析，结果回显到界面。<b>注意角度是"查询回传"而非主动上报。</b></p>
+
+<h2 seq="auto">跟踪闭环（未成功）</h2>
+<p>设计上的闭环为：<code>MainWindow</code> 把 QImage 帧通过 <code>QueuedConnection</code> 跨线程送给 <code>ObjectTracker</code>（worker 线程，运行 DSST + 卡尔曼滤波），产生的 <code>TrackResult</code> 结构体（含 bbox、PSF 置信度、kfX/kfY/kfVx/kfVy）通过信号回传主线程的 <code>TrackingController</code>，由它做"KF 预测前馈 + PID 反馈"计算，输出 <code>ptzControlDelta</code> 给 <code>PTZController</code> 驱动云台。这条回路目前跑不通，详见"运行状态"。</p>
+
+<h2 seq="auto">记录与日志</h2>
+<p><code>RecordThread</code> 用 FFmpeg 把视频写成 MP4/MOV；<code>CaptureManager</code> 抓图存 JPG；<code>DataRecorder</code> 把 PTZ 与检测数据导出为 CSV/Excel；<code>LogManager</code> 统一写日志到 <code>日志/</code> 目录。</p>
+
+<h2 seq="auto">线程模型</h2>
+<table>
+<thead>
+<tr><th background-color="light-gray"><p>线程</p></th><th background-color="light-gray"><p>主要模块</p></th><th background-color="light-gray"><p>职责</p></th></tr>
+</thead>
+<tbody>
+<tr><td><p>主线程（Qt UI）</p></td><td><p>MainWindow、TrackingController、LensManager、CaptureManager、DataRecorder、LogManager、ConfigManager</p></td><td><p>界面绘制、帧分发、伺服计算、指令下发、数据落地</p></td></tr>
+<tr><td><p>DecodeThread</p></td><td><p>DeviceManager、VideoDecoder</p></td><td><p>SDK 取流、H.264 解码、YUV→QImage</p></td></tr>
+<tr><td><p>RecordThread</p></td><td><p>RecordThread</p></td><td><p>FFmpeg 编码写盘</p></td></tr>
+<tr><td><p>ObjectTracker worker</p></td><td><p>ObjectTracker、fftutils</p></td><td><p>DSST + KF 跟踪计算（未成功）</p></td></tr>
+<tr><td><p>串口线程</p></td><td><p>PTZController、QSerialPort</p></td><td><p>Pelco-D 组帧/解析、串口读写</p></td></tr>
+</tbody>
+</table>
+
+<h1 seq="auto">运行流程</h1>
+<ol>
+<li>给接口板接 DC12V 适配器，给云台接 DC24V 电源，确认云台上电自检完成。</li>
+<li>用网线连接接口板 P1 与电脑网口；用 RS485 线连接云台下部出线与 USB 转 RS485，转换器插入电脑 USB 口。</li>
+<li>确认电脑能 ping 通机芯 IP；确认设备管理器中已识别串口（虚拟 COM 口），并记录端口号。默认波特率 9600。</li>
+<li>启动 <code>RGB_PTZ_Integrated.exe</code>，在配置中填入机芯 IP、串口名后登录取流，画面正常显示即视频链路通。</li>
+<li>打开串口连接云台，用界面方向键手动转动云台，并查询角度回传，确认云台链路通。</li>
+<li>（可选）测试变焦、抓图、录像，确认文件能落到本地磁盘。</li>
+<li>最后进行目标跟踪：在画面中框选目标后点击开始跟踪。<b>本环节目前不可用。</b></li>
+</ol>
+
+<h2 seq="auto">注意事项</h2>
+<ul>
+<li>云台速度输出上限为 Pelco-D 规范的 <code>[0, 63]</code>，代码中会做限幅。</li>
+<li>伺服控制有死区（默认 20 px），用于防止云台抖动，不宜设为 0。</li>
+<li>调试参数（Kp/Ki/Kd/前馈增益/预测时域/死区/最大速度）在点击"开始跟踪"时读取，运行中修改不实时生效，需重新开始跟踪。</li>
+<li>跟踪失败后云台可能保持原方向继续转动，遇到该情况请先断电或直接关闭云台电源再排查，避免云台长时间空转。</li>
+</ul>
+
+<h1 seq="auto">运行状态</h1>
+<h2 seq="auto">已验证正常的环节</h2>
+<ul>
+<li>相机 SDK 录像、抓图：功能正常，数据文件可正常保存到电脑。</li>
+<li>镜头变焦：正常。</li>
+<li>云台手动操作：正常，Pelco-D 指令可正确下发并执行。</li>
+<li>云台角度/位姿回传：正常，定时查询可拿到当前角度。</li>
+</ul>
+
+<h2 seq="auto">未成功的环节</h2>
+<callout emoji="⚠️" background-color="light-red" border-color="red">
+<p><b>跟踪算法与"跟踪→云台联动"闭环未能正常工作。</b>实测现象（按发生顺序）：</p>
+<p>1. 框选目标后，跟踪框向一个方向持续漂移；<br/>2. 云台跟着向同一方向不停旋转；<br/>3. 随后软件崩溃；<br/>4. 云台保持原方向继续转动（故障保持，崩溃后未下发停止指令）；<br/>5. 由于跟踪结果不可信，DSST + 卡尔曼滤波算法本身也无法验证。</p>
+</callout>
+
+<h2 seq="auto">待排查方向</h2>
+<p>以下为根据现象提出的初步假设，尚未验证，按从简到繁的顺序建议逐项排除：</p>
+<ol>
+<li><b>跟踪框单向漂移</b>：可能是 DSST 响应图峰值定位异常或尺度估计发散，导致 bbox 持续偏向一侧，使 KF 速度项长期同号。</li>
+<li><b>云台单向不停转</b>：伺服误差长期同号时，PID 积分项会累积到上限（I_max=15），限幅后仍输出同向最大速度。</li>
+<li><b>软件崩溃</b>：可能与 worker 线程生命周期，或跨线程信号在跟踪过程中重建目标时的竞争有关。</li>
+<li><b>云台故障保持</b>：崩溃路径未走到 <code>stopTracking()</code>，因此没有下发 Pelco-D 停止帧（速度 0）。</li>
+</ol>
+<p>建议的验证顺序：① 先关闭云台输出，只看跟踪框是否漂移，以分离"跟踪"与"伺服"两类问题；② 关闭跟踪，用固定误差测云台是否收敛，验证伺服链路本身；③ 在崩溃点抓取日志或 dump 定位崩溃位置。</p>
+
+<h1 seq="auto">简要原理</h1>
+<table>
+<thead>
+<tr><th background-color="light-gray"><p>模块</p></th><th background-color="light-gray"><p>原理</p></th></tr>
+</thead>
+<tbody>
+<tr><td><p>视频解码</p></td><td><p>机芯输出 H.264 码流，上位机用第三方 SDK 取流后解码为 YUV420，再转 QImage 由主线程绘制。</p></td></tr>
+<tr><td><p>目标跟踪</p></td><td><p>DSST：以 FHOG 特征建立相关滤波器，配合 33 个尺度估计目标大小，逐帧求响应图峰值定位目标；同时用线性卡尔曼滤波平滑位置与速度，输出 kfX/kfY/kfVx/kfVy 供伺服使用。</p></td></tr>
+<tr><td><p>伺服控制</p></td><td><p>KF 预测前馈 + PID 反馈：先按 KF 速度预测未来 T 帧的位置，与画面中心求误差；误差经死区处理后，叠加"前馈项 K_ff × 速度"与 PID 输出，最后限幅输出云台速度。</p></td></tr>
+<tr><td><p>PTZ 控制</p></td><td><p>Pelco-D 协议，9600bps，帧格式为 <code>0xFF + 地址 + 指令1 + 指令2 + 数据1 + 数据2 + 校验和</code>，速度取值 0~63。</p></td></tr>
+<tr><td><p>镜头控制</p></td><td><p>Univision SDK 经网络下发指令，由机芯内部驱动镜头马达，实现变焦、聚焦、光圈控制。</p></td></tr>
+</tbody>
+</table>

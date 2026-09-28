@@ -1,0 +1,106 @@
+<mxfile host="Electron" agent="trae">
+  <diagram id="sys3-physical-v4" name="系统3_物理连接">
+    <mxGraphModel dx="1191" dy="877" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1340" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="gPC" parent="1" style="rounded=0;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#82b366;strokeWidth=2;verticalAlign=top;align=center;fontSize=24;fontStyle=1;fontColor=#5a8a45;spacingTop=6;" value="电脑" vertex="1">
+          <mxGeometry height="454" width="300" x="1060" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="title" parent="1" style="text;html=1;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;fontColor=#333333;" value="&lt;font style=&quot;font-size: 32px;&quot;&gt;自研RGB相机云台目标跟踪系统 · 物理连接链路图&lt;/font&gt;" vertex="1">
+          <mxGeometry height="40" width="1000" x="300" y="18" as="geometry" />
+        </mxCell>
+        <mxCell id="gCam" parent="1" style="rounded=0;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#6c8ebf;strokeWidth=2;verticalAlign=top;align=center;fontSize=24;fontStyle=1;fontColor=#3d6b9e;spacingTop=6;" value="相机机芯" vertex="1">
+          <mxGeometry height="230" width="340" x="240" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="lens" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;镜头&lt;/b&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="55" width="280" x="270" y="155" as="geometry" />
+        </mxCell>
+        <mxCell id="camJP1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef4fd;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;JP1：36P 机芯接口-排线座&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="280" x="270" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="camJP1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=classic;startFill=1;endArrow=classic;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeWidth=3;strokeColor=#6c8ebf;labelBackgroundColor=#ffffff;" target="boardJP1" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;指令&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;数据&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;供电&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;">
+          <mxGeometry relative="1" x="0.1667" y="40" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gBoard" parent="1" style="rounded=0;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#9673a6;strokeWidth=2;verticalAlign=top;align=center;fontSize=24;fontStyle=1;fontColor=#7a5c8f;spacingTop=6;" value="接口板（转换板）" vertex="1">
+          <mxGeometry height="230" width="330" x="660" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="boardP1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;P1：RJ45&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;网络接口&lt;/font&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="130" x="760" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="boardJP1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;JP1：36P&lt;br&gt;机芯接口&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="140" x="680" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="boardPWR1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;PWR1：&lt;br&gt;DC12V 输入&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="140" x="830" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="boardP1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=classic;startFill=1;endArrow=classic;endFill=1;exitX=1;exitY=0.5;entryX=0.5;entryY=0;strokeWidth=3;strokeColor=#9673a6;labelBackgroundColor=#ffffff;entryDx=0;entryDy=0;" target="pcLAN" value="">
+          <mxGeometry relative="1" x="-0.0189" y="30" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="1210" y="180" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="TV5mpcgV2T38w87w48pr-8" connectable="0" parent="e2" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;视频流&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;SDK 指令&lt;/font&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry relative="1" x="-0.3675" y="1" as="geometry">
+            <mxPoint x="106" y="-29" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="pcLAN" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;有线网口 RJ45&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="180" x="1120" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="pcApp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;Qt 上位机软件&lt;/b&gt;&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="180" x="1120" y="318" as="geometry" />
+        </mxCell>
+        <mxCell id="pcUSB" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;USB 口&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="180" x="1120" y="416" as="geometry" />
+        </mxCell>
+        <mxCell id="gPTZ" parent="1" style="rounded=0;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#6c8ebf;strokeWidth=2;verticalAlign=top;align=center;fontSize=24;fontStyle=1;fontColor=#3d6b9e;spacingTop=6;" value="云台 YZ-BY025W" vertex="1">
+          <mxGeometry height="190" width="340" x="240" y="364" as="geometry" />
+        </mxCell>
+        <mxCell id="ptzLower" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef4fd;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" value="&lt;font style=&quot;line-height: 150%; font-size: 18px;&quot;&gt;下部航空总线&lt;br&gt;DC24V + GND（系统供电）&lt;br&gt;RS485 云台通讯&lt;/font&gt;" vertex="1">
+          <mxGeometry height="110" width="280" x="270" y="418" as="geometry" />
+        </mxCell>
+        <mxCell id="conv485" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;fontStyle=1;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;USB 转 RS485 转换器&lt;/font&gt;" vertex="1">
+          <mxGeometry height="80" width="240" x="705" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="ptzLower" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=classic;startFill=1;endArrow=classic;endFill=1;exitX=1;exitY=0.75;entryX=0;entryY=0.5;strokeWidth=3;strokeColor=#6c8ebf;labelBackgroundColor=#ffffff;exitDx=0;exitDy=0;" target="conv485" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;RS485&lt;br&gt;控制 | 回传&lt;/font&gt;">
+          <mxGeometry relative="1" x="0.2926" y="27" as="geometry">
+            <mxPoint x="1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="conv485" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=classic;startFill=1;endArrow=classic;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeWidth=3;strokeColor=#666666;labelBackgroundColor=#ffffff;entryDx=0;entryDy=0;exitDx=0;exitDy=0;" target="pcUSB" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint y="-80" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dc12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;DC12V&lt;/b&gt;&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;相机电源&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="140" x="830" y="365" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="dc12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;endArrow=classic;endFill=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;strokeWidth=2;strokeColor=#d6b656;labelBackgroundColor=#ffffff;exitDx=0;exitDy=0;entryDx=0;entryDy=0;" target="boardPWR1" value="">
+          <mxGeometry relative="1" x="-0.4286" y="-37" as="geometry">
+            <mxPoint x="1" as="offset" />
+            <Array as="points">
+              <mxPoint x="900" y="330" />
+              <mxPoint x="900" y="330" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dc24" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" value="&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;DC24V&amp;nbsp;&lt;/b&gt;&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;云台电源&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="140" x="670" y="365" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="dc24" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;endArrow=classic;endFill=1;exitX=0;exitY=0.5;entryX=1;entryY=0.25;strokeWidth=2;strokeColor=#d6b656;labelBackgroundColor=#ffffff;entryDx=0;entryDy=0;exitDx=0;exitDy=0;" target="ptzLower" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="610" y="400" />
+              <mxPoint x="610" y="445.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

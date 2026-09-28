@@ -1,0 +1,245 @@
+<mxfile host="app.diagrams.net" agent="trae" version="24.7.7">
+  <diagram id="sys3-dataflow" name="系统3_数据链路">
+    <mxGraphModel dx="2000" dy="1610" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="1610" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="系统三：RGB_PTZ_Integrated · 数据链路图（软件模块 / 线程 / 信号）" style="text;html=1;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="600" y="18" width="800" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gHW" value="① 外部设备与接口（物理层）" style="rounded=0;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#6c8ebf;strokeWidth=2;verticalAlign=top;align=center;fontSize=15;fontStyle=1;fontColor=#3d6b9e;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="1920" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="hwCore" value="相机机芯 UV-ZNH2130DHA-P&#10;CMOS 传感器 + 镜头（变焦/聚焦/光圈）&#10;内部完成：H.264 编码 + 网络服务" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="70" y="125" width="300" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="hwBoard" value="接口板（转换板）&#10;JP1：36P 机芯接口&#10;P1：RJ45 网络接口&#10;DC12V 转供机芯" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="470" y="125" width="250" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="hwNote" value="本项目包含两条独立链路，数据在软件层汇聚于主线程：&#10;① 视频链路：机芯 → 接口板 → 电脑（以太网）&#10;② 云台链路：云台 → USB 转 RS485 → 电脑（串口）&#10;镜头控制与抓图 / 录像指令也走 ① 的视频链路。" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#cccccc;fontSize=10;fontColor=#666666;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="740" y="125" width="450" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="hw485" value="USB 转 RS485 转换器&#10;USB 虚拟 COM 口  RS485 A/B" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1230" y="125" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="hwPTZ" value="云台 YZ-BY025W&#10;Pelco-D 协议解析&#10;水平/俯仰电机 + 增量式编码器" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="125" width="280" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gSW" value="② 电脑（上位机 · Windows）软件与线程" style="rounded=0;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#82b366;strokeWidth=2;verticalAlign=top;align=right;fontSize=15;fontStyle=1;fontColor=#5a8a45;spacingTop=8;spacingRight=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="340" width="1920" height="1200" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tMain" value="主线程（Qt UI 线程）" style="rounded=0;dashed=1;dashPattern=6 4;fillColor=#f8fbf5;strokeColor=#82b366;strokeWidth=2;verticalAlign=top;align=left;fontSize=13;fontStyle=1;fontColor=#5a8a45;spacingLeft=8;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="70" y="490" width="680" height="450" as="geometry" />
+        </mxCell>
+        <mxCell id="MainWindow" value="MainWindow（UI 中枢）&#10;控件绑定 / 帧分发&#10;视频显示（QImage → QLabel）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="535" width="300" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="TrackingController" value="TrackingController&#10;KF 预测前馈 + PID 反馈&#10;死区 / 限幅&#10;状态机 Idle→Selecting→Tracking" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce8e8;strokeColor=#cc0000;strokeWidth=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="430" y="535" width="290" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="CaptureManager" value="CaptureManager&#10;抓图 → JPG" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="100" y="705" width="300" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="LogManager" value="LogManager&#10;日志 → 日志/*.log" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="100" y="790" width="300" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="DataRecorder" value="DataRecorder&#10;PTZ / 检测数据 → CSV / Excel" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="100" y="875" width="300" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ConfigManager" value="ConfigManager&#10;config.ini 读写" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="430" y="705" width="290" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="LensManager" value="LensManager&#10;变焦 / 聚焦 / 光圈（SDK 指令）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="430" y="790" width="290" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="mainNote" value="主线程同时承担：视频显示、PTZ 指令下发、&#10;伺服计算（computePTZControl）、数据落地。&#10;PID 状态变量仅在此线程读写，无需加锁。" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#cccccc;fontSize=10;fontColor=#666666;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="430" y="875" width="290" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tDecode" value="DecodeThread（解码线程）" style="rounded=0;dashed=1;dashPattern=6 4;fillColor=#f5f9fd;strokeColor=#6c8ebf;strokeWidth=2;verticalAlign=top;align=left;fontSize=13;fontStyle=1;fontColor=#3d6b9e;spacingLeft=8;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="790" y="490" width="340" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="DeviceManager" value="DeviceManager&#10;SDK 登录 / 取流 / 视频流分发" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="820" y="535" width="280" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="DecodeThread" value="VideoDecoder / DecodeThread&#10;H.264 解码 → YUV420 → QImage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="820" y="615" width="280" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tRecord" value="RecordThread（录像线程）" style="rounded=0;dashed=1;dashPattern=6 4;fillColor=#faf7fd;strokeColor=#9673a6;strokeWidth=2;verticalAlign=top;align=left;fontSize=13;fontStyle=1;fontColor=#7a5c8f;spacingLeft=8;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="790" y="740" width="340" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="RecordThread" value="RecordThread&#10;FFmpeg 编码 → 写入 MP4 / MOV" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="820" y="790" width="280" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tOut" value="本地产出（磁盘）" style="rounded=0;dashed=1;dashPattern=6 4;fillColor=#fafafa;strokeColor=#999999;strokeWidth=2;verticalAlign=top;align=left;fontSize=13;fontStyle=1;fontColor=#666666;spacingLeft=8;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="790" y="950" width="340" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="outMedia" value="录像文件 MP4 / MOV&#10;抓图文件 JPG" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="820" y="995" width="280" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="outData" value="数据记录 CSV / Excel&#10;运行日志 日志/*.log" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="820" y="1070" width="280" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tSerial" value="PTZController / QSerialPort（串口线程）" style="rounded=0;dashed=1;dashPattern=6 4;fillColor=#fffaf2;strokeColor=#d79b00;strokeWidth=2;verticalAlign=top;align=left;fontSize=13;fontStyle=1;fontColor=#b37300;spacingLeft=8;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="490" width="340" height="460" as="geometry" />
+        </mxCell>
+        <mxCell id="PTZController" value="PTZController&#10;Pelco-D 组帧 / 解析&#10;预置位 / 定时角度查询" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="540" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="QSerialPort" value="QSerialPort（Qt 内部线程）&#10;9600-8-N-1 异步收发&#10;readyRead 信号" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="670" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="serialNote" value="角度回传解析&#10;Pelco-D 应答帧校验 → 当前水平/俯仰角度&#10;速度限幅：qBound(0, v, 63)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#cccccc;fontSize=10;fontColor=#666666;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="790" width="280" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tTrack" value="ObjectTracker worker 线程（独立 QThread · QueuedConnection）❌ 未成功" style="rounded=0;dashed=1;dashPattern=6 4;fillColor=#fdf5f5;strokeColor=#cc0000;strokeWidth=2;verticalAlign=top;align=left;fontSize=13;fontStyle=1;fontColor=#b30000;spacingLeft=8;spacingTop=4;" vertex="1" parent="1">
+          <mxGeometry x="70" y="980" width="680" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="fftutils" value="fftutils&#10;FFT / Hanning 窗 / 复数运算" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce8e8;strokeColor=#cc0000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1030" width="280" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="ObjectTracker" value="ObjectTracker&#10;DSST：FHOG 特征 + 33 尺度相关滤波&#10;KF：位置 + 速度（kfX/kfY/kfVx/kfVy）&#10;PSR 置信度 / 遮挡重检测" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce8e8;strokeColor=#cc0000;strokeWidth=2;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1120" width="280" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="trackNote" value="processFrameSlot()&#10;跨线程排队调用（帧不丢）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#cccccc;fontSize=10;fontColor=#666666;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="440" y="1030" width="280" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="TrackResult" value="TrackResult（跨线程结构体）&#10;bbox / confidence(PSR)&#10;kfX, kfY, kfVx, kfVy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce8e8;strokeColor=#cc0000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="440" y="1120" width="280" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="trackNote2" value="线程销毁顺序（不可变更）：&#10;disconnect → quit → wait → delete tracker → delete thread" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#cccccc;fontSize=10;fontColor=#666666;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="440" y="1235" width="280" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tLegend" value="图例" style="rounded=0;dashed=1;fillColor=#ffffff;strokeColor=#999999;verticalAlign=top;align=left;fontSize=14;fontStyle=1;fontColor=#333333;spacingLeft=10;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="1550" y="490" width="380" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="legendBody" value="&lt;div style=&quot;text-align:left;font-size:11px;line-height:1.9;&quot;&gt;&lt;b style=&quot;color:#2f6fb5;&quot;&gt;━━&lt;/b&gt; 蓝色实线：视频 / 数据流&lt;br&gt;&lt;b style=&quot;color:#d79b00;&quot;&gt;━━&lt;/b&gt; 橙色实线：控制指令流&lt;br&gt;&lt;b style=&quot;color:#666666;&quot;&gt;━━&lt;/b&gt; 灰色实线：USB / 串口物理通道&lt;br&gt;&lt;b style=&quot;color:#cc0000;&quot;&gt;- -&lt;/b&gt; 红色虚线：跟踪闭环（❌ 未成功）&lt;br&gt;&lt;br&gt; 绿框：主线程模块　▣ 蓝框：采集/解码模块&lt;br&gt;▣ 橙框：控制/执行模块　 紫框：存储模块&lt;br&gt; &lt;b style=&quot;color:#cc0000;&quot;&gt;红框：未成功运行的模块&lt;/b&gt;&lt;br&gt;&lt;br&gt;虚线大框 = 线程边界（模块运行在哪条线程）&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;align=left;verticalAlign=top;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1570" y="530" width="345" height="230" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tFail" value="❌ 未成功环节（实测现象）" style="rounded=0;dashed=1;fillColor=#fdf5f5;strokeColor=#cc0000;strokeWidth=2;verticalAlign=top;align=left;fontSize=14;fontStyle=1;fontColor=#b30000;spacingLeft=10;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="1550" y="800" width="380" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="failBody" value="&lt;div style=&quot;text-align:left;font-size:11px;line-height:1.8;&quot;&gt;① 框选目标后，&lt;b&gt;跟踪框向一个方向漂移&lt;/b&gt;&lt;br&gt;② 云台&lt;b&gt;跟着向同一方向不停旋转&lt;/b&gt;&lt;br&gt;③ 随后&lt;b&gt;软件崩溃&lt;/b&gt;&lt;br&gt;④ 云台保持原方向继续转（&lt;b&gt;故障保持&lt;/b&gt;，崩溃后未发停止指令）&lt;br&gt;⑤ 跟踪结果不可信，&lt;b&gt;DSST + KF 算法本身无法验证&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;已验证正常的部分：&lt;/b&gt;&lt;br&gt;· 相机 SDK 录像 / 抓图，文件可落到电脑&lt;br&gt;· 镜头变焦正常（经网络 → 接口板 → 机芯）&lt;br&gt;· 云台手动操作正常（Pelco-D 下发）&lt;br&gt;· 云台角度 / 位姿回传正常（定时查询）&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;align=left;verticalAlign=top;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1570" y="840" width="345" height="290" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tDebug" value="跟踪闭环失败的可能环节（待排查）" style="rounded=0;dashed=1;fillColor=#fafafa;strokeColor=#999999;verticalAlign=top;align=left;fontSize=14;fontStyle=1;fontColor=#333333;spacingLeft=10;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="980" width="340" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="debugBody" value="&lt;div style=&quot;text-align:left;font-size:11px;line-height:1.8;&quot;&gt;&lt;b&gt;1. 跟踪框单向漂移&lt;/b&gt;&lt;br&gt;DSST 响应图峰值定位异常 / 尺度估计发散 → bbox 持续偏向一侧 → KF 速度项持续同号&lt;br&gt;&lt;br&gt;&lt;b&gt;2. 云台单向不停转&lt;/b&gt;&lt;br&gt;PID 误差长期同号 → 积分项累积到上限（I_max=15）→ 限幅后仍为同向最大速度&lt;br&gt;&lt;br&gt;&lt;b&gt;3. 软件崩溃&lt;/b&gt;&lt;br&gt;worker 线程生命周期 / 跨线程信号在跟踪中重建 target 时的竞争&lt;br&gt;&lt;br&gt;&lt;b&gt;4. 云台故障保持&lt;/b&gt;&lt;br&gt;崩溃路径未走 stopTracking()，未下发 Pelco-D 停止帧（速度 0）&lt;br&gt;&lt;br&gt;&lt;b&gt;建议验证顺序：&lt;/b&gt;&lt;br&gt;① 关闭云台输出，只看跟踪框是否漂移&lt;br&gt;② 关跟踪，用固定误差测云台是否收敛&lt;br&gt;③ 崩溃点抓日志 / dump&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=none;align=left;verticalAlign=top;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1190" y="1020" width="305" height="420" as="geometry" />
+        </mxCell>
+
+        <mxCell id="E1" value="JP1 · 36P 排线（视频 ↓ / 控制 ↑）" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=classic;startFill=1;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#2f6fb5;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="hwCore" target="hwBoard">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="E2" value="以太网（独立网线）&#10;H.264 码流 ↓ / SDK 指令 ↑" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=classic;startFill=1;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#2f6fb5;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="hwBoard" target="DeviceManager">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="595" y="320" />
+              <mxPoint x="960" y="320" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E3" value="码流" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=none;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#2f6fb5;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="DeviceManager" target="DecodeThread">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="E4" value="newFrame(QImage) 信号" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=none;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#2f6fb5;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;entryX=0.3;entryY=0;" edge="1" parent="1" source="DecodeThread" target="MainWindow">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="780" y="647" />
+              <mxPoint x="780" y="375" />
+              <mxPoint x="190" y="375" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E5" value="录像帧队列" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=none;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#2f6fb5;labelBackgroundColor=#ffffff;exitX=0.5;exitY=0;entryX=1;entryY=0.5;" edge="1" parent="1" source="MainWindow" target="RecordThread">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="250" y="470" />
+              <mxPoint x="1145" y="470" />
+              <mxPoint x="1145" y="822" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E6" value="写入 MP4 / MOV" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=none;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#9673a6;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="RecordThread" target="outMedia">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="E10" value="SDK 镜头指令（变焦 / 聚焦 / 光圈）" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=none;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#d79b00;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;entryX=0.2;entryY=1;" edge="1" parent="1" source="LensManager" target="hwBoard">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="765" y="822" />
+              <mxPoint x="765" y="295" />
+              <mxPoint x="520" y="295" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E11" value="手动控制 / 预置位 ↔ 角度回传" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=classic;startFill=1;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#d79b00;labelBackgroundColor=#ffffff;exitX=0.2;exitY=0;entryX=0.85;entryY=0;" edge="1" parent="1" source="MainWindow" target="PTZController">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="160" y="405" />
+              <mxPoint x="1438" y="405" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E12" value="ptzControlDelta 信号 ❌" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=none;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#d79b00;labelBackgroundColor=#ffffff;exitX=0.45;exitY=0;entryX=0.4;entryY=0;" edge="1" parent="1" source="TrackingController" target="PTZController">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="560" y="440" />
+              <mxPoint x="1312" y="440" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E13" value="Pelco-D 帧" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=none;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#d79b00;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="PTZController" target="QSerialPort">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="E14" value="USB 虚拟 COM 口&#10;指令 ↓ / 回传 ↑" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=classic;startFill=1;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#666666;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;entryX=0.5;entryY=1;" edge="1" parent="1" source="QSerialPort" target="hw485">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1160" y="715" />
+              <mxPoint x="1160" y="290" />
+              <mxPoint x="1340" y="290" />
+            </Array>
+            <mxPoint x="60" y="-175" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E15" value="RS485（A/B）&#10;指令 ↓ / 回传 ↑" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=classic;startFill=1;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#666666;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="hw485" target="hwPTZ">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="E16" value="QImage 帧（跨线程）" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=none;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#cc0000;dashed=1;labelBackgroundColor=#ffffff;exitX=0;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="MainWindow" target="ObjectTracker">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="82" y="600" />
+              <mxPoint x="82" y="1195" />
+            </Array>
+            <mxPoint x="75" y="0" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E17" value="TrackResult" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=none;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#cc0000;dashed=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;entryX=0;entryY=0.4;" edge="1" parent="1" source="ObjectTracker" target="TrackResult">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="E18" value="trackingDone 信号" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=none;endArrow=classic;endFill=1;strokeWidth=3;strokeColor=#cc0000;dashed=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="TrackResult" target="TrackingController">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="770" y="1167" />
+              <mxPoint x="770" y="600" />
+            </Array>
+            <mxPoint x="0" y="290" as="offset" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

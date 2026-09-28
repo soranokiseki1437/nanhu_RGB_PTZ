@@ -1,0 +1,1 @@
+{"audience":"课题组指导老师","reader_task":"理解系统三的物理连接与数据链路，并明确哪些环节已验证、哪些未成功","genre_contract":"knowledge","adapter":null,"presentation_mode":"normal","visual_plan":{"reason":"物理连接与数据链路属于拓扑/流程关系，需用图表达；正文给出等价文字说明","blocks":[{"type":"img","min_count":2,"purpose":"展示物理连接拓扑与软件数据链路"}]}}

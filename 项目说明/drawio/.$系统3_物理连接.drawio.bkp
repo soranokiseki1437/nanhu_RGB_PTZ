@@ -1,0 +1,113 @@
+<mxfile host="app.diagrams.net" agent="trae" version="24.7.7">
+  <diagram id="sys3-physical-v4" name="系统3_物理连接">
+    <mxGraphModel dx="1600" dy="1340" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1340" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="系统三：RGB_PTZ_Integrated 相机—云台目标跟踪系统 · 物理连接链路图" style="text;html=1;fontSize=22;fontStyle=1;align=center;verticalAlign=middle;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="300" y="18" width="1000" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gCam" value="相机机芯组件（与云台分体安装）" style="rounded=0;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#6c8ebf;strokeWidth=2;verticalAlign=top;align=center;fontSize=14;fontStyle=1;fontColor=#3d6b9e;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="340" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="lens" value="镜头（30 倍变焦）&#10;变焦 / 聚焦 / 光圈" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="70" y="120" width="280" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="core" value="机芯本体 UV-ZNH2130DHA-P&#10;200 万黑光级 CMOS + 视频编码&#10;★ 机芯与镜头均在内部，对外只有 JP1 一个接口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="70" y="195" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="camJP1" value="JP1：36P 机芯接口（排线座）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef4fd;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="320" width="280" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="36P 排线&#10;（JP1 ↔ JP1）" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=classic;startFill=1;endArrow=classic;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeWidth=3;strokeColor=#6c8ebf;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="camJP1" target="boardJP1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gBoard" value="接口板（转换板）· 独立 DC12V 供电" style="rounded=0;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#9673a6;strokeWidth=2;verticalAlign=top;align=center;fontSize=14;fontStyle=1;fontColor=#7a5c8f;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="460" y="80" width="330" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="boardP1" value="P1：RJ45 网络接口&#10;（自适应百兆网口）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="130" width="130" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="convert" value="内部信号转换&#10;① 视频流：P1 ⇄ JP1 网络差分对直通&#10;② 镜头控制：网络指令 → Visca UART" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;dashPattern=4 4;fillColor=#f7f3fa;strokeColor=#9673a6;fontSize=11;fontColor=#5a4a6a;" vertex="1" parent="1">
+          <mxGeometry x="490" y="220" width="280" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="boardJP1" value="JP1：36P&#10;机芯接口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="320" width="145" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="boardPWR1" value="PWR1：&#10;DC12V 输入" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="655" y="320" width="115" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="以太网网线（独立布线）&#10;视频流 ↑ / SDK 指令 ↓" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=classic;startFill=1;endArrow=classic;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeWidth=3;strokeColor=#9673a6;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="boardP1" target="pcLAN">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gPC" value="电脑（上位机 · Windows）" style="rounded=0;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#82b366;strokeWidth=2;verticalAlign=top;align=center;fontSize=14;fontStyle=1;fontColor=#5a8a45;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="80" width="460" height="620" as="geometry" />
+        </mxCell>
+        <mxCell id="pcLAN" value="有线网口 RJ45" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="130" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="pcApp" value="RGB_PTZ_Integrated.exe&#10;Qt 6.10 上位机软件" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="250" width="400" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="pcNote" value="功能：视频显示 / 抓图 / 录像 / 镜头变焦 /&#10;手动云台控制 / 跟踪参数设置 / 数据记录" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#cccccc;fontSize=10;fontColor=#666666;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="380" width="400" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="pcUSB" value="USB 口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="520" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="pcStore" value="本地存储&#10;视频 / 图片 / CSV / 日志" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="520" width="190" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gPTZ" value="云台 YZ-BY025W（双轴 · 闭环 · 增量式编码器）" style="rounded=0;dashed=1;dashPattern=8 4;fillColor=none;strokeColor=#6c8ebf;strokeWidth=2;verticalAlign=top;align=center;fontSize=14;fontStyle=1;fontColor=#3d6b9e;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="460" width="340" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="ptzBody" value="云台本体&#10;水平 0°~360° 连续旋转 / 俯仰 -90°~40°&#10;Pelco-D 协议 @ 9600 bps · 定位精度 ±0.1°&#10;负载 12~22 Kg · 防护等级 IP66" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="70" y="500" width="280" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ptzLower" value="下部出线（唯一使用的云台线缆）&#10;DC24V 输入 + GND（系统供电）&#10;RS485：云台通讯（A / B 两线）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef4fd;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="630" width="280" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="conv485" value="USB 转 RS485 转换器" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="440" y="660" width="330" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="RS485&#10;控制 ↓ / 回传 ↑" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=classic;startFill=1;endArrow=classic;endFill=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeWidth=3;strokeColor=#6c8ebf;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="ptzLower" target="conv485">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="USB 2.0" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;startArrow=classic;startFill=1;endArrow=classic;endFill=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;strokeWidth=3;strokeColor=#666666;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="conv485" target="pcUSB">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="-80" as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="dc12" value="DC12V 电源适配器&#10;（独立供电）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="610" y="440" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="DC12V" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;endArrow=classic;endFill=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;strokeWidth=2;strokeColor=#d6b656;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="dc12" target="boardPWR1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dc24" value="DC24V 电源&#10;（系统供电，≤90 W）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="110" y="800" width="200" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="DC24V + GND" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=11;endArrow=classic;endFill=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;strokeWidth=2;strokeColor=#d6b656;labelBackgroundColor=#ffffff;" edge="1" parent="1" source="dc24" target="ptzLower">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ptzNote" value="相机机芯与云台为分体安装（非顶载），两者之间无物理连线。&#10;角度回传为「查询回传」：上位机定时发查询指令，云台经 RS485 回传当前水平 / 俯仰角度。" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#cccccc;fontSize=10;fontColor=#666666;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="900" width="620" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cableTitle" value="线缆明细" style="text;html=1;fontSize=14;fontStyle=1;align=left;verticalAlign=middle;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="740" width="460" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="cableTable" value="&lt;table border=&quot;1&quot; cellpadding=&quot;6&quot; cellspacing=&quot;0&quot; style=&quot;border-collapse:collapse;width:100%;font-size:10px;&quot;&gt;&lt;tr style=&quot;background:#f0f0f0;font-weight:bold;&quot;&gt;&lt;td width=&quot;40%&quot;&gt;连接（线缆）&lt;/td&gt;&lt;td&gt;关键信号&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;机芯 JP1 ↔ 接口板 JP1&lt;br&gt;&lt;b&gt;36P 排线&lt;/b&gt;&lt;/td&gt;&lt;td&gt;网络差分对 TPTX±/TPRX±、机芯 DC12V 供电、串口 232_TX/RX、报警 I/O、SD 卡信号&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;接口板 P1 ↔ 电脑网口&lt;br&gt;&lt;b&gt;以太网网线（独立布线）&lt;/b&gt;&lt;/td&gt;&lt;td&gt;视频流 ↑、SDK 指令 ↓（登录、抓图、录像、镜头变焦/聚焦/光圈）&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;DC12V 适配器 → 接口板 PWR1&lt;br&gt;&lt;b&gt;DC 电源线&lt;/b&gt;&lt;/td&gt;&lt;td&gt;DC12V（接口板与机芯供电）&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;云台下部 ↔ USB 转 RS485&lt;br&gt;&lt;b&gt;RS485 双绞线（A/B）&lt;/b&gt;&lt;/td&gt;&lt;td&gt;Pelco-D 控制指令 ↓、角度回传 ↑（9600 bps）&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;USB 转 RS485 ↔ 电脑 USB&lt;br&gt;&lt;b&gt;USB 2.0 线&lt;/b&gt;&lt;/td&gt;&lt;td&gt;串口数据双向（虚拟 COM 口）&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;DC24V 电源 → 云台下部&lt;br&gt;&lt;b&gt;DC 电源线&lt;/b&gt;&lt;/td&gt;&lt;td&gt;DC24V + GND（云台供电，整机功耗 ≤90 W）&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=none;align=left;verticalAlign=top;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="775" width="460" height="525" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
