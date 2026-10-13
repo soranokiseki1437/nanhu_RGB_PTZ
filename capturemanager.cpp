@@ -237,7 +237,7 @@ void CaptureManager::onTimerCapture()
 }
 
 // C-CDK抓图回调函数，数据搬运工，不直接在这里处理业务
-void UNIV_CALLBACK CaptureManager::OnSnapData(uint64_t snapHandle, uint8_t dataType, void* pData, uint32_t dataSize)
+void UNIV_CALLBACK CaptureManager::OnSnapData(uint64_t /*snapHandle*/, uint8_t /*dataType*/, void* pData, uint32_t /*dataSize*/)
 {
     UNIV_DEV_SNAP_DATA* snapData = reinterpret_cast<UNIV_DEV_SNAP_DATA*>(pData);
     // 先安全检查并临时获取 instance

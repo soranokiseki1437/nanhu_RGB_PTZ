@@ -17,6 +17,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     , m_connTimer(new QTimer(this))
     , m_isConnecting(false)
     , m_ptzConnected(false)
+    , m_ptzManualRepeatTimer(new QTimer(this))
+    , m_ptzManualCmd2(0)
+    , m_ptzManualHSpeed(0)
+    , m_ptzManualVSpeed(0)
     , m_deviceManager(new DeviceManager(this))
     , m_captureManager(new CaptureManager(this))
     , m_imageProcessor(new ImageProcessor(this))
@@ -74,6 +78,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(m_recordTimer, &QTimer::timeout, this, &MainWindow::onRecordTimerTimeout);
     
     // 初始化 PTZ 方向盘控制
+    // 【持续运动修复】单个 moveDirection 命令只触发一次连续运动，而 PTZController 的 500ms
+    // 失联看门狗会在无新命令时补发 stop，导致按住方向键只转动一小步。这里在按住期间以
+    // 200ms（< 500ms）周期重发方向命令，既保证云台持续转动，又保留失联保护。
     ui->left_up->setAutoRepeat(false);
     ui->up->setAutoRepeat(false);
     ui->right_up->setAutoRepeat(false);
@@ -82,58 +89,30 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     ui->left_down->setAutoRepeat(false);
     ui->down->setAutoRepeat(false);
     ui->right_down->setAutoRepeat(false);
-    
-    // 上
-    connect(ui->up, &QPushButton::pressed, this, [this]() {
-        emit ptzMoveDirection(0x08, 0, static_cast<uint8_t>(ui->spinSpeed->value() * 63));
+
+    m_ptzManualRepeatTimer->setInterval(200);
+    connect(m_ptzManualRepeatTimer, &QTimer::timeout, this, [this]() {
+        emit ptzMoveDirection(m_ptzManualCmd2, m_ptzManualHSpeed, m_ptzManualVSpeed);
     });
-    connect(ui->up, &QPushButton::released, this, [this]() { emit ptzStop(); });
-    
-    // 下
-    connect(ui->down, &QPushButton::pressed, this, [this]() {
-        emit ptzMoveDirection(0x10, 0, static_cast<uint8_t>(ui->spinSpeed->value() * 63));
-    });
-    connect(ui->down, &QPushButton::released, this, [this]() { emit ptzStop(); });
-    
-    // 左
-    connect(ui->left, &QPushButton::pressed, this, [this]() {
-        emit ptzMoveDirection(0x04, static_cast<uint8_t>(ui->spinSpeed->value() * 63), 0);
-    });
-    connect(ui->left, &QPushButton::released, this, [this]() { emit ptzStop(); });
-    
-    // 右
-    connect(ui->right, &QPushButton::pressed, this, [this]() {
-        emit ptzMoveDirection(0x02, static_cast<uint8_t>(ui->spinSpeed->value() * 63), 0);
-    });
-    connect(ui->right, &QPushButton::released, this, [this]() { emit ptzStop(); });
-    
-    // 左上
-    connect(ui->left_up, &QPushButton::pressed, this, [this]() {
-        uint8_t spd = static_cast<uint8_t>(ui->spinSpeed->value() * 63);
-        emit ptzMoveDirection(0x0C, spd, spd);
-    });
-    connect(ui->left_up, &QPushButton::released, this, [this]() { emit ptzStop(); });
-    
-    // 右上
-    connect(ui->right_up, &QPushButton::pressed, this, [this]() {
-        uint8_t spd = static_cast<uint8_t>(ui->spinSpeed->value() * 63);
-        emit ptzMoveDirection(0x0A, spd, spd);
-    });
-    connect(ui->right_up, &QPushButton::released, this, [this]() { emit ptzStop(); });
-    
-    // 左下
-    connect(ui->left_down, &QPushButton::pressed, this, [this]() {
-        uint8_t spd = static_cast<uint8_t>(ui->spinSpeed->value() * 63);
-        emit ptzMoveDirection(0x14, spd, spd);
-    });
-    connect(ui->left_down, &QPushButton::released, this, [this]() { emit ptzStop(); });
-    
-    // 右下
-    connect(ui->right_down, &QPushButton::pressed, this, [this]() {
-        uint8_t spd = static_cast<uint8_t>(ui->spinSpeed->value() * 63);
-        emit ptzMoveDirection(0x12, spd, spd);
-    });
-    connect(ui->right_down, &QPushButton::released, this, [this]() { emit ptzStop(); });
+
+    const auto bindDirection = [this](QPushButton *btn, uint8_t cmd2, int dirX, int dirY) {
+        connect(btn, &QPushButton::pressed, this, [this, cmd2, dirX, dirY]() {
+            const uint8_t spd = static_cast<uint8_t>(ui->spinSpeed->value() * 63);
+            startManualMove(cmd2,
+                            static_cast<uint8_t>(dirX ? spd : 0),
+                            static_cast<uint8_t>(dirY ? spd : 0));
+        });
+        connect(btn, &QPushButton::released, this, &MainWindow::stopManualMove);
+    };
+
+    bindDirection(ui->up,         0x08, 0, 1);  // 上
+    bindDirection(ui->down,       0x10, 0, 1);  // 下
+    bindDirection(ui->left,       0x04, 1, 0);  // 左
+    bindDirection(ui->right,      0x02, 1, 0);  // 右
+    bindDirection(ui->left_up,    0x0C, 1, 1);  // 左上
+    bindDirection(ui->right_up,   0x0A, 1, 1);  // 右上
+    bindDirection(ui->left_down,  0x14, 1, 1);  // 左下
+    bindDirection(ui->right_down, 0x12, 1, 1);  // 右下
     
     // === 镜头控制按钮绑定 ===
     // 【关键】镜头控制按钮禁用 autoRepeat！
@@ -469,6 +448,15 @@ void MainWindow::displayImage(const QImage &image)
     m_scaledPixmap = pixmap.scaled(labelSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
     m_scaledFrameSize = image.size();
 
+    // 现场排障：确认显示控件尺寸有效（label 尺寸为 0 时 scaled 结果为空，界面只会显示占位文字）
+    static bool s_firstDisplayLogged = false;
+    if (!s_firstDisplayLogged) {
+        s_firstDisplayLogged = true;
+        qInfo() << "[MainWindow] 首次显示: label 尺寸 =" << labelSize
+                << " 可见 =" << ui->rgbLabelImage->isVisible()
+                << " 缩放后 =" << m_scaledPixmap.size();
+    }
+
     ui->rgbLabelImage->setPixmap(drawTrackBoxOnPixmap(m_scaledPixmap));
 }
 
@@ -677,6 +665,23 @@ void MainWindow::on_btnReset_clicked()
     float speed = static_cast<float>(ui->spinSpeed->value());
     qDebug() << "[复位] 使用界面速度:" << speed;
     emit ptzMoveTo(0.0f, 0.0f, speed);
+}
+
+// 按住方向键：立即下发一次方向命令，并启动周期重发维持云台持续转动
+void MainWindow::startManualMove(uint8_t cmd2, uint8_t hSpeed, uint8_t vSpeed)
+{
+    m_ptzManualCmd2 = cmd2;
+    m_ptzManualHSpeed = hSpeed;
+    m_ptzManualVSpeed = vSpeed;
+    emit ptzMoveDirection(cmd2, hSpeed, vSpeed);
+    m_ptzManualRepeatTimer->start();
+}
+
+// 松开方向键：停止周期重发并下发停止指令
+void MainWindow::stopManualMove()
+{
+    m_ptzManualRepeatTimer->stop();
+    emit ptzStop();
 }
 
 void MainWindow::handleAngleReceived(float pan, float tilt, float panSpeed, float tiltSpeed)
@@ -917,10 +922,10 @@ void MainWindow::onConnectionStatusChanged(bool connected)
     updateTrackingUIState();
 
     if (connected) {
-        qDebug() << "[MainWindow] 设备连接成功，开始视频预览";
+        qInfo() << "[MainWindow] 设备连接成功，开始视频预览";
         m_deviceManager->requestStartStream();  // C7：RealPlay 移出 UI 线程
     } else {
-        qDebug() << "[MainWindow] 设备断开连接，停止视频预览";
+        qInfo() << "[MainWindow] 设备断开连接，停止视频预览";
         // 断开时停止跟踪
         if (m_trackingController->isTracking()) {
             m_trackingController->stopTracking();
@@ -952,6 +957,13 @@ void MainWindow::onFrameReceived(const QImage &frame)
 {
     if (frame.isNull()) {
         return;
+    }
+
+    // 现场排障：确认解码帧是否真正到达 UI 线程
+    static bool s_firstUiFrameLogged = false;
+    if (!s_firstUiFrameLogged) {
+        s_firstUiFrameLogged = true;
+        qInfo() << "[MainWindow] 收到首帧图像，尺寸 =" << frame.width() << "x" << frame.height();
     }
 
     // 显示图片（SDK的OSD已自动添加时间戳）
@@ -1141,7 +1153,7 @@ void MainWindow::onTrackStatusMessage(const QString& msg)
     ui->textLog->append(QString("[跟踪] %1").arg(msg));
 }
 
-void MainWindow::onPtzControlDelta(int deltaX, int deltaY, int speedX, int speedY)
+void MainWindow::onPtzControlDelta(int /*deltaX*/, int /*deltaY*/, int speedX, int speedY)
 {
     if (!m_ptzConnected || !m_ptzController) {
         return;

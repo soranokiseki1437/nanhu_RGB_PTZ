@@ -94,3 +94,27 @@ DEFINES += PROJECT_NAME=\\\"RGB_PTZ_Integrated\\\"
 CONFIG(debug, debug|release) {
     DEFINES += QT_MESSAGELOGCONTEXT
 }
+
+# ===== 构建后自动复制运行时 DLL 到输出目录 =====
+win32 {
+    # 目标输出目录
+    DESTDIR_WIN = $$shell_path($$OUT_PWD/release)
+
+    # FFmpeg DLLs
+    FFMPEG_BIN = $$shell_path($$PWD/ffmpeg-8.1-full_build-shared/bin)
+    QMAKE_POST_LINK += copy /Y $$quote($$FFMPEG_BIN\\avcodec-62.dll)   $$quote($$DESTDIR_WIN) &
+    QMAKE_POST_LINK += copy /Y $$quote($$FFMPEG_BIN\\avformat-62.dll)  $$quote($$DESTDIR_WIN) &
+    QMAKE_POST_LINK += copy /Y $$quote($$FFMPEG_BIN\\avutil-60.dll)    $$quote($$DESTDIR_WIN) &
+    QMAKE_POST_LINK += copy /Y $$quote($$FFMPEG_BIN\\swscale-9.dll)    $$quote($$DESTDIR_WIN) &
+    QMAKE_POST_LINK += copy /Y $$quote($$FFMPEG_BIN\\swresample-6.dll) $$quote($$DESTDIR_WIN) &
+
+    # SDK DLL
+    SDK_BIN = $$shell_path($$PWD/sdk)
+    QMAKE_POST_LINK += copy /Y $$quote($$SDK_BIN\\univisionsdk.dll) $$quote($$DESTDIR_WIN) &
+
+    # OpenCV DLLs
+    OPENCV_BIN = $$shell_path($$PWD/opencv/install/x64/mingw/bin)
+    QMAKE_POST_LINK += copy /Y $$quote($$OPENCV_BIN\\libopencv_core4100.dll)     $$quote($$DESTDIR_WIN) &
+    QMAKE_POST_LINK += copy /Y $$quote($$OPENCV_BIN\\libopencv_imgproc4100.dll)  $$quote($$DESTDIR_WIN) &
+    QMAKE_POST_LINK += copy /Y $$quote($$OPENCV_BIN\\libopencv_imgcodecs4100.dll) $$quote($$DESTDIR_WIN)
+}

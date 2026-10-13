@@ -295,8 +295,9 @@ void LogManager::writeConsole(const QString& text)
         }
     }
 #endif
-    // IDE 输出面板或重定向到文件 —— 走 UTF-8
-    std::fprintf(stderr, "%s", text.toUtf8().constData());
+    // IDE 输出面板或重定向到文件 —— 按系统本地编码（中文 Windows 为 GBK/CP936）输出。
+    // 若这里写 UTF-8，IDE 面板按本地编码解码，中文会显示成"鍚姩鏃ュ織"这类乱码。
+    std::fprintf(stderr, "%s", text.toLocal8Bit().constData());
 }
 
 // 致命错误：与写线程抢占文件锁，把剩余队列同步落盘后调用方 abort

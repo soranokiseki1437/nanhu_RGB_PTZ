@@ -6,7 +6,16 @@
 #include <QMutex>
 #include <QFutureWatcher>
 #include <atomic>
-#include "sdk/sdk.h"
+#include "sdk/sdk.h"   // 获取 uint64_t / UNIV_DEV_SNAP_DATA 等类型定义
+
+// sdk.h 在末尾 #undef 了 UNIV_CALLBACK，在此重新定义供 C++ 类声明使用
+#ifndef UNIV_CALLBACK
+#  ifdef _WIN32
+#    define UNIV_CALLBACK __stdcall
+#  else
+#    define UNIV_CALLBACK
+#  endif
+#endif
 #include "DecodeThread.h"
 #include "RecordThread.h"
 #include "lensmanager.h"

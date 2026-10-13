@@ -29,6 +29,7 @@ private:
     const AVCodec* m_codec;
     AVCodecContext* m_codecContext;
     AVFrame* m_frame;
+    AVFrame* m_holdFrame;   // 留存 receive 循环中最后一帧：循环再次 receive(EAGAIN) 时 m_frame 会被清空
     AVPacket* m_packet;
     SwsContext* m_swsContext;
     uint8_t* m_rgbBuffer[4];

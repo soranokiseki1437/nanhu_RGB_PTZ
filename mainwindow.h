@@ -107,6 +107,10 @@ private:
     // 格式化时间显示
     QString formatTime(int seconds);
 
+    // 方向盘手动连续运动：按住期间周期性重发方向命令，维持云台持续转动
+    void startManualMove(uint8_t cmd2, uint8_t hSpeed, uint8_t vSpeed);
+    void stopManualMove();
+
 private:
     Ui::MainWindow *ui;
     
@@ -116,6 +120,12 @@ private:
     QTimer *m_connTimer;
     bool m_isConnecting;
     bool m_ptzConnected;
+
+    // 方向盘按住期间的周期重发（周期需小于 PTZController 的 500ms 失联看门狗）
+    QTimer *m_ptzManualRepeatTimer;
+    uint8_t m_ptzManualCmd2;
+    uint8_t m_ptzManualHSpeed;
+    uint8_t m_ptzManualVSpeed;
     
     // RGB 相关
     DeviceManager *m_deviceManager;

@@ -170,14 +170,19 @@ LoginResult DeviceManager::loginInBackground(QString ip, QString username, QStri
         if (activate_ret == 0) {
             qDebug() << "[登录] 设备激活成功";
         } else {
-            qDebug() << "[登录] 设备激活失败或无需激活，错误码:" << activate_ret;
+            qInfo() << "[登录] 设备激活失败或无需激活，错误码:" << activate_ret;
         }
         
         qDebug() << "[登录] 尝试登录设备";
         // 登录设备
         uint64_t userID = 0;
         int ret = UNIV_DEV_Login(&dev, &userID);
-        qDebug() << "[登录] 登录结果，错误码:" << ret;
+        if (ret == SUCCESS) {
+            qInfo() << "[登录] 登录成功，错误码: 0";
+        } else {
+            // 关键排障信息：必须用 WARN/INFO 级别，否则会被 *.debug=false 过滤掉
+            qWarning() << "[登录] 登录失败，错误码:" << ret;
+        }
         
         if (ret != SUCCESS) {
             // 分析错误原因 - 需要在后台完成分析
@@ -218,11 +223,11 @@ LoginResult DeviceManager::loginInBackground(QString ip, QString username, QStri
                 break;
             }
             result.errorMsg = errorMsg;
-            qDebug() << "[登录] 登录失败，错误信息:" << errorMsg;
+            qWarning() << "[登录] 登录失败，错误信息:" << errorMsg;
             return result;
         }
         
-        qDebug() << "[登录] 登录成功，用户ID:" << userID;
+        qInfo() << "[登录] 登录成功，用户ID:" << userID;
         result.success = true;
         result.userID = userID;
         
@@ -264,7 +269,7 @@ void DeviceManager::login(const QString &ip, const QString &username, const QStr
     // 重置连接状态
     m_connected = false;
     m_userID = 0;
-    qDebug() << "[登录] 开始连接设备，IP:" << ip << "用户名:" << username;
+    qInfo() << "[登录] 开始连接设备，IP:" << ip << "端口: 80" << "用户名:" << username;
     
     // 立即发送连接开始的信号，更新 UI 状态
     qDebug() << "[登录] 发送连接开始信号";
@@ -288,7 +293,7 @@ void DeviceManager::onLoginFinished()
         // 登录成功
         m_userID = result.userID;
         m_connected = true;
-        qDebug() << "[登录] 更新连接状态为已连接";
+        qInfo() << "[登录] 更新连接状态为已连接，用户ID:" << m_userID;
         
         // 设置镜头管理器的用户ID
         m_lensManager->setUserID(m_userID);
@@ -322,7 +327,7 @@ void DeviceManager::onLoginFinished()
         printVideoConfig(EXTRA1); // 打印子码流配置
     } else {
         // 登录失败
-        qDebug() << "[登录] 发射错误信号";
+        qWarning() << "[登录] 登录失败，发射错误信号:" << result.errorMsg;
         emit errorOccurred(result.errorMsg);
         
         // 确保状态回到未连接
@@ -469,7 +474,9 @@ bool DeviceManager::startStream()
         encParam.stream = MAIN;
         if (UNIV_DEV_GetConfig(m_userID, UNIV_CFG_VIDEO_ENCODE, &encParam, sizeof(encParam)) == SUCCESS) {
             m_decodeThread->setEncType(encParam.videoEncType);
-            qDebug() << "[Stream] 相机视频编码类型 videoEncType =" << encParam.videoEncType;
+            qInfo() << "[Stream] 相机视频编码类型 videoEncType =" << encParam.videoEncType
+                    << " 分辨率 =" << encParam.resolution.width << "x" << encParam.resolution.height
+                    << " 帧率 =" << encParam.videoFrameRate;
         } else {
             qWarning() << "[Stream] 获取视频编码配置失败，按 H.264 处理";
         }
@@ -488,7 +495,7 @@ bool DeviceManager::startStream()
 
     m_playHandle = playHandle;
     m_streaming = true;
-    qDebug() << "[Stream] 开始预览成功，句柄:" << m_playHandle;
+    qInfo() << "[Stream] 开始预览成功，句柄:" << m_playHandle;
     return true;
 }
 
@@ -546,6 +553,20 @@ void UNIV_CALLBACK DeviceManager::OnStreamData(uint64_t /*handle*/, uint8_t data
     if (!safeInstance || !pData || dataSize == 0) {
         s_activeCallbacks.fetch_sub(1, std::memory_order_acq_rel);
         return;
+    }
+
+    // 现场排障：统计 SDK 视频/音频回调是否真正到达，并打印首个数据包的头部特征。
+    // Annex-B 裸码流一般以 00 00 00 01 / 00 00 01 起始；若头部为其它内容（如 PS 封装 00 00 01 BA），
+    // 说明不能直接用 FFmpeg H.264/H.265 解码器逐包解码，可据此定位"无图像"根因。
+    static std::atomic<int> s_streamPacketCount{0};
+    const int pktIndex = s_streamPacketCount.fetch_add(1, std::memory_order_relaxed);
+    if (pktIndex < 3 || (pktIndex % 300) == 0) {
+        const QByteArray head(static_cast<const char*>(pData),
+                              static_cast<int>(qMin<uint32_t>(dataSize, 16)));
+        qInfo() << "[Stream] 收到流数据 #" << pktIndex
+                << " dataType =" << char(dataType) << "(" << dataType << ")"
+                << " size =" << dataSize
+                << " head =" << head.toHex(' ').toUpper();
     }
 
     if (dataType == 'I' || dataType == 'P') {
@@ -634,17 +655,17 @@ void DeviceManager::printVideoConfig(uint8_t streamType)
         return;
     }
 
-    qDebug() << "========================================";
-    qDebug() << "[VideoConfig]" << streamName << "配置信息:";
-    qDebug() << "  码流类型:" << (videoParam.streamType == 0 ? "视频流" : "复合流");
-    qDebug() << "  视频编码:" << videoParam.videoEncType;
-    qDebug() << "  分辨率:" << videoParam.resolution.width << "x" << videoParam.resolution.height;
-    qDebug() << "  帧率(fps):" << videoParam.videoFrameRate;
-    qDebug() << "  I帧间隔:" << videoParam.intervalFrameI;
-    qDebug() << "  视频码率:" << videoParam.videoBitrate;
-    qDebug() << "  码率类型:" << (videoParam.bitrateType == 0 ? "定码率" : "变码率");
-    qDebug() << "  图像质量:" << videoParam.picQuality;
-    qDebug() << "========================================";
+    qInfo() << "========================================";
+    qInfo() << "[VideoConfig]" << streamName << "配置信息:";
+    qInfo() << "  码流类型:" << (videoParam.streamType == 0 ? "视频流" : "复合流");
+    qInfo() << "  视频编码:" << videoParam.videoEncType;
+    qInfo() << "  分辨率:" << videoParam.resolution.width << "x" << videoParam.resolution.height;
+    qInfo() << "  帧率(fps):" << videoParam.videoFrameRate;
+    qInfo() << "  I帧间隔:" << videoParam.intervalFrameI;
+    qInfo() << "  视频码率:" << videoParam.videoBitrate;
+    qInfo() << "  码率类型:" << (videoParam.bitrateType == 0 ? "定码率" : "变码率");
+    qInfo() << "  图像质量:" << videoParam.picQuality;
+    qInfo() << "========================================";
 }
 
 bool DeviceManager::startRecord(const QString& filePath)
