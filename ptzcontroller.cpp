@@ -14,9 +14,13 @@ PTZController::PTZController(const QString &portName, int baudRate, uint8_t addr
 {
     connect(m_autoQueryTimer, &QTimer::timeout, this, &PTZController::onAutoQueryTimer);
 
-    // 命令队列节拍器：10ms 逐条出队，避免同一时刻连续写串口
+    // 命令队列节拍器：30ms 逐条出队。
+    // 实测（YZ-BY025W 离线探针验证）：云台固件要求帧间至少约 7ms 静默（7 字节帧在 9600bps
+    // 下线时 7.3ms，即帧起点间隔需 ≥ 约 15ms），否则该帧被固件直接丢弃。
+    // 原 10ms 节拍时 0x5F 之后的 0x4B 定位命令必然丢失（表现为"复位只动俯仰、不动水平"）；
+    // 30ms 节拍下帧间静默约 22.7ms，余量充足。
     m_cmdTimer = new QTimer(this);
-    m_cmdTimer->setInterval(10);
+    m_cmdTimer->setInterval(30);
     connect(m_cmdTimer, &QTimer::timeout, this, &PTZController::onCmdTimerTimeout);
 
     // 连续运动失联保护：single-shot，每条连续运动命令重置（绝对定位不适用，见 moveTo）
@@ -194,23 +198,24 @@ void PTZController::moveTo(float pan, float tilt, float speed)
     QByteArray speedCmd = buildPelcoDPacket(0x00, 0x5F, speedByte, speedByte);
 
     // --- 第二步：水平角度定位 (指令 0x4B) ---
+    // 注：曾把 0 改写为 36000 试图修"复位不动水平"，后经离线探针证实 0x4B→0 本身完全有效，
+    // 真正根因是帧间隔过密（见构造函数 m_cmdTimer 注释），此处恢复标准值。
     int pa = static_cast<int>(pan * 100);
     QByteArray panCmd = buildPelcoDPacket(0x00, 0x4B,
                                           static_cast<uint8_t>(pa >> 8),
                                           static_cast<uint8_t>(pa & 0xFF));
 
     // --- 第三步：俯仰角度定位 (指令 0x4D) ---
-    float protocolTilt = tilt;
-    if (tilt < 0.0f) {
-        protocolTilt = 360.0f + tilt;
-    }
-
-    int ta = static_cast<int>(protocolTilt * 100.0f);
+    // 协议语义（reference/云台/pelco-d协议指令.pdf）：低头时角度值从 0 递增、抬头时从 360 递减
+    // （0 与 360 重合）。本程序约定 tilt > 0 为抬头、tilt < 0 为低头，故：
+    //   抬头 +θ -> 36000 - θ*100（如 +10° -> 35000）；低头 -θ -> θ*100（如 -10° -> 1000）
+    int ta = (tilt > 0.0f) ? static_cast<int>((360.0f - tilt) * 100.0f)
+                           : static_cast<int>((-tilt) * 100.0f);
     QByteArray tiltCmd = buildPelcoDPacket(0x00, 0x4D,
                                            static_cast<uint8_t>(ta >> 8),
                                            static_cast<uint8_t>(ta & 0xFF));
 
-    // 新定位序列作废旧队列，由 m_cmdTimer 按 10ms 节拍依次发出。
+    // 新定位序列作废旧队列，由 m_cmdTimer 按 30ms 节拍依次发出（帧间静默要求见构造函数）。
     // （原实现用 QTimer::singleShot 延时 20/70ms 发送，stop() 无法取消，停止后仍会发出残留定位命令）
     m_cmdQueue.clear();
     m_cmdQueue.enqueue(speedCmd);
@@ -222,8 +227,9 @@ void PTZController::moveTo(float pan, float tilt, float speed)
     // 绝对定位会自行到位，不启用连续运动看门狗（否则 500ms 后会被误判失联而打断定位）
     m_stopWatchdog->stop();
 
-    qDebug() << "[发送] 移动指令 -> P:" << pan << " T:" << tilt
-             << " (协议映射值:" << protocolTilt << ") Spd:" << speedByte;
+    // INFO 级：复位/移动为低频按钮操作，便于现场在日志中核实实际下发的协议值
+    qInfo() << "[发送] 移动指令 -> P:" << pan << " T:" << tilt
+            << " (协议值 P:" << pa << " T:" << ta << ") Spd:" << speedByte;
 }
 
 // 停止指令
@@ -345,14 +351,13 @@ void PTZController::onReadyRead()
             // C1：速度值在串口线程内取好随信号发出，避免接收方跨线程调 getter
             emit angleReceived(m_currentPan, m_currentTilt, m_currentPanSpeed, m_currentTiltSpeed);
         } else if (cmd2 == 0x5B) {
-            // 俯仰角度回传
-            // 【核心修复】：因为物理限位最大只有 40°，所以如果回传的角度非常大（比如大于270°）
-            // 必然是因为云台处于抬头状态（360递减）
-            if (angle > 270.0) {
-                // 还原为直观的负角度，例如 349.5 - 360.0 = -10.5°
-                m_currentTilt = angle - 360.0;
+            // 俯仰角度回传：协议值 >180 属于"抬头"侧（从 360 递减），换算为 +角度；
+            // 否则属于"低头"侧（从 0 递增），换算为 -角度。
+            // 例：350.00 -> +10（抬头 10°）；10.00 -> -10（低头 10°）
+            if (angle > 180.0) {
+                m_currentTilt = 360.0 - angle;
             } else {
-                m_currentTilt = angle;
+                m_currentTilt = -angle;
             }
             emit angleReceived(m_currentPan, m_currentTilt, m_currentPanSpeed, m_currentTiltSpeed);
         }
@@ -428,7 +433,7 @@ void PTZController::onAutoQueryTimer()
     }
 }
 
-// --- 命令队列出队发送（10ms 节拍） ---
+// --- 命令队列出队发送（30ms 节拍） ---
 void PTZController::onCmdTimerTimeout()
 {
     if (m_cmdQueue.isEmpty()) {
