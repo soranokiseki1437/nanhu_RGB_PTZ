@@ -29,17 +29,17 @@ flowchart LR
 
 ---
 
-## 二、当前项目状态快照（2026-09-28 最新）
+## 二、当前项目状态快照（2026-10-23 最新）
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
-| **代码分支** | `main` | 与远程 `origin/main` 保持一致 |
-| **最新提交** | `8a7006e` | *重构(P2)：KF 卡尔曼滤波改用标准 cv::Matx 矩阵运算表示* |
-| **编译状态** | 🟢 **通过（0 告警）** | Release 构建已通过，Qt 6.10 / C++17 / MinGW 64-bit |
-| **算法移植进度** | 🟢 **Step 1~6 全部完成** | DsstCore 纯算法移植完成；ObjectTracker 已接线 DsstCore；红外模式 UI 与多线程调优完成 |
-| **体检修复进度** | 🟢 **49/53 项已闭环 (92.5%)** | 原 45 项体检闭环 41 项 + R-02~R-10 共 8 项闭环（背压/速度方向/增量写盘/ABI约定/排空等待/框选缓存/极小尺度兜底/重入保护） |
-| **待执行核心任务** | 🟡 **Step 7 实机联调** | 依赖硬件环境：云台串口通讯闭环、实时25fps、遮挡恢复、PSR曲线、24h稳定性 |
-| **Git 工作区状态** | 🟢 **已清洁** | 历史归档已清理；图纸资料与方案入库；P0/P1代码修复全部入库推送到远程 |
+| **代码分支** | `main` | 领先 origin/main 1 commit（方案 00~02 与云台资料入库） |
+| **最新进展** | 🟢 **方案 01 阶段一已闭环** | ONNX Runtime DirectML GPU 硬件加速推理管道与纯 C++ NMS 后处理打通；RTX 5070 实测 3.08ms |
+| **编译状态** | 🟢 **通过（0 告警）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
+| **GPU 推理基准** | 🟢 **147.5 FPS / 3.08ms** | NVIDIA RTX 5070 GPU：yolov8n 单帧推理 3.08ms (15.5x CPU 加速比)；yolo11s 单帧推理 4.99ms (21.2x CPU 加速比) |
+| **传统算法现状** | 🟢 **Step 1~6 完备** | DsstCore 纯算法、FFmpeg 解码、PTZ 30ms 节拍保护与双向俯仰映射完全稳定运行 |
+| **待执行核心任务** | 🟡 **方案 01 阶段二：ByteTrack 跟踪器集成** | 引入纯 C++ ByteTrack 航迹关联，实现多目标稳定跟踪与 ID 维持 |
+| **Git 工作区状态** | 🟢 **良好** | 3rdparty/ 与 models/ 及 pt 权重已配置 .gitignore 忽略，源码与 pro 清晰规范 |
 
 ---
 
@@ -206,6 +206,30 @@ flowchart LR
 ---
 
 ## 七、历史检查点记录（Checkpoint Log）
+
+### Checkpoint 2026-10-23 #5
+- **记录人**：Antigravity (Gemini 3.8 Flash)
+- **类型**：方案 01 阶段一里程碑达成（ONNX Runtime DirectML GPU 硬件加速 + 纯 C++ NMS 管道闭环）
+- **核心内容**：
+  1. **跨平台解耦抽象接口落地**：
+     - 创建纯虚基类 [IDetector.h](file:///d:/PyProjects/RGB_PTZ_Integrated/IDetector.h)，统一规范 `DetectionBox`、`DetectorConfig` 与推理生命周期接口，为未来面向 RK3588 NPU (librknnrt) 扩展奠定零冲突架构基础。
+  2. **纯 C++ 独立后处理与 Letterbox 引擎**：
+     - 实现 [yolopostprocessor.h/.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/yolopostprocessor.cpp)，包含保持宽高比 Letterbox 居中前处理、标准 YOLOv8/v11 静态张量（$1 \times (4+80) \times 8400$）解码、坐标逆映射及纯 C++ class-specific Non-Maximum Suppression (NMS)。
+  3. **DirectML GPU 硬件加速推理引擎 [OnnxDetector](file:///d:/PyProjects/RGB_PTZ_Integrated/onnxdetector.cpp)**：
+     - 基于微软官方 ONNX Runtime C-API，避开 MinGW 与 MSVC 的 C++ ABI 冲突，优先启用 DirectML 调用宿主机 **NVIDIA GeForce RTX 5070 GPU** 进行硬件加速；在 GPU 不可用时自动降级 CPU 多线程执行。
+  4. **工程构建与 DLL 自动部署**：
+     - [RGB_PTZ_Integrated.pro](file:///d:/PyProjects/RGB_PTZ_Integrated/RGB_PTZ_Integrated.pro) 补充 ONNX Runtime 与 DirectML 依赖路径，并在 `QMAKE_POST_LINK` 自动分发 `onnxruntime.dll`、`DirectML.dll`、`onnxruntime_providers_shared.dll` 至输出目录。Release 构建 **0 Error / 0 Warning**。
+  5. **实机性能横评与基准测试 ([test_detector.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_detector.cpp))**：
+     - **YOLOv8n (静态 640x640)**：
+       - RTX 5070 DirectML 纯推理耗时：**3.08 ms**（含前后处理总耗时 **6.78 ms**，折合 **147.5 FPS**）；
+       - CPU 多线程推理耗时：**47.59 ms**（20.0 FPS）；
+       - GPU 硬件加速比：**15.45x**，[通过 PASS] 方案验收指标（$\le 15\text{ ms}$）。
+     - **YOLO11s (静态 640x640)**：
+       - RTX 5070 DirectML 纯推理耗时：**4.99 ms**（含前后处理总耗时 **7.69 ms**，折合 **130.0 FPS**）；
+       - CPU 多线程推理耗时：**105.84 ms**（9.2 FPS）；
+       - GPU 硬件加速比：**21.21x**，[通过 PASS] 方案验收指标。
+  6. **下一步计划**：
+     - 推进方案 01 阶段二：引入纯 C++ ByteTrack 多目标航迹关联算法，实现多目标连续稳定跟踪。
 
 ### Checkpoint 2026-09-28 #4 (HEAD @ `f1b5b98`)
 - **记录人**：Gemini 3.8 Flash

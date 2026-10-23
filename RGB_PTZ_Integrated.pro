@@ -26,7 +26,9 @@ SOURCES += \
     dsstcore.cpp \
     logmanager.cpp \
     logging_categories.cpp \
-    imagematconvert.cpp
+    imagematconvert.cpp \
+    yolopostprocessor.cpp \
+    onnxdetector.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -47,7 +49,10 @@ HEADERS += \
     dsstcore.h \
     logmanager.h \
     logging_categories.h \
-    imagematconvert.h
+    imagematconvert.h \
+    IDetector.h \
+    yolopostprocessor.h \
+    onnxdetector.h
 
 FORMS += \
     mainwindow.ui
@@ -81,6 +86,13 @@ win32: LIBS += -L$$OPENCV_DIR/x64/mingw/lib \
     -lopencv_imgproc4100
 unix: LIBS += -L$$OPENCV_DIR/lib -lopencv_core -lopencv_imgproc
 # 运行时需把 libopencv_core4100.dll / libopencv_imgproc4100.dll 放到 exe 同目录
+
+# ===== ONNX Runtime (DirectML / C-API 硬件加速) =====
+win32 {
+    DEFINES += USE_ONNXRUNTIME
+    INCLUDEPATH += $$PWD/3rdparty/onnxruntime/include
+    LIBS += -L$$PWD/3rdparty/onnxruntime/lib -lonnxruntime -lDirectML
+}
 
 # 避免C语言相关警告
 DEFINES += _CRT_SECURE_NO_WARNINGS
@@ -116,5 +128,11 @@ win32 {
     OPENCV_BIN = $$shell_path($$PWD/opencv/install/x64/mingw/bin)
     QMAKE_POST_LINK += copy /Y $$quote($$OPENCV_BIN\\libopencv_core4100.dll)     $$quote($$DESTDIR_WIN) &
     QMAKE_POST_LINK += copy /Y $$quote($$OPENCV_BIN\\libopencv_imgproc4100.dll)  $$quote($$DESTDIR_WIN) &
-    QMAKE_POST_LINK += copy /Y $$quote($$OPENCV_BIN\\libopencv_imgcodecs4100.dll) $$quote($$DESTDIR_WIN)
+    QMAKE_POST_LINK += copy /Y $$quote($$OPENCV_BIN\\libopencv_imgcodecs4100.dll) $$quote($$DESTDIR_WIN) &
+
+    # ONNX Runtime & DirectML DLLs
+    ORT_BIN = $$shell_path($$PWD/3rdparty/onnxruntime/bin)
+    QMAKE_POST_LINK += copy /Y $$quote($$ORT_BIN\\onnxruntime.dll)                  $$quote($$DESTDIR_WIN) &
+    QMAKE_POST_LINK += copy /Y $$quote($$ORT_BIN\\DirectML.dll)                     $$quote($$DESTDIR_WIN) &
+    QMAKE_POST_LINK += copy /Y $$quote($$ORT_BIN\\onnxruntime_providers_shared.dll) $$quote($$DESTDIR_WIN)
 }
