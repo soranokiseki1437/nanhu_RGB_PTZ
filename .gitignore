@@ -43,3 +43,8 @@ Desktop.ini
 # ===== Linux/ARM SDK 源码包（不入库） =====
 sdk/univisionsdk-0.3.2/
 
+# ===== 历史备份归档（不入库） =====
+_archive/*
+!_archive/待执行方案_20261022/
+
+
