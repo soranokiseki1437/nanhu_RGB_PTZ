@@ -274,7 +274,7 @@ void MainWindow::initUI()
         ui->splitterMain->setCollapsible(0, true);
         ui->splitterMain->setCollapsible(1, false);
         ui->splitterMain->setCollapsible(2, true);
-        ui->splitterMain->setSizes({330, 700, 330});
+        ui->splitterMain->setSizes({220, 920, 220});
     }
 
     // 更新 UI 状态
@@ -1744,7 +1744,7 @@ void MainWindow::on_btnToggleLeftPanel_clicked()
     if (visible && ui->splitterMain) {
         QList<int> sizes = ui->splitterMain->sizes();
         if (sizes.size() >= 3) {
-            int leftW = 330;
+            int leftW = 220;
             int rightW = ui->widgetRightPanel->isVisible() ? sizes[2] : 0;
             int centerW = std::max(200, ui->splitterMain->width() - leftW - rightW);
             ui->splitterMain->setSizes({leftW, centerW, rightW});
@@ -1760,7 +1760,7 @@ void MainWindow::on_btnToggleRightPanel_clicked()
     if (visible && ui->splitterMain) {
         QList<int> sizes = ui->splitterMain->sizes();
         if (sizes.size() >= 3) {
-            int rightW = 330;
+            int rightW = 240;
             int leftW = ui->widgetLeftPanel->isVisible() ? sizes[0] : 0;
             int centerW = std::max(200, ui->splitterMain->width() - leftW - rightW);
             ui->splitterMain->setSizes({leftW, centerW, rightW});

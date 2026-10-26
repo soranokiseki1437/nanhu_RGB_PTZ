@@ -219,6 +219,31 @@ flowchart LR
 
 ## 七、历史检查点记录（Checkpoint Log）
 
+### Checkpoint 2026-10-26 #14
+- **记录人**：Antigravity (Gemini 3.8 Flash)
+- **类型**：左侧面板极限狭窄化（Minimum Width Constraint Shaving）与控件网格紧凑重构
+- **核心内容**：
+  1. **QSplitter 最小宽度瓶颈排查与根因定位 ([mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui))**：
+     - 排查发现：Qt 中即使将容器 `minimumSize` 设为 0，`QSplitter` 仍会受制于子控件网格计算的内部 `minimumSizeHint()`；
+     - 瓶颈 1（PTZ 串口与状态）：原第 3 行横向并排了 4 个独立按钮（`复位`、`移动`、`急停`、`查询`），单行强行需要 $4 \times 60\text{px} \approx 240\text{px}$ 以上硬约束；
+     - 瓶颈 2（镜头变焦与对焦控制）：原第 0 行包含长文本“变倍+ (拉近)”与“变倍- (拉远)”加步长输入框，单行硬约束高达 $300\text{px}$ 左右；
+     - 导致用户拖拽左侧分栏手柄时在 ~310px 处发生阻挡无法继续收窄。
+  2. **网格列压缩与专业精简文案落地 ([mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui))**：
+     - PTZ 按钮 2x2 跨列分层：将 Row 3 四按钮拆分为两行两列：
+       - Row 3: `移动` (colspan 2) | `查询` (colspan 2)
+       - Row 4: `复位` (colspan 2) | `急停` (colspan 2)
+     - 镜头按钮工控紧凑化：
+       - `变倍+ (拉近)` / `变倍- (拉远)` 精简为标准 `变倍+` / `变倍-`；
+       - `聚焦变近` / `聚焦变远` / `手动聚焦` 精简为 `近焦` / `远焦` / `手动`；
+       - `光圈扩大` / `光圈缩小` / `手动光圈` 精简为 `光圈+` / `光圈-` / `手动`；
+     - 边距与间距紧凑化：为 `gridLayout_ptz`、`gridLayout_dir`、`gridLayout_lens`、`gridLayout_camera` 统一施加紧凑外边距（4px）与间距（3-4px），并更正相机连接按钮初始文本为“连接”。
+  3. **分栏初始尺寸与恢复参数调整 ([mainwindow.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp))**：
+     - 在 `initUI()` 中将默认分栏比例调整为 `{220, 920, 220}`；
+     - 在 `on_btnToggleLeftPanel_clicked()` 中将展开恢复宽度由 330px 调小至 220px；
+     - 左侧面板支持在 200px~220px 超窄空间下完美展示，中间 16:9 核心监控视窗获得额外 100px+ 水平展示区域。
+  4. **工程构建与回归验证**：
+     - MinGW 13.1 + Qt 6.12.0 Release 构建 **0 Error / 0 Warning**。
+
 ### Checkpoint 2026-10-26 #13
 - **记录人**：Antigravity (Gemini 3.8 Flash)
 - **类型**：侧边栏折叠/展开按钮双重信号槽触发 Bug 修复与 QSplitter 最小尺寸解除

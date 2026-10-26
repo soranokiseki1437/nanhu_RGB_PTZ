@@ -114,6 +114,24 @@
               <string>PTZ 串口与状态</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_ptz">
+               <property name="leftMargin">
+                <number>4</number>
+               </property>
+               <property name="topMargin">
+                <number>6</number>
+               </property>
+               <property name="rightMargin">
+                <number>4</number>
+               </property>
+               <property name="bottomMargin">
+                <number>4</number>
+               </property>
+               <property name="horizontalSpacing">
+                <number>4</number>
+               </property>
+               <property name="verticalSpacing">
+                <number>3</number>
+               </property>
               <item row="0" column="0">
                <widget class="QLabel" name="label">
                 <property name="text">
@@ -222,31 +240,31 @@
                 </property>
                </widget>
               </item>
-              <item row="3" column="0">
-               <widget class="QPushButton" name="btnReset">
-                <property name="text">
-                 <string>复位</string>
-                </property>
-               </widget>
-              </item>
-              <item row="3" column="1">
+              <item row="3" column="0" colspan="2">
                <widget class="QPushButton" name="btnMove">
                 <property name="text">
                  <string>移动</string>
                 </property>
                </widget>
               </item>
-              <item row="3" column="2">
-               <widget class="QPushButton" name="btnStop">
-                <property name="text">
-                 <string>急停</string>
-                </property>
-               </widget>
-              </item>
-              <item row="3" column="3">
+              <item row="3" column="2" colspan="2">
                <widget class="QPushButton" name="btnQuery">
                 <property name="text">
                  <string>查询</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="0" colspan="2">
+               <widget class="QPushButton" name="btnReset">
+                <property name="text">
+                 <string>复位</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="2" colspan="2">
+               <widget class="QPushButton" name="btnStop">
+                <property name="text">
+                 <string>急停</string>
                 </property>
                </widget>
               </item>
@@ -259,6 +277,24 @@
               <string>云台方向盘</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_dir">
+               <property name="leftMargin">
+                <number>4</number>
+               </property>
+               <property name="topMargin">
+                <number>6</number>
+               </property>
+               <property name="rightMargin">
+                <number>4</number>
+               </property>
+               <property name="bottomMargin">
+                <number>4</number>
+               </property>
+               <property name="horizontalSpacing">
+                <number>3</number>
+               </property>
+               <property name="verticalSpacing">
+                <number>3</number>
+               </property>
               <item row="0" column="0">
                <widget class="QPushButton" name="left_up">
                 <property name="text">
@@ -331,17 +367,35 @@
               <string>镜头变焦与对焦控制</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_lens">
+               <property name="leftMargin">
+                <number>4</number>
+               </property>
+               <property name="topMargin">
+                <number>6</number>
+               </property>
+               <property name="rightMargin">
+                <number>4</number>
+               </property>
+               <property name="bottomMargin">
+                <number>4</number>
+               </property>
+               <property name="horizontalSpacing">
+                <number>4</number>
+               </property>
+               <property name="verticalSpacing">
+                <number>3</number>
+               </property>
               <item row="0" column="0">
                <widget class="QPushButton" name="btnZoomIn">
                 <property name="text">
-                 <string>变倍+ (拉近)</string>
+                 <string>变倍+</string>
                 </property>
                </widget>
               </item>
               <item row="0" column="1">
                <widget class="QPushButton" name="btnZoomOut">
                 <property name="text">
-                 <string>变倍- (拉远)</string>
+                 <string>变倍-</string>
                 </property>
                </widget>
               </item>
@@ -361,42 +415,42 @@
               <item row="1" column="0">
                <widget class="QPushButton" name="btnFocusNear">
                 <property name="text">
-                 <string>聚焦变近</string>
+                 <string>近焦</string>
                 </property>
                </widget>
               </item>
               <item row="1" column="1">
                <widget class="QPushButton" name="btnFocusFar">
                 <property name="text">
-                 <string>聚焦变远</string>
+                 <string>远焦</string>
                 </property>
                </widget>
               </item>
               <item row="1" column="2">
                <widget class="QCheckBox" name="checkBoxManualFocus">
                 <property name="text">
-                 <string>手动聚焦</string>
+                 <string>手动</string>
                 </property>
                </widget>
               </item>
               <item row="2" column="0">
                <widget class="QPushButton" name="btnIrisOpen">
                 <property name="text">
-                 <string>光圈扩大</string>
+                 <string>光圈+</string>
                 </property>
                </widget>
               </item>
               <item row="2" column="1">
                <widget class="QPushButton" name="btnIrisClose">
                 <property name="text">
-                 <string>光圈缩小</string>
+                 <string>光圈-</string>
                 </property>
                </widget>
               </item>
               <item row="2" column="2">
                <widget class="QCheckBox" name="checkBoxManualIris">
                 <property name="text">
-                 <string>手动光圈</string>
+                 <string>手动</string>
                 </property>
                </widget>
               </item>
@@ -433,6 +487,24 @@
               <string>网络摄像机 (RGB)</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_camera">
+               <property name="leftMargin">
+                <number>4</number>
+               </property>
+               <property name="topMargin">
+                <number>6</number>
+               </property>
+               <property name="rightMargin">
+                <number>4</number>
+               </property>
+               <property name="bottomMargin">
+                <number>4</number>
+               </property>
+               <property name="horizontalSpacing">
+                <number>4</number>
+               </property>
+               <property name="verticalSpacing">
+                <number>3</number>
+               </property>
               <item row="0" column="0">
                <widget class="QLabel" name="label_6">
                 <property name="text">
@@ -491,7 +563,7 @@
               <item row="3" column="1" colspan="2">
                <widget class="QPushButton" name="rgbBtnConnect">
                 <property name="text">
-                 <string>连接摄像机</string>
+                 <string>连接</string>
                 </property>
                </widget>
               </item>
