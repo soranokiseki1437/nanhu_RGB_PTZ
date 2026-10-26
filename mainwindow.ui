@@ -428,6 +428,9 @@
               </item>
               <item row="1" column="2">
                <widget class="QCheckBox" name="checkBoxManualFocus">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
                 <property name="text">
                  <string>手动</string>
                 </property>
@@ -449,6 +452,9 @@
               </item>
               <item row="2" column="2">
                <widget class="QCheckBox" name="checkBoxManualIris">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
                 <property name="text">
                  <string>手动</string>
                 </property>
@@ -839,7 +845,7 @@
              </font>
             </property>
             <property name="text">
-             <string>手动框选 (SOT)</string>
+             <string>手动框选</string>
             </property>
             <property name="checked">
              <bool>true</bool>
@@ -854,7 +860,7 @@
              </font>
             </property>
             <property name="text">
-             <string>AI 自动巡逻 (MOT)</string>
+             <string>多目标检测</string>
             </property>
            </widget>
           </item>
@@ -904,7 +910,7 @@
        <item>
         <widget class="QGroupBox" name="groupMotControls">
          <property name="title">
-          <string>AI 自动巡逻感知</string>
+          <string>多目标检测</string>
          </property>
          <layout class="QGridLayout" name="gridLayout_mot">
           <item row="0" column="0" colspan="2">
@@ -915,7 +921,7 @@
              </font>
             </property>
             <property name="text">
-             <string>开启全图自动检测</string>
+             <string>开启多目标检测</string>
             </property>
             <property name="checkable">
              <bool>true</bool>
@@ -964,22 +970,22 @@
            <widget class="QComboBox" name="comboAiFps">
             <item>
              <property name="text">
-              <string>2 Hz (推荐/极低开销)</string>
+              <string>1 FPS</string>
              </property>
             </item>
             <item>
              <property name="text">
-              <string>1 Hz (每秒1次/超省算力)</string>
+              <string>2 FPS</string>
              </property>
             </item>
             <item>
              <property name="text">
-              <string>5 Hz (高动态响应)</string>
+              <string>5 FPS</string>
              </property>
             </item>
             <item>
              <property name="text">
-              <string>30 FPS (全速满载)</string>
+              <string>30 FPS</string>
              </property>
             </item>
            </widget>

@@ -95,17 +95,17 @@ flowchart LR
 ### 4.1 当前 Git 状态全景（`git status -s`）
 
 ```text
- M tools/test_detector.cpp (阶段一全景质量体检与闭环验收工具扩展)
-?? test_detection_vis.png (阶段一可视化测试输出图元，建议由 .gitignore 忽略或归档)
+ M checkpoint.md (检查点刷新至 Checkpoint #15)
+ M mainwindow.cpp (拔除 10 处双重 connect、COW 零拷贝优化、UI 状态文本一致性)
+ M onnxdetector.cpp (loadModel/析构/isLoaded 加互斥锁保障多线程热切换安全)
 ```
 
 ### 4.2 诊断分析与建议处置方案
 
 | 现象分类 | 产生根因分析 | 推荐处置方案 | 对应 Git 命令 |
 | :--- | :--- | :--- | :--- |
-| **1. `tools/test_detector.cpp` 修改** | 阶段一增加 5 大维度全景质量验收代码（加速比、Ground Truth IoU 对齐、长宽比不变性、内存泄漏核验）。 | **提交入库**。作为方案 01 阶段一的核心验收工件。 | `git add tools/test_detector.cpp`<br>`git commit -m "feat(AI): 目标检测阶段一全景质量体检工具(5/5)实跑通过"` |
-| **2. `test_detection_vis.png`** | 验收工具生成的实机对拍预测图元文件。 | **建议在 `.gitignore` 中忽略临时图片**。 | `echo "*.png" >> .gitignore` |
-| **3. 分支状态（领先 origin/main 4 commits）** | 本地已提交 `7429ddb`、`1d0c846`、`46ede1e` 等核心功能与规划提交。 | **推送远端**。待远程连接就绪后执行推送。 | `git push origin main` |
+| **1. 生产代码加固与冗余拔除** | 完成 `OnnxDetector` 多线程互斥保护、拔除 10 处信号槽重复绑定、`displayImage` 155MB/s 零拷贝优化及状态机一致性。 | **提交入库**。闭环本次体检与去冗余成果。 | `git add onnxdetector.cpp mainwindow.cpp checkpoint.md`<br>`git commit -m "fix(core): 闭环OnnxDetector多线程互斥锁，拔除10处双重connect并优化COW零拷贝"` |
+| **2. 分支状态** | 工作区通过 Release 构建与全景验收测试，准备提交。 | **提交并推送**。 | `git push origin main` |
 
 ---
 
@@ -218,6 +218,69 @@ flowchart LR
 ---
 
 ## 七、历史检查点记录（Checkpoint Log）
+
+### Checkpoint 2026-10-26 #18
+- **记录人**：Antigravity (Gemini 3.8 Flash)
+- **类型**：检测频率单位统一为 FPS（1/2/5/30 FPS）并按升序排列
+- **核心内容**：
+  1. **单位统一与升序排列 ([mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui), [mainwindow.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp))**：
+     - 消除 `Hz` 与 `FPS` 混用歧义，统一按 FPS 标识：`1 FPS` (1000ms)、`2 FPS` (500ms)、`5 FPS` (200ms)、`30 FPS` (33ms)；
+     - 界面与底层槽函数映射逻辑按数值升序统一，并在 `initTrackingModule()` 默认定位至常用推荐档位 `2 FPS`（Index 1 / 500ms 间隔）。
+  2. **构建与验证**：
+     - MinGW C++17 Release 编译通过，0 错误 0 告警。
+
+### Checkpoint 2026-10-26 #17
+- **记录人**：Antigravity (Gemini 3.8 Flash)
+- **类型**：UI 术语规范化（多目标检测/去掉SOT/MOT与括号说明）、镜头未连接禁用光圈控件与日志告警消除
+- **核心内容**：
+  1. **UI 文本与术语精简归一 ([mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui))**：
+     - 单目标工作模式单选框去除技术缩写：`手动框选 (SOT)` ➔ `手动框选`；
+     - 自动检测工作模式与分组框名称规范：`AI 自动巡逻 (MOT)` / `AI 自动巡逻感知` ➔ `多目标检测`；
+     - 控制按钮文案统一：`开启全图自动检测` ➔ `开启多目标检测`，运行时对应 `停止多目标检测`；
+     - 检测频率下拉选项精炼：删除冗余括号解释，精简为 `2 Hz`、`1 Hz`、`5 Hz`、`30 FPS`；
+     - 遥测状态机状态文本同步优化，空闲巡检待命状态更新为“多目标检测中... / 待命”。
+  2. **镜头与光圈模式控件安全联动与日志静音 ([mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui), [mainwindow.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp), [lensmanager.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/lensmanager.cpp))**：
+     - 在 UI 初始设计态与 `initUI()`、`updateRGBUIState()` 断开态中，统一将 `checkBoxManualIris` 与 `checkBoxManualFocus` 设为 `setEnabled(false)` 置灰禁止交互；
+     - 仅当相机网络登录成功且镜头底层管理就绪（`LensManager::isReady()`）后方才启用勾选；
+     - 在槽函数中加入就绪防抖保护，并在 `LensManager::setIrisMode` 中干净移除 `errorOccurred("镜头管理未就绪，无法设置光圈模式")` 日志弹框警告，代码无删除痕迹残留。
+  3. **质量验收**：
+     - MinGW C++17 Release 编译通过，0 错误 0 告警；
+     - 自动化算法闭环体检：AMFT 自适应融合协同测试 4/4 PASS (100%)，ONNX 目标检测引擎 5/5 PASS (100%)。
+
+### Checkpoint 2026-10-26 #16
+- **记录人**：Antigravity (Gemini 3.8 Flash)
+- **类型**：导出材料目录规范化、汇报素材全中文图例重构与工作区清理
+- **核心内容**：
+  1. **工作区输出材料目录规范化**：
+     - 将原本临时输出目录统一规范为 `导出材料/YYYYMMDD/`（如 `导出材料/20261026/`），按日期自动分发归档，彻底清理旧版目录；
+     - 同步在 `.gitignore` 中追加 `导出材料/` 忽略规则，防止多媒体产物污染代码仓库。
+  2. **周报汇报素材全中文图例与高颜值重构 ([scripts/generate_report_media.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/generate_report_media.py))**：
+     - 攻克 Windows 平台 OpenCV `cv2.imwrite` 不支持中文路径的底层限制，封装 PIL 高清抗锯齿中文文本渲染与保存链路；
+     - 4 联屏汇报高清对比大图（`weekly_report_vis.png`，960×960）全量采用中文图例：
+       - (A) 原始红外视频帧（256×256 低对比度弱小目标与背景杂波说明）
+       - (B) 目标检测比对（绿框真实真值 GT vs 红框 YOLO 预测框，IoU 72.7% 重合度）
+       - (C) 视觉自适应跟踪锁定（DSST+AMFT 动态包围框、中心十字瞄准准星、0.871 跟踪健康评分）
+       - (D) 软硬件系统运行看板（RTX 5070 实测 3.06ms 推理、540+ FPS 跟踪、17.1 倍 GPU 提速）
+     - 演示视频（`report_detection_tracking.mp4`）集成全中文光电吊舱工业风 HUD 抬头显示，实时呈现帧号、AI 耗时、Pelco-D 云台联动与跟踪锁定状态。
+
+### Checkpoint 2026-10-26 #15
+- **记录人**：Antigravity (Gemini 3.8 Flash)
+- **类型**：多线程模型热切换安全互斥加固、connectSlotsByName 10处重复绑定拔除与 155MB/s 零拷贝优化
+- **核心内容**：
+  1. **多线程模型热切换（Hot-Swap）互斥锁闭环 ([onnxdetector.h/.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/onnxdetector.cpp))**：
+     - 排查根因：`OnnxDetector` 被 UI 主线程（`loadSelectedModel`）、后台巡检线程池（`onAiDetectTimerTimeout`）与跟踪子线程（`tryDetectAndRecover`）跨 3 线程共享。此前仅 `detect()` 持有 `m_detectMutex`，而 `loadModel()`、`~OnnxDetector()`、`isLoaded()` 未加锁。当用户在界面热切换模型时，主线程调用 `release()` 销毁 `m_session`，若此时后台正在 `m_api->Run` 会引发段错误崩溃；
+     - 修复落地：在 `loadModel()`、`~OnnxDetector()`、`isLoaded()` 统一补充 `std::lock_guard<std::mutex> lock(m_detectMutex);`，实现写者/读者全周期互斥与毫秒级无损等待。
+  2. **拔除 10 处信号槽重复绑定（Double-Firing）Bug ([mainwindow.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp))**：
+     - 排查根因：`ui->setupUi(this)` 内部调用 `QMetaObject::connectSlotsByName(this)`，所有遵循 `on_<objectName>_<signal>` 规范的槽函数已被 Qt 元对象系统默认自动连接；但在 `MainWindow` 构造与 `initTrackingModule` 中又多写了一次手动 `connect`；
+     - 修复落地：彻底清理 `radioModeManual`、`radioModeAuto`、`btnAutoDetect`、`comboAiModel`、`comboAiFps`、`btnTrackSelect`、`btnTrackStart`、`btnTrackStop`、`checkBoxManualFocus`、`checkBoxManualIris` 等 10 处冗余手动 `connect`。消除切换模型连续加载两次、开始跟踪误报“请先框选目标”的严重逻辑缺陷。
+  3. **1080P 视频流 155 MB/s 无谓深拷贝消除 ([mainwindow.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp#L484))**：
+     - 将 `displayImage` 中的 `m_lastFrame = image.copy();` 优化为 `m_lastFrame = image;`，利用 Qt `QImage` 隐式数据共享（Copy-On-Write）实现 0 开销指针共享，消除每秒 25 帧、单帧 6.2MB 的无效 `memcpy`。
+  4. **状态机与 UI 呈现一致性闭环 ([mainwindow.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp))**：
+     - 在 `updateTrackingUIState` 中将 `Idle` 态与工作模式联动：自动巡逻下准确展示“AI 巡检待命”或“AI 巡检中...”，消除此前被“空闲”冲掉的代码死分支；
+     - Click-to-Lock 单击锁定后将 `m_isAutoDetecting` 纯净化置为 `false`，彻底解耦巡检态与强跟踪态。
+  5. **工程构建与回归验证**：
+     - MinGW 13.1 + Qt 6.12.0 Release 构建 **0 Error / 0 Warning**；
+     - `tools/test_amft.exe` 四项闭环验收 **100% PASS**。
 
 ### Checkpoint 2026-10-26 #14
 - **记录人**：Antigravity (Gemini 3.8 Flash)

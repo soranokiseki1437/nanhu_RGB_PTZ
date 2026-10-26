@@ -25,6 +25,7 @@ OnnxDetector::OnnxDetector()
 
 OnnxDetector::~OnnxDetector()
 {
+    std::lock_guard<std::mutex> lock(m_detectMutex);
     release();
 }
 
@@ -62,6 +63,7 @@ void OnnxDetector::release()
 
 bool OnnxDetector::loadModel(const QString& modelPath, const DetectorConfig& config)
 {
+    std::lock_guard<std::mutex> lock(m_detectMutex);
     QFileInfo checkFile(modelPath);
     if (!checkFile.exists() || !checkFile.isFile()) {
         qWarning().noquote() << "OnnxDetector: Model file not found:" << modelPath;
@@ -209,6 +211,7 @@ bool OnnxDetector::initializeSession(const QString& modelPath, const DetectorCon
 
 bool OnnxDetector::isLoaded() const
 {
+    std::lock_guard<std::mutex> lock(m_detectMutex);
     return m_isLoaded && m_session != nullptr;
 }
 

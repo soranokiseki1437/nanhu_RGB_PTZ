@@ -328,7 +328,6 @@ void LensManager::setIrisMode(bool isManual)
     QMutexLocker locker(&m_mutex);
     
     if (!m_ready) {
-        emit errorOccurred("镜头管理未就绪，无法设置光圈模式");
         return;
     }
     

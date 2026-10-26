@@ -85,14 +85,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     m_recordTimer->setInterval(1000);
     connect(m_recordTimer, &QTimer::timeout, this, &MainWindow::onRecordTimerTimeout);
 
-    // AI 自动巡检定时器与控制绑定
-    m_aiDetectTimer->setInterval(500); // 默认 2 Hz
+    // AI 自动巡检定时器（非UI控件，保留手动连接）
+    m_aiDetectTimer->setInterval(500); // 默认 2 FPS
     connect(m_aiDetectTimer, &QTimer::timeout, this, &MainWindow::onAiDetectTimerTimeout);
-    connect(ui->radioModeManual, &QRadioButton::toggled, this, &MainWindow::on_radioModeManual_toggled);
-    connect(ui->radioModeAuto, &QRadioButton::toggled, this, &MainWindow::on_radioModeAuto_toggled);
-    connect(ui->btnAutoDetect, &QPushButton::clicked, this, &MainWindow::on_btnAutoDetect_clicked);
-    connect(ui->comboAiModel, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MainWindow::on_comboAiModel_currentIndexChanged);
-    connect(ui->comboAiFps, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MainWindow::on_comboAiFps_currentIndexChanged);
+    // 注：radioModeManual, radioModeAuto, btnAutoDetect, comboAiModel, comboAiFps
+    // 均遵循 on_<objectName>_<signal> 规范，已由 setupUi() 的 connectSlotsByName 自动挂载，杜绝双重绑定
     
     // 初始化 PTZ 方向盘控制
     // 【持续运动修复】单个 moveDirection 命令只触发一次连续运动，而 PTZController 的 500ms
@@ -213,15 +210,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         });
     }
     
-    // 聚焦模式切换
-    if (ui->checkBoxManualFocus) {
-        connect(ui->checkBoxManualFocus, &QCheckBox::clicked, this, &MainWindow::on_checkBoxManualFocus_clicked);
+    // 聚焦模式切换（checkBoxManualFocus 自动挂载，仅保留 LensManager 信号连接）
+    if (ui->checkBoxManualFocus && m_deviceManager && m_deviceManager->getLensManager()) {
         connect(m_deviceManager->getLensManager(), &LensManager::focusModeChanged, this, &MainWindow::onFocusModeChanged);
     }
     
-    // 光圈模式切换
-    if (ui->checkBoxManualIris) {
-        connect(ui->checkBoxManualIris, &QCheckBox::clicked, this, &MainWindow::on_checkBoxManualIris_clicked);
+    // 光圈模式切换（checkBoxManualIris 自动挂载，仅保留 LensManager 信号连接）
+    if (ui->checkBoxManualIris && m_deviceManager && m_deviceManager->getLensManager()) {
         connect(m_deviceManager->getLensManager(), &LensManager::irisModeChanged, this, &MainWindow::onIrisModeChanged);
     }
 
@@ -320,6 +315,8 @@ void MainWindow::initRGBModule()
     if (ui->btnIrisOpen) ui->btnIrisOpen->setEnabled(false);
     if (ui->btnIrisClose) ui->btnIrisClose->setEnabled(false);
     if (ui->spinLensSpeed) ui->spinLensSpeed->setEnabled(false);
+    if (ui->checkBoxManualFocus) ui->checkBoxManualFocus->setEnabled(false);
+    if (ui->checkBoxManualIris) ui->checkBoxManualIris->setEnabled(false);
 }
 
 void MainWindow::initTrackingModule()
@@ -346,10 +343,7 @@ void MainWindow::initTrackingModule()
     m_trackingController->setFeedforwardGain(m_configManager->getTrackKff());
     m_trackingController->setPredictHorizon(m_configManager->getTrackTPredict());
 
-    // 连接跟踪按钮
-    connect(ui->btnTrackSelect, &QPushButton::clicked, this, &MainWindow::on_btnTrackSelect_clicked);
-    connect(ui->btnTrackStart, &QPushButton::clicked, this, &MainWindow::on_btnTrackStart_clicked);
-    connect(ui->btnTrackStop, &QPushButton::clicked, this, &MainWindow::on_btnTrackStop_clicked);
+    // 注：btnTrackSelect, btnTrackStart, btnTrackStop 已由 setupUi() 的 connectSlotsByName 自动挂载
 
     // 跟踪源模式选择（可见光/红外），下次框选生效
     connect(ui->cmbTrackSource, &QComboBox::currentIndexChanged, this, [this](int index){
@@ -360,6 +354,9 @@ void MainWindow::initTrackingModule()
     ui->radioModeManual->setChecked(true);
     ui->groupSotControls->setEnabled(true);
     ui->groupMotControls->setEnabled(false);
+
+    // 初始化检测频率：默认 2 FPS (500ms)
+    ui->comboAiFps->setCurrentIndex(1);
 
     // 动态扫描 models 目录，自动识别新增的所有 ONNX 模型
     refreshModelList();
@@ -381,7 +378,13 @@ void MainWindow::updateTrackingUIState()
     // 更新状态标签
     QString statusText;
     switch (state) {
-    case TrackingController::Idle: statusText = "空闲"; break;
+    case TrackingController::Idle:
+        if (ui->radioModeAuto && ui->radioModeAuto->isChecked()) {
+            statusText = m_isAutoDetecting ? "多目标检测中..." : "待命";
+        } else {
+            statusText = "空闲";
+        }
+        break;
     case TrackingController::Selecting: statusText = "等待框选..."; break;
     case TrackingController::Initializing: statusText = "初始化中..."; break;
     case TrackingController::Tracking: statusText = "跟踪中"; break;
@@ -441,8 +444,9 @@ void MainWindow::updateRGBUIState()
         if (ui->btnZoomIn) ui->btnZoomIn->setEnabled(true);
         if (ui->btnZoomOut) ui->btnZoomOut->setEnabled(true);
         if (ui->spinLensSpeed) ui->spinLensSpeed->setEnabled(true);
-        if (ui->checkBoxManualFocus) ui->checkBoxManualFocus->setEnabled(true);
-        if (ui->checkBoxManualIris) ui->checkBoxManualIris->setEnabled(true);
+        bool lensReady = m_deviceManager && m_deviceManager->getLensManager() && m_deviceManager->getLensManager()->isReady();
+        if (ui->checkBoxManualFocus) ui->checkBoxManualFocus->setEnabled(lensReady);
+        if (ui->checkBoxManualIris) ui->checkBoxManualIris->setEnabled(lensReady);
         
         // 聚焦按钮和光圈按钮的状态由相应的信号控制，这里不需要设置
         // 因为登录成功后会自动触发 getFocusModeFromDevice() 和 getIrisModeFromDevice()，然后触发信号更新
@@ -477,6 +481,7 @@ void MainWindow::updateRGBUIState()
         if (ui->btnIrisClose) ui->btnIrisClose->setEnabled(false);
         if (ui->spinLensSpeed) ui->spinLensSpeed->setEnabled(false);
         if (ui->checkBoxManualFocus) ui->checkBoxManualFocus->setEnabled(false);
+        if (ui->checkBoxManualIris) ui->checkBoxManualIris->setEnabled(false);
     }
 }
 
@@ -486,8 +491,8 @@ void MainWindow::displayImage(const QImage &image)
         return;
     }
 
-    // 保存最后一帧（用于框选初始化）
-    m_lastFrame = image.copy();
+    // 保存最后一帧（用于框选初始化，利用 Qt QImage COW 隐式共享机制，避免每帧 6.2MB 深拷贝）
+    m_lastFrame = image;
 
     // 显示图片（C8：缩放结果缓存到 m_scaledPixmap，跟踪框重绘时复用）
     QPixmap pixmap = QPixmap::fromImage(image);
@@ -1118,8 +1123,12 @@ void MainWindow::onFocusModeChanged(bool isManualFocus)
 
 void MainWindow::on_checkBoxManualFocus_clicked(bool checked)
 {
-    if (m_deviceManager && m_deviceManager->getLensManager()) {
+    if (m_deviceManager && m_deviceManager->getLensManager() && m_deviceManager->getLensManager()->isReady()) {
         m_deviceManager->getLensManager()->setFocusMode(checked);
+    } else {
+        if (ui->checkBoxManualFocus) {
+            ui->checkBoxManualFocus->setChecked(!checked);
+        }
     }
 }
 
@@ -1146,8 +1155,12 @@ void MainWindow::onIrisModeChanged(bool isManualIris)
 
 void MainWindow::on_checkBoxManualIris_clicked(bool checked)
 {
-    if (m_deviceManager && m_deviceManager->getLensManager()) {
+    if (m_deviceManager && m_deviceManager->getLensManager() && m_deviceManager->getLensManager()->isReady()) {
         m_deviceManager->getLensManager()->setIrisMode(checked);
+    } else {
+        if (ui->checkBoxManualIris) {
+            ui->checkBoxManualIris->setChecked(!checked);
+        }
     }
 }
 
@@ -1220,15 +1233,14 @@ void MainWindow::on_btnTrackStop_clicked()
     m_selectBox = QRectF();
     m_trackBoxVisible = false;
 
-    // 如果处于 AI 自动检测，彻底关闭自动检测回到待机状态 (用户确认要求 A1)
-    if (m_isAutoDetecting) {
+    // 如果处于 AI 自动模式，彻底重置巡检状态回到待机状态 (用户确认要求 A1)
+    if (m_isAutoDetecting || (ui->radioModeAuto && ui->radioModeAuto->isChecked())) {
         m_isAutoDetecting = false;
         m_aiDetectTimer->stop();
         m_aiDetectedBoxes.clear();
         ui->btnAutoDetect->setChecked(false);
-        ui->btnAutoDetect->setText("开启全图自动检测");
-        ui->labelTrackStatus->setText("AI 巡检待命");
-        ui->labelAiTelemetry->setText("推理: -- ms | 跟踪: -- ms");
+        ui->btnAutoDetect->setText("开启多目标检测");
+        ui->labelAiTelemetry->setText("推理: -- ms | 目标: -- ms");
     }
 
     emit ptzStop();
@@ -1359,8 +1371,11 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
                 QRectF targetRect = hitBox.rect;
 
                 // 停止自动巡检定时器，清空巡检框，转入单目标闭环伺服
+                m_isAutoDetecting = false;
                 m_aiDetectTimer->stop();
                 m_aiDetectedBoxes.clear();
+                ui->btnAutoDetect->setChecked(false);
+                ui->btnAutoDetect->setText("开启多目标检测");
 
                 m_trackingController->startSelection();
                 m_trackingController->setDeadZonePixels(ui->spinTrackDeadZone->value());
@@ -1594,7 +1609,7 @@ void MainWindow::on_radioModeManual_toggled(bool checked)
         }
         ui->groupSotControls->setEnabled(true);
         ui->groupMotControls->setEnabled(false);
-        ui->textLog->append("[模式] 切换至手动框选模式 (SOT)");
+        ui->textLog->append("[模式] 切换至手动框选模式");
         updateTrackingUIState();
     }
 }
@@ -1612,8 +1627,8 @@ void MainWindow::on_radioModeAuto_toggled(bool checked)
 
         ui->groupSotControls->setEnabled(false);
         ui->groupMotControls->setEnabled(true);
-        ui->labelTrackStatus->setText("AI 巡检待命");
-        ui->textLog->append("[模式] 切换至 AI 自动巡逻模式 (MOT)");
+        ui->textLog->append("[模式] 切换至多目标检测模式");
+        updateTrackingUIState();
     }
 }
 
@@ -1633,9 +1648,9 @@ void MainWindow::on_btnAutoDetect_clicked(bool checked)
         }
 
         m_isAutoDetecting = true;
-        ui->btnAutoDetect->setText("停止全图自动检测");
-        ui->labelTrackStatus->setText("AI 巡检中...");
-        ui->textLog->append("[AI巡逻] 全图自动检测已启动");
+        ui->btnAutoDetect->setText("停止多目标检测");
+        ui->textLog->append("[检测] 多目标检测已启动");
+        updateTrackingUIState();
 
         // 根据下拉框设置定时器间隔并启动
         on_comboAiFps_currentIndexChanged(ui->comboAiFps->currentIndex());
@@ -1644,10 +1659,10 @@ void MainWindow::on_btnAutoDetect_clicked(bool checked)
         m_isAutoDetecting = false;
         m_aiDetectTimer->stop();
         m_aiDetectedBoxes.clear();
-        ui->btnAutoDetect->setText("开启全图自动检测");
-        ui->labelTrackStatus->setText("AI 巡检待命");
-        ui->labelAiTelemetry->setText("推理: -- ms | 跟踪: -- ms");
-        ui->textLog->append("[AI巡逻] 全图自动检测已停止");
+        ui->btnAutoDetect->setText("开启多目标检测");
+        ui->labelAiTelemetry->setText("推理: -- ms | 目标: -- ms");
+        ui->textLog->append("[检测] 多目标检测已停止");
+        updateTrackingUIState();
 
         // 刷新界面清除绿色框
         if (!m_scaledPixmap.isNull()) {
@@ -1663,11 +1678,11 @@ void MainWindow::on_comboAiModel_currentIndexChanged(int /*index*/)
 
 void MainWindow::on_comboAiFps_currentIndexChanged(int index)
 {
-    // 0: 2 Hz (500ms), 1: 1 Hz (1000ms), 2: 5 Hz (200ms), 3: 30 FPS (33ms)
+    // 0: 1 FPS (1000ms), 1: 2 FPS (500ms), 2: 5 FPS (200ms), 3: 30 FPS (33ms)
     int interval = 500;
     switch (index) {
-    case 0: interval = 500; break;
-    case 1: interval = 1000; break;
+    case 0: interval = 1000; break;
+    case 1: interval = 500; break;
     case 2: interval = 200; break;
     case 3: interval = 33; break;
     default: interval = 500; break;
