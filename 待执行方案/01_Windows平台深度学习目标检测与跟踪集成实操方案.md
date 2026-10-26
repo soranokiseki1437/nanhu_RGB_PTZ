@@ -253,7 +253,7 @@ public:
 ByteTrack 输出多目标列表 `std::vector<TrackTarget>`，而云台伺服（`TrackingController`）一次只能跟踪一个主控目标。通过目标选择策略完成桥接：
 
 1. **手动锁定模式**：用户在 UI 画面上点击任意检测框，拾取其 `trackId` 并锁定；
-2. **自动锁定模式**：按优先级规则（如：类别优先级 人员/车辆/无人机，或中心距离最近、面积最大）自动选定主目标；
+2. **自动锁定模式**：按预设优先级规则（如无人机置信度最高、距离画面中心最近或几何尺度符合）自动选定主目标；
 3. **转换为标准 `TrackResult` 并发送**：
    ```cpp
    // 将主锁定目标的航迹状态封装为现有 TrackingController 兼容的 TrackResult
@@ -293,7 +293,7 @@ ByteTrack 输出多目标列表 `std::vector<TrackTarget>`，而云台伺服（`
 model_path=./models/yolov8n.onnx
 conf_threshold=0.25
 nms_threshold=0.45
-auto_lock_class=person
+auto_lock_class=drone
 ```
 
 ---
