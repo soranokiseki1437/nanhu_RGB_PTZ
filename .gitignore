@@ -52,3 +52,6 @@ _archive/*
 !_archive/寰呮墽琛屾柟妗坃20261022/
 
 
+
+# ===== 测试可视化临时输出 =====
+test_detection_vis.png

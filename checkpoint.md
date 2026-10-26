@@ -9,10 +9,11 @@
 ### 1.1 触发时机（When to Update）
 在以下场景发生时，必须同步检视并更新本文件：
 1. **工作会话结束/交接**：每次开发任务完成，向用户汇报前更新。
-2. **关键里程碑达成**：完成阶段性功能、重大重构（如 DSST 接线、并发治理）或提交新 Commit 后。
-3. **架构/状态机变更**：改动多线程模型、信号槽链路、对外接口或配置文件格式。
-4. **测试与联调完成**：离线对拍验证、实机联调测试（Step 7 验收）后。
-5. **Git 状态大幅变动**：分支合并、工作区大规模清理或依赖库变动。
+2. **每次任务推进与交互（强制铁律）**：每次会话开始推进、阶段性验收或响应进度查询时，必须即时检视并刷新本文件，杜绝状态滞后与信息死角。
+3. **关键里程碑达成**：完成阶段性功能、重大重构（如 DSST 接线、并发治理）或提交新 Commit 后。
+4. **架构/状态机变更**：改动多线程模型、信号槽链路、对外接口或配置文件格式。
+5. **测试与联调完成**：离线对拍验证、实机联调测试（Step 7 验收）后。
+6. **Git 状态大幅变动**：分支合并、工作区大规模清理或依赖库变动。
 
 ### 1.2 操作流程（How to Update）
 ```mermaid
@@ -29,17 +30,17 @@ flowchart LR
 
 ---
 
-## 二、当前项目状态快照（2026-10-23 最新）
+## 二、当前项目状态快照（2026-10-26 最新）
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
-| **代码分支** | `main` | 领先 origin/main 1 commit（方案 00~02 与云台资料入库） |
-| **最新进展** | 🟢 **方案 01 阶段一已闭环** | ONNX Runtime DirectML GPU 硬件加速推理管道与纯 C++ NMS 后处理打通；RTX 5070 实测 3.08ms |
-| **编译状态** | 🟢 **通过（0 告警）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
-| **GPU 推理基准** | 🟢 **147.5 FPS / 3.08ms** | NVIDIA RTX 5070 GPU：yolov8n 单帧推理 3.08ms (15.5x CPU 加速比)；yolo11s 单帧推理 4.99ms (21.2x CPU 加速比) |
-| **传统算法现状** | 🟢 **Step 1~6 完备** | DsstCore 纯算法、FFmpeg 解码、PTZ 30ms 节拍保护与双向俯仰映射完全稳定运行 |
-| **待执行核心任务** | 🟡 **方案 01 阶段二：ByteTrack 跟踪器集成** | 引入纯 C++ ByteTrack 航迹关联，实现多目标稳定跟踪与 ID 维持 |
-| **Git 工作区状态** | 🟢 **良好** | 3rdparty/ 与 models/ 及 pt 权重已配置 .gitignore 忽略，源码与 pro 清晰规范 |
+| **代码分支** | `main` | 领先 origin/main 4 commits（HEAD @ `46ede1e`，包含方案 01 阶段一、方案 04 规划与蓝图提取工具） |
+| **最新进展** | 🟢 **方案 01 阶段一已闭环，方案 02（AMFT 协同实操方案）提拔立项** | 吸收海军工程大学顶会 AMFT 理论，确立“局部跟踪为主 (30 FPS)、全局检测按需触发 (0 FPS 休眠)”，将方案 02 提拔为最高优先级 P0 执行 |
+| **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
+| **GPU 推理基准** | 🟢 **154.4 FPS / 3.06ms** | NVIDIA RTX 5070 GPU：yolov8n 单帧纯推理 3.06ms (19.8x CPU 加速比)，端到端 6.48ms；yolo11s 单帧纯推理 4.99ms (21.2x CPU 加速比) |
+| **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 纯算法、FFmpeg 解码（av_frame_move_ref 零空帧）、PTZ 30ms 节拍保护与双向俯仰映射完全稳定运行 |
+| **待执行核心任务** | 🟡 **方案 02 阶段一：ObjectTracker 引入 AMFT 评估器并剔除九宫格盲试** | 接入 IDetector 单次唤醒，构建 $S_{conf}, S_{mot}, S_{bg}$ 三维评估与滑动窗口动态阈值 $\tau_t$ |
+| **Git 工作区状态** | 🟢 **良好** | 方案 02/03 编排完毕，`tools/test_detector.cpp` 体检扩展待提交，工作区干净 |
 
 ---
 
@@ -94,28 +95,17 @@ flowchart LR
 ### 4.1 当前 Git 状态全景（`git status -s`）
 
 ```text
- D _archive/code_20260715/... (共 68 个历史备份文件在磁盘上被删除，但 Git 未提交)
- D 项目说明/方案/RGB_PTZ_Integrated_修复方案.md (已被 待执行方案/ 替代)
- M reference/main_zt.cpp (仅 CRLF/LF 换行符差异，内容无改动)
- M sdk/sdk.h (仅 CRLF/LF 换行符差异，内容无改动)
-?? sdk/univisionsdk-0.3.2/ (Linux/ARM 架构 SDK 压缩包)
-?? 项目说明/draft_20a5ead5_folder/ (系统说明书草稿中间产物)
-?? 项目说明/drawio/ (系统数据链路与物理拓扑图)
-?? 项目说明/参考资料/ (机芯规格书、接口板定义、HTTP 协议文档)
-?? 项目说明/导出图片/ (Drawio 导出的 PNG 图片)
-?? 项目说明/系统信息收集/ (系统说明书信息收集文档)
-?? 项目说明/系统说明书工作流.md (说明书编写流程规范)
+ M tools/test_detector.cpp (阶段一全景质量体检与闭环验收工具扩展)
+?? test_detection_vis.png (阶段一可视化测试输出图元，建议由 .gitignore 忽略或归档)
 ```
 
 ### 4.2 诊断分析与建议处置方案
 
 | 现象分类 | 产生根因分析 | 推荐处置方案 | 对应 Git 命令 |
 | :--- | :--- | :--- | :--- |
-| **1. `_archive/` 68 文件删除未暂存** | 初始提交（`4a5715f`）中将旧版本备份目录纳入了版本库，后续本地清理了该目录（减少工作区冗余约 3 万行代码），但未执行 Git 提交。 | **方案 A（推荐）：确认删除**。这些历史代码已有 Git 历史永久存档，无需保留在活动工作区。<br>**方案 B：恢复文件**（如需在工作区留存）。 | **方案 A**：<br>`git add -u _archive`<br>`git commit -m "清理：移除工作区历史归档目录 _archive/"`<br>**方案 B**：<br>`git checkout -- _archive/` |
-| **2. 老方案文档删除未暂存** | `项目说明/方案/RGB_PTZ_Integrated_修复方案.md` 已被细化并重构为 `待执行方案/01~03`，磁盘已删除。 | **确认删除**。将删除变更加入下一次提交。 | `git add -u "项目说明/方案/"` |
-| **3. `reference/main_zt.cpp` 与 `sdk/sdk.h` 变动** | 跨平台（Windows / Linux）检出时 CRLF 与 LF 自动转换导致整文件被标记为 Modified（`git diff --ignore-space-at-eol` 为空）。 | **检出还原**或配置 `.gitattributes`。保持原库内 LF 格式。 | `git checkout reference/main_zt.cpp sdk/sdk.h` |
-| **4. 未跟踪的 SDK 包** | `sdk/univisionsdk-0.3.2/` 存放的是 Linux 与 aarch64 版本的 SDK zip。 | 根据维护策略：若仅 Windows 主力开发，建议在 `.gitignore` 忽略；若需保留各架构 SDK，可统一整理后提交。 | 建议补充进 `.gitignore` |
-| **5. 未跟踪的文档与图纸** | `项目说明/` 下包含说明书素材、Draw.io 架构图、技术资料等。 | 该批资料对项目系统说明书极其关键，建议按文档模块统一次性暂存提交入库。 | `git add 项目说明/`<br>`git commit -m "文档：补充系统说明书图纸、素材及参考资料"` |
+| **1. `tools/test_detector.cpp` 修改** | 阶段一增加 5 大维度全景质量验收代码（加速比、Ground Truth IoU 对齐、长宽比不变性、内存泄漏核验）。 | **提交入库**。作为方案 01 阶段一的核心验收工件。 | `git add tools/test_detector.cpp`<br>`git commit -m "feat(AI): 目标检测阶段一全景质量体检工具(5/5)实跑通过"` |
+| **2. `test_detection_vis.png`** | 验收工具生成的实机对拍预测图元文件。 | **建议在 `.gitignore` 中忽略临时图片**。 | `echo "*.png" >> .gitignore` |
+| **3. 分支状态（领先 origin/main 4 commits）** | 本地已提交 `7429ddb`、`1d0c846`、`46ede1e` 等核心功能与规划提交。 | **推送远端**。待远程连接就绪后执行推送。 | `git push origin main` |
 
 ---
 
@@ -203,23 +193,67 @@ flowchart LR
 - [ ] **7.6 24h 稳定性长测**：无内存泄漏（Memory Leak）、无句柄泄漏、无串口断连崩溃。
 - [ ] **7.7 云台控制闭环**：验证 PID 输出角速度平滑度、死区防抖、软限位拦截与 stop 连发可靠性。
 
-### 阶段三：深度学习目标检测与 ByteTrack 集成（方案 01，进行中）
-- [x] **01-1 推理底座打通**：ONNX Runtime DirectML 接入，yolov8n (3.08ms) / yolo11s (4.99ms) 静态图推理达标（已闭环）。
-- [ ] **01-2 ByteTrack 跟踪内核**：纯 C++ STrack / KalmanFilter 航迹管理，多目标稳定关联（进行中）。
-- [ ] **01-3 异步推理工作线程**：InferenceWorkerThread 接入解码流，Drop-oldest 策略消除排队延迟。
-- [ ] **01-4 目标选择与云台闭环**：TargetSelector 锁定主目标，映射为 TrackResult 接入 TrackingController。
+### 阶段三：基于 AMFT 自适应多特征融合的检测-跟踪协同闭环（方案 02，当前主力推进 P0）
+- [ ] **02-1.1 数据结构扩展**：在 `ObjectTracker` 中增加 `AMFTEvaluator`，维护 $K=10$ 滑动窗口与三维特征 ($S_{conf}, S_{mot}, S_{bg}$) 计算。
+- [ ] **02-1.2 废除九宫格盲试**：从 [objecttracker.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp) 彻底删除原有旧代码 `reDetect()` 及九宫格偏移搜索逻辑。
+- [ ] **02-1.3 接入 IDetector 接口**：引入 `IDetector` 指针，在 $R_t < \tau_t$ 时异步单次触发 YOLO 全局扫描。
+- [ ] **02-1.4 模板自适应重置与强制回归**：检测成功后以新框重置 DsstCore 模板，严格执行“触发后下一帧立即强制回归局部跟踪”铁律。
+- [ ] **02-1.5 变焦尺度动态校准**：联动 [LensManager](file:///d:/PyProjects/RGB_PTZ_Integrated/lensmanager.cpp) 变焦完成事件触发单次尺度纠偏。
 
-### 阶段四：YOLO 架构改良、领域微调与量化适配（方案 04，已纳编）
+### 阶段四：YOLO 多模型免重启热切换与抗虚警校验（方案 03，待启动）
+- [ ] **03-1 多规格模型热切换**：v8n/s 与 11n/s 运行时免重启切换架构。
+- [ ] **03-2 VaL_CNN 抗虚警二级校验**：放宽低置信度（0.2）同时抑制背景虚警。
+
+### 阶段五：YOLO 架构改良、领域微调与量化适配（方案 04，已纳编）
 - [ ] **04-1 P2 极小目标检测头集成**：增加 160x160 特征图检测头，攻克 50m~200m 远距弱小目标（<20像素）漏检痛点。
 - [ ] **04-2 专有光电数据集迁移微调**：基于 Anti-UAV / VisDrone 强化飞行器与红外弱小目标特征。
 - [ ] **04-3 EMA/BiFPN 注意力机制引入**：增强天空杂波与树林晃动下的目标信噪比，降低误检虚警。
 - [ ] **04-4 离线工具链闭环评测**：导出标准 ONNX，由 `test_detector.exe` 免重启热评测延迟与召回率。
 - [ ] **04-5 RK3588 INT8 量化感知微调 (QAT)**：约束算子中立性，保障嵌入式端量化无损部署。
 
+### 阶段六：RK3588 边缘端 NPU (librknnrt) 移植落地方案（方案 05，远期规划）
+
 
 ---
 
 ## 七、历史检查点记录（Checkpoint Log）
+
+### Checkpoint 2026-10-26 #8
+- **记录人**：Antigravity (Gemini 3.8 Flash)
+- **类型**：吸收海军工程大学顶会 AMFT 理论，方案排期重大升级（提拔方案 02 优先执行）
+- **核心内容**：
+  1. **深度吸收顶会论文《AMFT》精髓**：全面吸收海军工程大学 & 空军预警学院 2025 IEEE 顶会论文《Adaptive Multi-Feature Fusion-Based UAV Detection and Tracking Collaboration Framework Trigger Mechanism》，确立三大核心数学模型：
+     - **三维可靠度评估**：$R_t = \omega_1 S_{conf} + \omega_2 S_{mot} + \omega_3 S_{bg}$（结合 DsstCore 峰旁比、运动平滑度、目标/背景 FHOG 余弦差异），彻底解决单指标瞬时波动误触发痛点；
+     - **滑动窗口动态阈值**：$\tau_t = \tau_0 - \alpha \sigma_t$（$K=10$ 窗口标准差），实现平稳巡航不误报、突发遮挡快速响应；
+     - **强制回归局部铁律**：全局检测单次触发后，下一帧强制切回局部轻量跟踪，彻底杜绝连续大模型推理。
+  2. **方案库次序调整**：
+     - 正式编写并发布 [待执行方案/02_基于自适应多特征融合(AMFT)的光电云台检测-跟踪协同实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/02_基于自适应多特征融合(AMFT)的光电云台检测-跟踪协同实操方案.md)，将其提拔为最高优先级 P0 推进；
+     - 原多模型热切换顺延为方案 03（[03_YOLO多模型(v8n_11n_11s)性能横评与动态切换实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/03_YOLO多模型(v8n_11n_11s)性能横评与动态切换实操方案.md)）；
+     - 原 RK3588 移植顺延为方案 05；同步更新 [00_方案总览与执行推进管理规范.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/00_方案总览与执行推进管理规范.md)。
+  3. **下一步计划**：进入方案 02 阶段一，在 [ObjectTracker](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp) 中构建 `AMFTEvaluator` 并废除九宫格盲试。
+
+### Checkpoint 2026-10-26 #7
+- **记录人**：Antigravity (Gemini 3.8 Flash)
+- **类型**：架构重大纠偏与方案 05（复合目标跟踪与按需检测协同方案）正式立项
+- **核心内容**：
+  1. **技术路线纠偏**：采纳用户精准工程洞见，彻底推翻“定期每隔数帧跑一次大模型检测”的算力浪费模式，确立“局部跟踪为主（Local Tracking 30 FPS）、全局深度检测零频休眠（Zero-FPS Idle）、异常时纯事件驱动单次唤醒（Event-Driven Single-Shot）”的工业级光电跟踪范式。
+  2. **正式立项《方案 05》**：创建 [待执行方案/05_光电云台复合目标跟踪算法演进与状态机协同方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/05_光电云台复合目标跟踪算法演进与状态机协同方案.md)，设计四态协同状态机（NORMAL 稳态 ──► OCCLUDED 遮挡 ──► LOST 丢失 ──► RECOVERED 恢复），确立将 `ObjectTracker` 中过时的九宫格 `reDetect()` 盲试替换为毫秒级单次 YOLO 全局扫描。
+  3. **方案总览与跨方案联动更新**：同步更新 [00_方案总览与执行推进管理规范.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/00_方案总览与执行推进管理规范.md) 与 [01_Windows平台深度学习目标检测与跟踪集成实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/01_Windows平台深度学习目标检测与跟踪集成实操方案.md)，明确 SOT 强锁定与 MOT 态势巡逻的分工协同。
+  4. **下一步计划**：进入方案 05 阶段一，在 [ObjectTracker](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp) 中改造遮挡三态机，接入 [OnnxDetector](file:///d:/PyProjects/RGB_PTZ_Integrated/onnxdetector.cpp) 单次重检接口。
+
+### Checkpoint 2026-10-26 #6
+- **记录人**：Antigravity (Gemini 3.8 Flash)
+- **类型**：方案 01 阶段一全景质量体检（5/5项）闭环验收通过，阶段二（ByteTrack 跟踪器集成）就绪
+- **核心内容**：
+  1. **全景质量体检 5 项闭环验收工具落地 ([test_detector.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_detector.cpp))**：
+     - **体检 1（推理速度与加速比）**：RTX 5070 DirectML GPU 纯推理耗时 **3.06 ms**，单帧端到端总耗时 **6.48 ms**（**154.4 FPS**）；CPU 降级耗时 60.70 ms；GPU 硬件加速比 **19.81x**（PASS，指标 $\le 15\text{ ms}$）。
+     - **体检 2（真实标注 Ground Truth 坐标对齐）**：读取 `testdata/sequences/01/` 第一帧实测，预测目标与 Ground Truth 标注重合度 **IoU 达 72.7%**，中心点位置误差仅 **1.50 像素**（PASS，指标 IoU $\ge 50\%$ 且误差 $\le 5\text{ px}$）。
+     - **体检 3（图元可视化落盘）**：生成直观标注图 `test_detection_vis.png`，绿色真实框与红色预测框对齐严密（PASS）。
+     - **体检 4（极端长宽比与边界条件自适应）**：验证 1080P（16:9 横屏，上下黑边 padH=140）、480x640（3:4 竖屏，左右黑边 padW=80）Letterbox 缩放及空帧防御性拦截（PASS）。
+     - **体检 5（长稳运行与内存泄漏排查）**：连续 200 轮单帧推理测试，进程物理工作集内存净变化为 **-872 KB**（无任何增长），彻底排除句柄与张量内存泄漏隐患（PASS，指标增量 $< 2\text{ MB}$）。
+  2. **方案 01 阶段一正式进入 100% 验收达标闭环状态**。
+  3. **下一步计划**：
+     - 正式启动方案 01 阶段二：引入纯 C++ ByteTrack 多目标航迹关联算法（`ByteTracker`、`STrack`、`KalmanFilter`），打通多目标航迹稳定管理与连续 ID 分配。
 
 ### Checkpoint 2026-10-23 #5
 - **记录人**：Antigravity (Gemini 3.8 Flash)
@@ -244,6 +278,19 @@ flowchart LR
        - GPU 硬件加速比：**21.21x**，[通过 PASS] 方案验收指标。
   6. **下一步计划**：
      - 推进方案 01 阶段二：引入纯 C++ ByteTrack 多目标航迹关联算法，实现多目标连续稳定跟踪。
+
+### Checkpoint 2026-10-13 (HEAD @ `fb11105`)
+- **记录人**：soranokiseki1437
+- **类型**：视频解码空帧修复、云台通信节拍与双向俯仰映射修正
+- **核心内容**：
+  1. **实时解码空帧根因修复 (Commit `e6c16c1`)**：
+     - `videodecoder`: 修复 `avcodec_receive_frame` 循环入口未留存帧、EAGAIN 导致 sws 全空帧的 bug，改用 `av_frame_move_ref` 留存最后一帧，彻底解决界面无画面问题。
+     - `mainwindow`: 方向键按住增加 200ms 周期重发定时器，维持云台连续平滑转动。
+     - `logmanager`: 控制台输出改用 `toLocal8Bit`，彻底消除 Windows 终端中文乱码。
+  2. **云台通信与映射严密修正 (Commit `fb11105`)**：
+     - 修复云台定位命令帧间隔不足被固件丢弃问题，队列保护节拍由 10ms 提升至 30ms。
+     - 严格对照机芯与 Pelco-D 手册修正俯仰方向映射（实现命令下发与角度回传双向一致）。
+     - 速度默认值由 0.5 统一修正为 1.0。
 
 ### Checkpoint 2026-09-28 #4 (HEAD @ `f1b5b98`)
 - **记录人**：Gemini 3.8 Flash

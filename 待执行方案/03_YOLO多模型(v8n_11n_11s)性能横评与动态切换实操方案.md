@@ -1,8 +1,8 @@
 # YOLO 多模型 (v8 与 v11) 性能消融横评、动态切换与抗虚警增强方案
 
-> **方案编号**：02  
+> **方案编号**：03  
 > **归属工程**：[RGB_PTZ_Integrated](file:///d:/PyProjects/RGB_PTZ_Integrated)  
-> **依赖前置**：[01_Windows平台深度学习目标检测与跟踪集成实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/01_Windows平台深度学习目标检测与跟踪集成实操方案.md) 阶段一（基础推理管道打通）  
+> **依赖前置**：[02_基于自适应多特征融合(AMFT)的光电云台检测-跟踪协同实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/02_基于自适应多特征融合(AMFT)的光电云台检测-跟踪协同实操方案.md)  
 > **理论支撑**：IEEE Access 2026 最新顶刊论文 *《DeTrAck: UAV Detection and Tracking Using Neural Networks Ensemble on Surveillance Systems》* (DOI: 10.1109/ACCESS.2025.3649960)  
 > **核心目标**：  
 > 1. 建立聚焦于 **YOLOv8 与 YOLO11** 的 $2 \times 2$ 经典消融对比实验（代际：v8 vs v11；尺度：nano vs small），量化评估架构创新与模型尺度对云台闭环跟踪的真实增益；  

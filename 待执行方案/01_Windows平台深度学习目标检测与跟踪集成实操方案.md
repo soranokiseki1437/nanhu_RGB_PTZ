@@ -36,6 +36,9 @@
 
 * **统一输出标准**：无论是传统 DSST 还是深度学习 ByteTrack，对主锁定目标的输出最终均封装为统一的 `TrackResult`（包含中心像素坐标与卡尔曼平滑速度矢量 $(kf_X, kf_Y, kf_{V_x}, kf_{V_y})$）。
 * **伺服算法零改动**：现有 [TrackingController.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/trackingcontroller.cpp) 的**预测前馈 + 误差 PID 算法、死区控制、串口通信** 100% 原样复用。
+* **架构定调与能耗约束（强联动方案 05）**：
+  - **模式 A（经典 SOT 模式）**：以局部相关滤波（DSST）独占高频伺服（30 FPS，<1ms），YOLO 深度检测处于**零频休眠（0 FPS Idle）**，仅在遮挡失锁时按需触发单次全局重捕；
+  - **模式 B（AI 智能 MOT 模式）**：YOLO + ByteTrack 组合用于广域自主多目标态势感知与自动索敌，选定主目标后即可切回模式 A 进行高精稳态死锁。
 
 ---
 
