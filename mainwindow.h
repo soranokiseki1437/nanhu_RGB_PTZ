@@ -15,6 +15,9 @@
 #include "configmanager.h"
 #include "trackingcontroller.h"
 #include "objecttracker.h"
+#include "IDetector.h"
+#include <atomic>
+#include <vector>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -74,6 +77,18 @@ private slots:
     void onTrackBoxDraw(const QRectF& bbox, bool occluded);
     void onTrackStatusMessage(const QString& msg);
     void onPtzControlDelta(int deltaX, int deltaY, int speedX, int speedY);
+
+    // AI 自动巡检与模式切换槽
+    void on_radioModeManual_toggled(bool checked);
+    void on_radioModeAuto_toggled(bool checked);
+    void on_btnAutoDetect_clicked(bool checked);
+    void on_comboAiModel_currentIndexChanged(int index);
+    void on_comboAiFps_currentIndexChanged(int index);
+    void onAiDetectTimerTimeout();
+
+    // 弹性布局侧边栏折叠/展开槽
+    void on_btnToggleLeftPanel_clicked();
+    void on_btnToggleRightPanel_clicked();
 
 signals:
     // 跨线程调用PTZ控制器的信号
@@ -150,6 +165,17 @@ private:
     QImage m_lastFrame;             // 最后一帧（用于框选时初始化）
     QPixmap m_scaledPixmap;         // C8：displayImage 缓存的缩放结果（跟踪框重绘复用）
     QSize m_scaledFrameSize;        // C8：m_scaledPixmap 对应的原始帧尺寸（坐标换算用）
+
+    // AI 自动巡检与模型热切换
+    QTimer *m_aiDetectTimer;
+    std::atomic<bool> m_isAutoDetecting{false};
+    std::atomic<bool> m_aiInferencing{false};
+    std::vector<DetectionBox> m_aiDetectedBoxes;
+    float m_lastInferTimeMs{0.0f};
+
+    QString resolveModelPath(const QString &modelName) const;
+    void refreshModelList();
+    void loadSelectedModel();
 
 protected:
     // 鼠标事件（用于框选目标）

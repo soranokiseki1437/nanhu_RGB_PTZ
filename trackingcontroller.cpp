@@ -3,6 +3,8 @@
 #include <QDebug>
 #include <QtMath>
 #include <QFile>
+#include <QCoreApplication>
+#include <QDir>
 
 TrackingController::TrackingController(QObject *parent)
     : QObject(parent)
@@ -25,14 +27,26 @@ TrackingController::TrackingController(QObject *parent)
     , m_I_max(15.0f)
     , m_pidInitialized(false)
 {
-    const QString defaultModel = "models/yolov8n.onnx";
-    if (QFile::exists(defaultModel)) {
+    const QStringList candidatePaths = {
+        "models/yolov8n.onnx",
+        QCoreApplication::applicationDirPath() + "/models/yolov8n.onnx",
+        QCoreApplication::applicationDirPath() + "/../models/yolov8n.onnx",
+        QDir::currentPath() + "/models/yolov8n.onnx"
+    };
+    QString foundPath;
+    for (const auto& path : candidatePaths) {
+        if (QFile::exists(path)) {
+            foundPath = path;
+            break;
+        }
+    }
+    if (!foundPath.isEmpty()) {
         auto detector = std::make_shared<OnnxDetector>();
         DetectorConfig cfg;
         cfg.useGpu = true;
-        if (detector->loadModel(defaultModel, cfg)) {
+        if (detector->loadModel(foundPath, cfg)) {
             m_detector = detector;
-            qDebug() << "[TrackingController] DirectML AI 目标检测引擎加载成功:" << defaultModel;
+            qDebug() << "[TrackingController] DirectML AI 目标检测引擎加载成功:" << foundPath;
         }
     }
 }

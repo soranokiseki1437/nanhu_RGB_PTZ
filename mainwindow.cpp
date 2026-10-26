@@ -1,5 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "imagematconvert.h"
+#include "onnxdetector.h"
 #include <QSerialPortInfo>
 #include <QMessageBox>
 #include <QDateTime>
@@ -9,6 +11,8 @@
 #include <QDir>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QThreadPool>
+#include <chrono>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -33,6 +37,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     , m_isSelectingTarget(false)
     , m_trackBoxVisible(false)
     , m_trackBoxOccluded(false)
+    , m_aiDetectTimer(new QTimer(this))
+    , m_isAutoDetecting(false)
+    , m_aiInferencing(false)
+    , m_lastInferTimeMs(0.0f)
 {
     ui->setupUi(this);
     initUI();
@@ -76,6 +84,15 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     // 录像定时器
     m_recordTimer->setInterval(1000);
     connect(m_recordTimer, &QTimer::timeout, this, &MainWindow::onRecordTimerTimeout);
+
+    // AI 自动巡检定时器与控制绑定
+    m_aiDetectTimer->setInterval(500); // 默认 2 Hz
+    connect(m_aiDetectTimer, &QTimer::timeout, this, &MainWindow::onAiDetectTimerTimeout);
+    connect(ui->radioModeManual, &QRadioButton::toggled, this, &MainWindow::on_radioModeManual_toggled);
+    connect(ui->radioModeAuto, &QRadioButton::toggled, this, &MainWindow::on_radioModeAuto_toggled);
+    connect(ui->btnAutoDetect, &QPushButton::clicked, this, &MainWindow::on_btnAutoDetect_clicked);
+    connect(ui->comboAiModel, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MainWindow::on_comboAiModel_currentIndexChanged);
+    connect(ui->comboAiFps, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &MainWindow::on_comboAiFps_currentIndexChanged);
     
     // 初始化 PTZ 方向盘控制
     // 【持续运动修复】单个 moveDirection 命令只触发一次连续运动，而 PTZController 的 500ms
@@ -217,6 +234,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
 MainWindow::~MainWindow()
 {
+    m_isAutoDetecting = false;
+    if (m_aiDetectTimer) {
+        m_aiDetectTimer->stop();
+    }
     if (m_ptzThread && m_ptzController) {
         // 在 PTZ 线程中关闭串口，避免跨线程析构
         QMetaObject::invokeMethod(m_ptzController, "prepareForDestruction",
@@ -244,6 +265,21 @@ void MainWindow::initUI()
 
     // 初始化目标跟踪模块
     initTrackingModule();
+
+    // 初始化 QSplitter 弹性分栏与折叠参数
+    if (ui->splitterMain) {
+        ui->splitterMain->setStretchFactor(0, 0); // 左栏适度固定
+        ui->splitterMain->setStretchFactor(1, 1); // 中间视窗获得所有扩展空间
+        ui->splitterMain->setStretchFactor(2, 0); // 右栏适度固定
+        ui->splitterMain->setCollapsible(0, true);
+        ui->splitterMain->setCollapsible(1, false);
+        ui->splitterMain->setCollapsible(2, true);
+        ui->splitterMain->setSizes({330, 700, 330});
+    }
+
+    // 绑定侧边栏折叠/展开按钮
+    connect(ui->btnToggleLeftPanel, &QPushButton::clicked, this, &MainWindow::on_btnToggleLeftPanel_clicked);
+    connect(ui->btnToggleRightPanel, &QPushButton::clicked, this, &MainWindow::on_btnToggleRightPanel_clicked);
 
     // 更新 UI 状态
     updatePTZUIState();
@@ -323,6 +359,15 @@ void MainWindow::initTrackingModule()
     connect(ui->cmbTrackSource, &QComboBox::currentIndexChanged, this, [this](int index){
         m_trackingController->setInfraredMode(index == 1);
     });
+
+    // 初始化工作模式：默认进入手动框选模式
+    ui->radioModeManual->setChecked(true);
+    ui->groupSotControls->setEnabled(true);
+    ui->groupMotControls->setEnabled(false);
+
+    // 动态扫描 models 目录，自动识别新增的所有 ONNX 模型
+    refreshModelList();
+    loadSelectedModel();
 }
 
 void MainWindow::updateTrackingUIState()
@@ -470,14 +515,71 @@ void MainWindow::displayImage(const QImage &image)
 QPixmap MainWindow::drawTrackBoxOnPixmap(const QPixmap &base) const
 {
     QPixmap pm = base;
-    if (m_trackBoxVisible && !m_trackBox.isEmpty() && !pm.isNull() && m_scaledFrameSize.isValid()) {
-        QPainter painter(&pm);
-        painter.setRenderHint(QPainter::Antialiasing);
+    if (pm.isNull() || !m_scaledFrameSize.isValid()) {
+        return pm;
+    }
 
-        // 计算缩放比例
-        const float scaleX = static_cast<float>(pm.width()) / m_scaledFrameSize.width();
-        const float scaleY = static_cast<float>(pm.height()) / m_scaledFrameSize.height();
+    const bool hasSot = m_trackBoxVisible && !m_trackBox.isEmpty();
+    const bool hasMot = m_isAutoDetecting && !m_aiDetectedBoxes.empty();
 
+    if (!hasSot && !hasMot) {
+        return pm;
+    }
+
+    QPainter painter(&pm);
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    // 计算缩放比例
+    const float scaleX = static_cast<float>(pm.width()) / m_scaledFrameSize.width();
+    const float scaleY = static_cast<float>(pm.height()) / m_scaledFrameSize.height();
+
+    // 1. 绘制 AI 自动巡检多目标框 (绿色半透明 + 徽标)
+    if (hasMot) {
+        QFont font = painter.font();
+        font.setPointSize(9);
+        font.setBold(true);
+        painter.setFont(font);
+        QFontMetrics fm(font);
+
+        for (const auto& box : m_aiDetectedBoxes) {
+            const QRectF scaledBox(
+                box.rect.x() * scaleX,
+                box.rect.y() * scaleY,
+                box.rect.width() * scaleX,
+                box.rect.height() * scaleY
+            );
+
+            // 绿色边框与极轻微填充
+            painter.setPen(QPen(QColor(0, 230, 118, 220), 2, Qt::SolidLine));
+            painter.setBrush(QBrush(QColor(0, 230, 118, 25)));
+            painter.drawRect(scaledBox);
+
+            // 类别与置信度徽标
+            QString tag = QString("%1 %2%").arg(QString::fromStdString(box.className)).arg(static_cast<int>(box.confidence * 100));
+            QRect textRect = fm.boundingRect(tag);
+            QRect badgeRect(static_cast<int>(scaledBox.left()), static_cast<int>(scaledBox.top()) - textRect.height() - 4,
+                            textRect.width() + 8, textRect.height() + 4);
+            if (badgeRect.top() < 0) {
+                badgeRect.moveTop(static_cast<int>(scaledBox.top()));
+            }
+
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(QColor(0, 180, 90, 210));
+            painter.drawRoundedRect(badgeRect, 2, 2);
+
+            painter.setPen(Qt::white);
+            painter.drawText(badgeRect, Qt::AlignCenter, tag);
+
+            // 框中心微小十字瞄准线
+            const QPointF center = scaledBox.center();
+            painter.setPen(QPen(QColor(0, 230, 118, 180), 1));
+            painter.drawLine(QPointF(center.x() - 4, center.y()), QPointF(center.x() + 4, center.y()));
+            painter.drawLine(QPointF(center.x(), center.y() - 4), QPointF(center.x(), center.y() + 4));
+        }
+    }
+
+    // 2. 绘制 SOT 单目标锁定跟踪框 (加粗高亮与十字瞄准光标)
+    if (hasSot) {
         const QRectF scaledBox(
             m_trackBox.x() * scaleX,
             m_trackBox.y() * scaleY,
@@ -486,19 +588,31 @@ QPixmap MainWindow::drawTrackBoxOnPixmap(const QPixmap &base) const
         );
 
         if (m_trackBoxOccluded) {
-            painter.setPen(QPen(Qt::red, 2, Qt::DashLine));
+            painter.setPen(QPen(QColor(255, 68, 68), 2.5, Qt::DashLine));
+            painter.setBrush(QBrush(QColor(255, 68, 68, 35)));
         } else {
-            painter.setPen(QPen(Qt::green, 2, Qt::SolidLine));
+            painter.setPen(QPen(QColor(0, 176, 255), 3, Qt::SolidLine));
+            painter.setBrush(QBrush(QColor(0, 176, 255, 30)));
         }
         painter.drawRect(scaledBox);
 
-        // 绘制中心十字
+        // 绘制中心十字光标
         const QPointF center = scaledBox.center();
-        painter.drawLine(QPointF(center.x() - 8, center.y()), QPointF(center.x() + 8, center.y()));
-        painter.drawLine(QPointF(center.x(), center.y() - 8), QPointF(center.x(), center.y() + 8));
+        painter.setPen(QPen(QColor(255, 235, 59), 2));
+        painter.drawLine(QPointF(center.x() - 10, center.y()), QPointF(center.x() + 10, center.y()));
+        painter.drawLine(QPointF(center.x(), center.y() - 10), QPointF(center.x(), center.y() + 10));
 
-        painter.end();
+        // 绘制顶部锁定标识文字
+        QFont lockFont = painter.font();
+        lockFont.setPointSize(10);
+        lockFont.setBold(true);
+        painter.setFont(lockFont);
+        painter.setPen(QColor(255, 235, 59));
+        painter.drawText(QPointF(scaledBox.left(), scaledBox.top() - 5),
+                         m_trackBoxOccluded ? "[遮挡重捕]" : "[已锁定主目标]");
     }
+
+    painter.end();
     return pm;
 }
 
@@ -1109,6 +1223,19 @@ void MainWindow::on_btnTrackStop_clicked()
     m_isSelectingTarget = false;
     m_selectBox = QRectF();
     m_trackBoxVisible = false;
+
+    // 如果处于 AI 自动检测，彻底关闭自动检测回到待机状态 (用户确认要求 A1)
+    if (m_isAutoDetecting) {
+        m_isAutoDetecting = false;
+        m_aiDetectTimer->stop();
+        m_aiDetectedBoxes.clear();
+        ui->btnAutoDetect->setChecked(false);
+        ui->btnAutoDetect->setText("开启全图自动检测");
+        ui->labelTrackStatus->setText("AI 巡检待命");
+        ui->labelAiTelemetry->setText("推理: -- ms | 跟踪: -- ms");
+    }
+
+    emit ptzStop();
     updateTrackingUIState();
 }
 
@@ -1205,6 +1332,68 @@ void MainWindow::onPtzControlDelta(int /*deltaX*/, int /*deltaY*/, int speedX, i
 
 void MainWindow::mousePressEvent(QMouseEvent *event)
 {
+    // 1. 如果处于 AI 自动检测模式且巡逻中，支持点击目标框锁定 (Click-to-Lock)
+    if (ui->radioModeAuto->isChecked() && m_isAutoDetecting) {
+        QPoint labelPos = ui->rgbLabelImage->mapFrom(this, event->pos());
+        QRect labelRect = ui->rgbLabelImage->rect();
+        if (labelRect.contains(labelPos) && !m_lastFrame.isNull() && !m_scaledPixmap.isNull()) {
+            QSize labelSize = ui->rgbLabelImage->size();
+            float frameW = static_cast<float>(m_lastFrame.width());
+            float frameH = static_cast<float>(m_lastFrame.height());
+            float displayScale = std::min(labelSize.width() / frameW, labelSize.height() / frameH);
+            float displayW = frameW * displayScale;
+            float displayH = frameH * displayScale;
+            float offsetX = (labelSize.width() - displayW) / 2.0f;
+            float offsetY = (labelSize.height() - displayH) / 2.0f;
+
+            float clickX = (labelPos.x() - offsetX) * frameW / displayW;
+            float clickY = (labelPos.y() - offsetY) * frameH / displayH;
+            QPointF imgPt(clickX, clickY);
+
+            int hitIndex = -1;
+            for (size_t i = 0; i < m_aiDetectedBoxes.size(); ++i) {
+                if (m_aiDetectedBoxes[i].rect.contains(imgPt)) {
+                    hitIndex = static_cast<int>(i);
+                    break;
+                }
+            }
+
+            if (hitIndex >= 0) {
+                const auto& hitBox = m_aiDetectedBoxes[hitIndex];
+                QRectF targetRect = hitBox.rect;
+
+                // 停止自动巡检定时器，清空巡检框，转入单目标闭环伺服
+                m_aiDetectTimer->stop();
+                m_aiDetectedBoxes.clear();
+
+                m_trackingController->startSelection();
+                m_trackingController->setDeadZonePixels(ui->spinTrackDeadZone->value());
+                m_trackingController->setMaxSpeed(ui->spinTrackMaxSpeed->value());
+                m_trackingController->setProportionalGain(ui->spinTrackKp->value() / 100.0f);
+                m_trackingController->setIntegralGain(ui->spinTrackKi->value() / 100.0f);
+                m_trackingController->setDerivativeGain(ui->spinTrackKd->value() / 100.0f);
+                m_trackingController->setFeedforwardGain(ui->spinTrackKff->value() / 100.0f);
+                m_trackingController->setPredictHorizon(ui->spinTrackPredict->value());
+                m_trackingController->setFrameSize(m_lastFrame.width(), m_lastFrame.height());
+
+                try {
+                    m_trackingController->setTarget(m_lastFrame, targetRect);
+                    ui->labelTrackStatus->setText("已锁定目标 (跟踪中)");
+                    ui->statusbar->showMessage(QString("已锁定目标 [%1]，启动闭环跟踪").arg(QString::fromStdString(hitBox.className)), 4000);
+                    ui->textLog->append(QString("[AI锁定] 单击命中目标 [%1] 置信度 %2%，坐标 (%3, %4)")
+                        .arg(QString::fromStdString(hitBox.className))
+                        .arg(static_cast<int>(hitBox.confidence * 100))
+                        .arg(static_cast<int>(targetRect.center().x()))
+                        .arg(static_cast<int>(targetRect.center().y())));
+                    ui->btnTrackStop->setEnabled(true);
+                } catch (const std::exception &e) {
+                    qWarning() << "[Click-to-Lock] 启动跟踪异常:" << e.what();
+                }
+                return;
+            }
+        }
+    }
+
     if (!m_isSelectingTarget) {
         QMainWindow::mousePressEvent(event);
         return;
@@ -1294,3 +1483,274 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event)
                                .arg(static_cast<int>(m_selectBox.height())), 3000);
     updateTrackingUIState();
 }
+
+// ========================
+// AI 自动巡检与模型热切换
+// ========================
+
+QString MainWindow::resolveModelPath(const QString &modelName) const
+{
+    QString cleanName = modelName.trimmed();
+    if (cleanName.contains(" ")) {
+        cleanName = cleanName.split(" ").first();
+    }
+    const QStringList candidates = {
+        cleanName,
+        "models/" + cleanName,
+        QCoreApplication::applicationDirPath() + "/models/" + cleanName,
+        QCoreApplication::applicationDirPath() + "/../models/" + cleanName,
+        QDir::currentPath() + "/models/" + cleanName
+    };
+    for (const auto &path : candidates) {
+        if (QFile::exists(path)) {
+            return path;
+        }
+    }
+    return QString();
+}
+
+void MainWindow::refreshModelList()
+{
+    if (!ui->comboAiModel) return;
+
+    QString currentModel = ui->comboAiModel->currentText().trimmed();
+
+    // 收集所有候选模型目录
+    const QStringList candidateDirs = {
+        "models",
+        QCoreApplication::applicationDirPath() + "/models",
+        QCoreApplication::applicationDirPath() + "/../models",
+        QDir::currentPath() + "/models"
+    };
+
+    QSet<QString> foundModels;
+    for (const QString &dirPath : candidateDirs) {
+        QDir dir(dirPath);
+        if (dir.exists()) {
+            QStringList filters;
+            filters << "*.onnx";
+            QStringList entries = dir.entryList(filters, QDir::Files, QDir::Name);
+            for (const QString &entry : entries) {
+                foundModels.insert(entry);
+            }
+        }
+    }
+
+    if (!foundModels.isEmpty()) {
+        ui->comboAiModel->blockSignals(true);
+        ui->comboAiModel->clear();
+        QStringList sorted = foundModels.values();
+        sorted.sort(Qt::CaseInsensitive);
+        for (const QString &m : sorted) {
+            ui->comboAiModel->addItem(m);
+        }
+
+        // 优先恢复之前选中的模型，若无则优先选取 yolov8n.onnx
+        int idx = ui->comboAiModel->findText(currentModel);
+        if (idx < 0) {
+            idx = ui->comboAiModel->findText("yolov8n.onnx");
+        }
+        if (idx >= 0) {
+            ui->comboAiModel->setCurrentIndex(idx);
+        } else {
+            ui->comboAiModel->setCurrentIndex(0);
+        }
+        ui->comboAiModel->blockSignals(false);
+    }
+}
+
+void MainWindow::loadSelectedModel()
+{
+    if (!ui->comboAiModel) return;
+    QString selected = ui->comboAiModel->currentText();
+    QString path = resolveModelPath(selected);
+    if (path.isEmpty()) {
+        ui->textLog->append(QString("[AI模型] 未找到模型文件: %1").arg(selected));
+        return;
+    }
+
+    auto detector = m_trackingController ? m_trackingController->detector() : nullptr;
+    if (!detector) {
+        detector = std::make_shared<OnnxDetector>();
+        if (m_trackingController) {
+            m_trackingController->setDetector(detector);
+        }
+    }
+
+    DetectorConfig cfg;
+    cfg.useGpu = true;
+    cfg.confThreshold = 0.25f;
+    cfg.nmsThreshold = 0.45f;
+    if (detector->loadModel(path, cfg)) {
+        ui->textLog->append(QString("[AI模型] 成功加载模型: %1 (DirectML 加速已开启)").arg(QFileInfo(path).fileName()));
+        ui->statusbar->showMessage(QString("模型加载成功: %1").arg(QFileInfo(path).fileName()), 3000);
+    } else {
+        ui->textLog->append(QString("[AI模型] 模型加载失败: %1").arg(path));
+    }
+}
+
+void MainWindow::on_radioModeManual_toggled(bool checked)
+{
+    if (checked) {
+        if (m_isAutoDetecting) {
+            ui->btnAutoDetect->setChecked(false);
+            on_btnAutoDetect_clicked(false);
+        }
+        ui->groupSotControls->setEnabled(true);
+        ui->groupMotControls->setEnabled(false);
+        ui->textLog->append("[模式] 切换至手动框选模式 (SOT)");
+        updateTrackingUIState();
+    }
+}
+
+void MainWindow::on_radioModeAuto_toggled(bool checked)
+{
+    if (checked) {
+        // 如果正在进行手动框选或跟踪，先停止
+        if (m_trackingController && m_trackingController->isTracking()) {
+            m_trackingController->stopTracking();
+        }
+        m_isSelectingTarget = false;
+        m_selectBox = QRectF();
+        m_trackBoxVisible = false;
+
+        ui->groupSotControls->setEnabled(false);
+        ui->groupMotControls->setEnabled(true);
+        ui->labelTrackStatus->setText("AI 巡检待命");
+        ui->textLog->append("[模式] 切换至 AI 自动巡逻模式 (MOT)");
+    }
+}
+
+void MainWindow::on_btnAutoDetect_clicked(bool checked)
+{
+    if (checked) {
+        if (!m_rgbConnected || m_lastFrame.isNull()) {
+            ui->statusbar->showMessage("相机未连接或未收到画面，无法启动自动检测", 3000);
+            ui->btnAutoDetect->setChecked(false);
+            return;
+        }
+
+        // 确保模型已加载
+        auto detector = m_trackingController ? m_trackingController->detector() : nullptr;
+        if (!detector || !detector->isLoaded()) {
+            loadSelectedModel();
+        }
+
+        m_isAutoDetecting = true;
+        ui->btnAutoDetect->setText("停止全图自动检测");
+        ui->labelTrackStatus->setText("AI 巡检中...");
+        ui->textLog->append("[AI巡逻] 全图自动检测已启动");
+
+        // 根据下拉框设置定时器间隔并启动
+        on_comboAiFps_currentIndexChanged(ui->comboAiFps->currentIndex());
+        m_aiDetectTimer->start();
+    } else {
+        m_isAutoDetecting = false;
+        m_aiDetectTimer->stop();
+        m_aiDetectedBoxes.clear();
+        ui->btnAutoDetect->setText("开启全图自动检测");
+        ui->labelTrackStatus->setText("AI 巡检待命");
+        ui->labelAiTelemetry->setText("推理: -- ms | 跟踪: -- ms");
+        ui->textLog->append("[AI巡逻] 全图自动检测已停止");
+
+        // 刷新界面清除绿色框
+        if (!m_scaledPixmap.isNull()) {
+            ui->rgbLabelImage->setPixmap(drawTrackBoxOnPixmap(m_scaledPixmap));
+        }
+    }
+}
+
+void MainWindow::on_comboAiModel_currentIndexChanged(int /*index*/)
+{
+    loadSelectedModel();
+}
+
+void MainWindow::on_comboAiFps_currentIndexChanged(int index)
+{
+    // 0: 2 Hz (500ms), 1: 1 Hz (1000ms), 2: 5 Hz (200ms), 3: 30 FPS (33ms)
+    int interval = 500;
+    switch (index) {
+    case 0: interval = 500; break;
+    case 1: interval = 1000; break;
+    case 2: interval = 200; break;
+    case 3: interval = 33; break;
+    default: interval = 500; break;
+    }
+    m_aiDetectTimer->setInterval(interval);
+    if (m_isAutoDetecting) {
+        m_aiDetectTimer->start();
+    }
+}
+
+void MainWindow::onAiDetectTimerTimeout()
+{
+    if (!m_isAutoDetecting || m_lastFrame.isNull()) {
+        return;
+    }
+    if (m_aiInferencing.load()) {
+        return; // 上一帧仍在推理中，防止堆叠
+    }
+
+    m_aiInferencing.store(true);
+    QImage frameCopy = m_lastFrame.copy();
+
+    QThreadPool::globalInstance()->start([this, frameCopy]() {
+        auto detector = m_trackingController ? m_trackingController->detector() : nullptr;
+        if (!detector || !detector->isLoaded()) {
+            m_aiInferencing.store(false);
+            return;
+        }
+
+        cv::Mat mat = QImageToMat(frameCopy);
+        if (mat.empty()) {
+            m_aiInferencing.store(false);
+            return;
+        }
+
+        std::vector<DetectionBox> detections;
+        float inferMs = 0.0f;
+        try {
+            auto t0 = std::chrono::steady_clock::now();
+            detections = detector->detect(mat);
+            auto t1 = std::chrono::steady_clock::now();
+            inferMs = std::chrono::duration<float, std::milli>(t1 - t0).count();
+        } catch (const std::exception& e) {
+            qWarning() << "[MainWindow] AI detect exception:" << e.what();
+            m_aiInferencing.store(false);
+            return;
+        } catch (...) {
+            qWarning() << "[MainWindow] AI detect unknown exception";
+            m_aiInferencing.store(false);
+            return;
+        }
+
+        QMetaObject::invokeMethod(this, [this, detections, inferMs]() {
+            if (m_isAutoDetecting) {
+                m_aiDetectedBoxes = detections;
+                m_lastInferTimeMs = inferMs;
+                ui->labelAiTelemetry->setText(QString("推理: %1ms | 目标: %2个")
+                                              .arg(inferMs, 0, 'f', 1)
+                                              .arg(detections.size()));
+                if (!m_scaledPixmap.isNull()) {
+                    ui->rgbLabelImage->setPixmap(drawTrackBoxOnPixmap(m_scaledPixmap));
+                }
+            }
+            m_aiInferencing.store(false);
+        });
+    });
+}
+
+void MainWindow::on_btnToggleLeftPanel_clicked()
+{
+    bool visible = !ui->widgetLeftPanel->isVisible();
+    ui->widgetLeftPanel->setVisible(visible);
+    ui->btnToggleLeftPanel->setText(visible ? "收起左栏" : "展开左栏");
+}
+
+void MainWindow::on_btnToggleRightPanel_clicked()
+{
+    bool visible = !ui->widgetRightPanel->isVisible();
+    ui->widgetRightPanel->setVisible(visible);
+    ui->btnToggleRightPanel->setText(visible ? "收起右栏" : "展开右栏");
+}
+

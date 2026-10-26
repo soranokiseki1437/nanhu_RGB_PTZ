@@ -136,5 +136,10 @@ win32 {
     ORT_BIN = $$shell_path($$PWD/3rdparty/onnxruntime/bin)
     QMAKE_POST_LINK += copy /Y $$quote($$ORT_BIN\\onnxruntime.dll)                  $$quote($$DESTDIR_WIN) &
     QMAKE_POST_LINK += copy /Y $$quote($$ORT_BIN\\DirectML.dll)                     $$quote($$DESTDIR_WIN) &
-    QMAKE_POST_LINK += copy /Y $$quote($$ORT_BIN\\onnxruntime_providers_shared.dll) $$quote($$DESTDIR_WIN)
+    QMAKE_POST_LINK += copy /Y $$quote($$ORT_BIN\\onnxruntime_providers_shared.dll) $$quote($$DESTDIR_WIN) &
+
+    # Models ONNX 文件自动同步到输出目录
+    MODELS_DIR = $$shell_path($$PWD/models)
+    QMAKE_POST_LINK += if not exist $$quote($$DESTDIR_WIN\\models) mkdir $$quote($$DESTDIR_WIN\\models) &
+    QMAKE_POST_LINK += copy /Y $$quote($$MODELS_DIR\\*.onnx) $$quote($$DESTDIR_WIN\\models)
 }

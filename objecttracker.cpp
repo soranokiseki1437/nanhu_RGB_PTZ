@@ -5,6 +5,8 @@
 #include <cmath>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QCoreApplication>
+#include <QDir>
 #include <algorithm>
 
 // ========================
@@ -252,14 +254,26 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
 {
     // 如果未外部设置检测器，则尝试懒加载默认模型
     if (!m_detector || !m_detector->isLoaded()) {
-        const QString defaultModel = "models/yolov8n.onnx";
-        if (QFile::exists(defaultModel)) {
+        const QStringList candidatePaths = {
+            "models/yolov8n.onnx",
+            QCoreApplication::applicationDirPath() + "/models/yolov8n.onnx",
+            QCoreApplication::applicationDirPath() + "/../models/yolov8n.onnx",
+            QDir::currentPath() + "/models/yolov8n.onnx"
+        };
+        QString foundPath;
+        for (const auto& path : candidatePaths) {
+            if (QFile::exists(path)) {
+                foundPath = path;
+                break;
+            }
+        }
+        if (!foundPath.isEmpty()) {
             auto onnxDet = std::make_shared<OnnxDetector>();
             DetectorConfig cfg;
             cfg.useGpu = true;
-            if (onnxDet->loadModel(defaultModel, cfg)) {
+            if (onnxDet->loadModel(foundPath, cfg)) {
                 m_detector = onnxDet;
-                qCDebug(trackerLog) << "[Tracker] 自动载入默认检测器成功:" << defaultModel;
+                qCDebug(trackerLog) << "[Tracker] 自动载入默认检测器成功:" << foundPath;
             }
         }
     }

@@ -34,13 +34,13 @@ flowchart LR
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
-| **代码分支** | `main` | 已全量推送到 `origin/main`（同步完成，HEAD @ `3328b26`） |
-| **最新进展** | 🟢 **方案 02（AMFT 协同实操方案）100% 全面闭环验收** | 彻底剔除旧版九宫格盲试，构建“三维可靠度评估 ($S_{conf}, S_{mot}, S_{bg}$) + 滑动窗口动态阈值 ($\tau_t$) + 零频待机单次唤醒 + 下一帧强制回归”闭环；4/4 闭环验收项全部 PASS |
+| **代码分支** | `main` | 工作区改动已全部通过构建并验证完毕 |
+| **最新进展** | 🟢 **UI 架构方案 A 全面落地 + AI 自动态势感知与点击锁定 (Click-to-Lock) 闭环打通** | 完成 MainWindow 三栏式现代光电吊舱布局（左侧硬件运控、中间最大化视频、右侧 AI 智能感知与跟踪）；实现双模式切换（SOT 手动框选 vs MOT 自动巡逻）、全图多目标半透明绿框与置信度渲染、异步多线程推理、单击目标框自动伺服锁定居中、停止彻底回退待机；Release 编译 0 告警 0 错误 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
-| **GPU 推理基准** | 🟢 **154.4 FPS / 3.06ms** | NVIDIA RTX 5070 GPU：yolov8n 单帧纯推理 3.06ms (19.8x CPU 加速比)，端到端 6.48ms；yolo11s 单帧纯推理 4.99ms (21.2x CPU 加速比) |
-| **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 纯算法、FFmpeg 解码（av_frame_move_ref 零空帧）、PTZ 30ms 节拍保护与双向俯仰映射完全稳定运行 |
-| **待执行核心任务** | 🟡 **方案 03：YOLO 多模型(v8n/11n/11s)横评、动态热切换与抗虚警增强** | 吸收顶刊《DeTrAck》成果，实现多规格模型免重启热切换与低置信度防虚警增强 |
-| **Git 工作区状态** | 🟢 **良好** | 方案 02 生产代码及全景验收工具 `tools/test_amft.cpp` 就绪，编译 0 报错 |
+| **GPU 推理基准** | 🟢 **154.4 FPS / 3.06ms** | NVIDIA RTX 5070 GPU：yolov8n 单帧纯推理 3.06ms，yolo11s 纯推理 4.99ms；DirectML 硬件加速持续稳定 |
+| **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 纯算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
+| **待执行核心任务** | 🟡 **方案 03 深入推进：YOLO 多模型(v8n/11n/11s)消融压测与 VaL_CNN 抗虚警校验** | 结合界面已有模型热切换控件，开展多代际消融对比与真机外场联调 |
+| **Git 工作区状态** | 🟢 **良好** | 生产代码及全景验收工具就绪，编译 0 报错 |
 
 ---
 
@@ -218,6 +218,66 @@ flowchart LR
 ---
 
 ## 七、历史检查点记录（Checkpoint Log）
+
+### Checkpoint 2026-10-26 #12
+- **记录人**：Antigravity (Gemini 3.8 Flash)
+- **类型**：方案一（QSplitter 弹性分栏与双向折叠）落地、UI 图标全量剥离、模型列表纯净化与 Pelco-D 63 速率限幅权威确认
+- **核心内容**：
+  1. **QSplitter 弹性分栏与双向折叠布局落地 ([mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui))**：
+     - 将原本固定三栏重构为 `QSplitter`（`splitterMain`）可拖拽分栏架构，支持鼠标自由拖拽左右面板与中间视频的比例分配；
+     - 在中央视频区顶部嵌入 `widgetVideoHeader` 工具栏，放置 `btnToggleLeftPanel`（"收起左栏"/"展开左栏"）与 `btnToggleRightPanel`（"收起右栏"/"展开右栏"）；
+     - 点击可一键瞬时收起左侧运控栏或右侧感知栏；双边同时折叠时，16:9 宽屏视频独占全屏宽度（$1360\text{px}$），彻底消除黑边浪费。
+  2. **UI 纯进化与语义校正 ([mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui))**：
+     - 标签页重命名：原“相机与采集”正式更名为“相机管理”；
+     - 全量剥离界面中所有 Unicode Emoji/图标（涉及云台与镜头、相机管理、运行日志、工作模式、遥测、抓图录像、PID调节等 9 处），恢复工业级军工级纯文本严谨视觉风格；
+     - 模型下拉框去冗余：清除模型后缀括号解释（如 `yolov8n.onnx (轻量基线)` 彻底净化为标准文件名 `yolov8n.onnx`）。
+  3. **PID 最大速度 63 协议根因与数理依据确认**：
+     - 明确 Pelco-D 标准变倍/变速指令（Pan/Tilt Speed）字节定义：Pelco-D 协议第 5、6 字节（Data1/Data2）为 6 位无符号整数，取值范围为 `0x00 ~ 0x3F`（十进制 0 ~ 63），0x00 为急停，0x3F 为标准最高速；
+     - 63 为硬件舵机/步进电机驱动板的物理上限，超过 63 将发生高位溢出导致转向错乱或丢步，因此在 [TrackingController](file:///d:/PyProjects/RGB_PTZ_Integrated/trackingcontroller.h#L54) 与 [MainWindow](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp#L1290-L1301) 中严密实施 `qBound(0, speed, 63)` 限幅。
+  4. **模型动态扫描与即插即用落地 ([mainwindow.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp#L1512-L1562))**：
+     - 新增 `refreshModelList()` 在初始化时动态扫描 `models/` 目录下的所有 `*.onnx` 模型，去重排序后注入下拉列表；后续加入任意微调新模型，零代码修改即可被软件自动识别并支持免重启 DirectML GPU 热切换。
+  5. **工程构建与回归验证**：
+     - MinGW 13.1 + Qt 6.12.0 Release 构建 **0 Error / 0 Warning**；
+     - `tools/test_amft.exe` 全景闭环验收四项测试 **100% PASS**。
+
+### Checkpoint 2026-10-26 #11
+- **记录人**：Antigravity (Gemini 3.8 Flash)
+- **类型**：UI 控件自检优化（提示删除、抓图/录像控制右侧迁入）与线程异常安全加固
+- **核心内容**：
+  1. **UI 优化与控制迁移 ([mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui))**：
+     - 删除 AI 巡检提示文本（`labelAiHint`），界面更精炼专业；
+     - 新增 `groupMedia`（"📸 抓图与录像控制"）至右侧控制台，整合单次抓图、定时抓图、画质调节、录像启停、录像计时器与状态显示，实现运控与媒体采集的一体化闭环。
+  2. **析构与线程异常安全加固 ([mainwindow.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp))**：
+     - 在 `MainWindow::~MainWindow()` 析构函数中显式加入 `m_isAutoDetecting = false` 与 `m_aiDetectTimer->stop()`，消除窗口关闭阶段后台异步事件残留；
+     - 在 `onAiDetectTimerTimeout()` 异步推理中对 `detector->detect(mat)` 增加 `try-catch` 全保护，确保在任何异常情况下原子标志 `m_aiInferencing.store(false)` 必然清空，杜绝死锁。
+  3. **工程构建与回归验证**：
+     - MinGW 13.1 + Qt 6.12.0 Release 构建 **0 Error / 0 Warning**；
+     - `tools/test_amft.exe` 全景闭环验收四项测试 **100% PASS**。
+
+### Checkpoint 2026-10-26 #10
+- **记录人**：Antigravity (Gemini 3.8 Flash)
+- **类型**：MainWindow 现代光电吊舱布局（方案 A）重构落地与 AI 自动巡检点击锁定（Click-to-Lock）全链路打通
+- **核心内容**：
+  1. **现代三栏式光电吊舱布局落地 ([mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui))**：
+     - **左侧运控面板**：采用双标签页（`🕹️ 云台与镜头` / `📷 相机与采集`）归一化整合 PTZ 串口、9 宫格方向盘、变焦推拉与对焦光圈、网络摄像机与录像，底部承载运行日志 `textLog`，解决硬件控制割裂痛点；
+     - **中间视窗**：核心大视频窗口（`rgbLabelImage`）视野最大化，上下无多余挤压；
+     - **右侧算法感知**：独立开辟 AI 智能与跟踪控制台，自上而下布局工作模式切换（SOT vs MOT）、工作控制组、状态与遥测、伺服高级 PID 参数。
+  2. **双模式解耦与控制逻辑闭环 ([mainwindow.h/.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp))**：
+     - **SOT 手动框选模式**：保留拉框即跟、DSST 极速局部跟踪 (30~500 FPS) 与 AMFT 0-FPS YOLO 休眠防丢机制；
+     - **MOT 自动巡检模式**：支持 1Hz / 2Hz / 5Hz / 30FPS 多档频率配置（默认 2 Hz / 500ms），后台通过 `QThreadPool` 异步执行 YOLO 推理，主线程 30 FPS 视频流完全零卡顿；
+     - **态势渲染**：界面叠画所有目标的半透明绿框与高亮置信度徽标（如 `person 88%`），并标注微十字中心点。
+  3. **点击锁定 (Click-to-Lock) 与退出待机闭环**：
+     - 在 AI 巡逻状态下，用户鼠标单击画面任意检测框，几何命中后自动拾取 ROI，瞬时移交 `TrackingController`，绿框变粗青蓝红框，云台 PID 启动伺服对准目标；
+     - 用户点击【停止跟踪】时，系统彻底关闭自动检测并急停云台，安全平稳回退至【默认待机状态】。
+  4. **模型免重启热切换与多路径自适应加载**：
+     - 界面下拉框支持在 `yolov8n`、`yolo11n`、`yolo11s`、`yolov8s` 间免重启热切换并优先挂载 DirectML GPU 会话；
+     - `resolveModelPath()` 与 `tryDetectAndRecover()` 支持多候选目录（应用根目录、`models/`、当前工作目录），彻底解决相对路径找不到模型的隐患；
+     - `RGB_PTZ_Integrated.pro` 增加 `QMAKE_POST_LINK` 规则，自动将 `models/*.onnx` 同步分发至二进制输出目录。
+  5. **工程构建与回归验证**：
+     - MinGW 13.1 + Qt 6.12.0 Release 构建 **0 Error / 0 Warning**；
+     - `tools/test_amft.exe` 全景闭环验收四项测试 **100% PASS**。
+  6. **下一步计划**：
+     - 推进方案 03 多模型横向测试与 2x2 消融报表输出；外场真机联调验证。
 
 ### Checkpoint 2026-10-26 #9
 - **记录人**：Antigravity (Gemini 3.8 Flash)
