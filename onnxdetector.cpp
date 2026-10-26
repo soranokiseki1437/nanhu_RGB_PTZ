@@ -214,6 +214,8 @@ bool OnnxDetector::isLoaded() const
 
 std::vector<DetectionBox> OnnxDetector::detect(const cv::Mat& frame)
 {
+    std::lock_guard<std::mutex> lock(m_detectMutex);
+
     if (!m_isLoaded || frame.empty() || !m_session) {
         return {};
     }

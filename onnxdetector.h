@@ -5,6 +5,7 @@
 #include <QString>
 #include <vector>
 #include <memory>
+#include <mutex>
 
 // 前置声明 ONNX Runtime C-API 结构体
 struct OrtApi;
@@ -59,6 +60,7 @@ private:
 
     // 预分配的连续输入张量内存 (NCHW float)
     std::vector<float> m_inputTensorValues;
+    mutable std::mutex m_detectMutex;
 };
 
 #endif // ONNXDETECTOR_H

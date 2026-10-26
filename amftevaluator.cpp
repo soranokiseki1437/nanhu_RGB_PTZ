@@ -148,9 +148,19 @@ float AMFTEvaluator::computeSBg(const cv::Rect2f& currentBox, const cv::Mat& ima
     int histSize = 16;
     float range[] = { 0.0f, 256.0f };
     const float* histRange = { range };
+    const int channels[] = { 0 };
+
+    // 构建环形背景掩码：排除中心目标区域，提取纯净环形背景
+    cv::Mat maskBg = cv::Mat::ones(bgRoi.size(), CV_8U);
+    cv::Rect targetInBg(targetRoi.x - bgRoi.x, targetRoi.y - bgRoi.y, targetRoi.width, targetRoi.height);
+    targetInBg &= cv::Rect(0, 0, bgRoi.width, bgRoi.height);
+    if (targetInBg.area() > 0 && targetInBg.area() < bgRoi.area()) {
+        maskBg(targetInBg) = 0;
+    }
+
     cv::Mat histTarget, histBg;
-    cv::calcHist(&grayTarget, 1, nullptr, cv::Mat(), histTarget, 1, &histSize, &histRange, true, false);
-    cv::calcHist(&grayBg, 1, nullptr, cv::Mat(), histBg, 1, &histSize, &histRange, true, false);
+    cv::calcHist(&grayTarget, 1, channels, cv::Mat(), histTarget, 1, &histSize, &histRange, true, false);
+    cv::calcHist(&grayBg, 1, channels, maskBg, histBg, 1, &histSize, &histRange, true, false);
 
     cv::normalize(histTarget, histTarget, 1.0, 0.0, cv::NORM_L1);
     cv::normalize(histBg, histBg, 1.0, 0.0, cv::NORM_L1);
