@@ -131,24 +131,9 @@ float AMFTEvaluator::computeSBg(const cv::Rect2f& currentBox, const cv::Mat& ima
         return 0.5f;
     }
 
-    // 提取灰度或单通道
-    cv::Mat grayTarget, grayBg;
+    // 目标与环形背景特征提取（自适应双模：RGB 可见光使用 HSV 2D 颜色直方图，单通道红外使用 16-bin 灰度直方图）
     cv::Mat patchTarget = image(targetRoi);
     cv::Mat patchBg = image(bgRoi);
-
-    if (image.channels() >= 3) {
-        cv::cvtColor(patchTarget, grayTarget, cv::COLOR_BGR2GRAY);
-        cv::cvtColor(patchBg, grayBg, cv::COLOR_BGR2GRAY);
-    } else {
-        grayTarget = patchTarget;
-        grayBg = patchBg;
-    }
-
-    // 计算 16-bin 灰度直方图
-    int histSize = 16;
-    float range[] = { 0.0f, 256.0f };
-    const float* histRange = { range };
-    const int channels[] = { 0 };
 
     // 构建环形背景掩码：排除中心目标区域，提取纯净环形背景
     cv::Mat maskBg = cv::Mat::ones(bgRoi.size(), CV_8U);
@@ -159,8 +144,31 @@ float AMFTEvaluator::computeSBg(const cv::Rect2f& currentBox, const cv::Mat& ima
     }
 
     cv::Mat histTarget, histBg;
-    cv::calcHist(&grayTarget, 1, channels, cv::Mat(), histTarget, 1, &histSize, &histRange, true, false);
-    cv::calcHist(&grayBg, 1, channels, maskBg, histBg, 1, &histSize, &histRange, true, false);
+
+    if (image.channels() >= 3) {
+        // 可见光 RGB：转换至 HSV 空间，计算 H-S 2D 颜色直方图 (16 bins H, 8 bins S)
+        cv::Mat hsvTarget, hsvBg;
+        cv::cvtColor(patchTarget, hsvTarget, cv::COLOR_BGR2HSV);
+        cv::cvtColor(patchBg, hsvBg, cv::COLOR_BGR2HSV);
+
+        int histSize[] = { 16, 8 };
+        float hRanges[] = { 0.0f, 180.0f };
+        float sRanges[] = { 0.0f, 256.0f };
+        const float* ranges[] = { hRanges, sRanges };
+        const int channels[] = { 0, 1 };
+
+        cv::calcHist(&hsvTarget, 1, channels, cv::Mat(), histTarget, 2, histSize, ranges, true, false);
+        cv::calcHist(&hsvBg, 1, channels, maskBg, histBg, 2, histSize, ranges, true, false);
+    } else {
+        // 红外热成像：单通道 16-bin 灰度直方图
+        int histSize = 16;
+        float range[] = { 0.0f, 256.0f };
+        const float* histRange = { range };
+        const int channels[] = { 0 };
+
+        cv::calcHist(&patchTarget, 1, channels, cv::Mat(), histTarget, 1, &histSize, &histRange, true, false);
+        cv::calcHist(&patchBg, 1, channels, maskBg, histBg, 1, &histSize, &histRange, true, false);
+    }
 
     cv::normalize(histTarget, histTarget, 1.0, 0.0, cv::NORM_L1);
     cv::normalize(histBg, histBg, 1.0, 0.0, cv::NORM_L1);
