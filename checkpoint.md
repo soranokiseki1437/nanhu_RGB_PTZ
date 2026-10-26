@@ -219,6 +219,18 @@ flowchart LR
 
 ## 七、历史检查点记录（Checkpoint Log）
 
+### Checkpoint 2026-10-26 #13
+- **记录人**：Antigravity (Gemini 3.8 Flash)
+- **类型**：侧边栏折叠/展开按钮双重信号槽触发 Bug 修复与 QSplitter 最小尺寸解除
+- **核心内容**：
+  1. **信号槽重复绑定（Double-Firing）排查与修复 ([mainwindow.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp#L275-L285))**：
+     - 排查根因：`on_btnToggleLeftPanel_clicked()` 严格符合 Qt 元对象系统 `connectSlotsByName` 自动命名规范，`setupUi()` 已默认完成自动挂载；但在 `initUI()` 中又多写了一次手动 `connect`，导致单次点击被连续执行两次（`false -> true` 瞬时反弹），宏观表现为点击无响应；
+     - 修复方案：移除手动冗余 `connect`，同时在槽函数中加入 `setSizes` 分栏比例自动平滑恢复机制。
+  2. **QSplitter 最小宽度限制清除 ([mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui))**：
+     - 将 `widgetLeftPanel` 与 `widgetRightPanel` 的 `minimumSize` 宽度由 330px/310px 彻底归零（0px），使 QSplitter 可以无障碍拖拽收缩至 0，彻底实现无论相机连接与否均可自由随心折叠。
+  3. **工程构建与回归验证**：
+     - MinGW 13.1 + Qt 6.12.0 Release 构建 **0 Error / 0 Warning**。
+
 ### Checkpoint 2026-10-26 #12
 - **记录人**：Antigravity (Gemini 3.8 Flash)
 - **类型**：方案一（QSplitter 弹性分栏与双向折叠）落地、UI 图标全量剥离、模型列表纯净化与 Pelco-D 63 速率限幅权威确认

@@ -277,10 +277,6 @@ void MainWindow::initUI()
         ui->splitterMain->setSizes({330, 700, 330});
     }
 
-    // 绑定侧边栏折叠/展开按钮
-    connect(ui->btnToggleLeftPanel, &QPushButton::clicked, this, &MainWindow::on_btnToggleLeftPanel_clicked);
-    connect(ui->btnToggleRightPanel, &QPushButton::clicked, this, &MainWindow::on_btnToggleRightPanel_clicked);
-
     // 更新 UI 状态
     updatePTZUIState();
     updateRGBUIState();
@@ -1745,6 +1741,15 @@ void MainWindow::on_btnToggleLeftPanel_clicked()
     bool visible = !ui->widgetLeftPanel->isVisible();
     ui->widgetLeftPanel->setVisible(visible);
     ui->btnToggleLeftPanel->setText(visible ? "收起左栏" : "展开左栏");
+    if (visible && ui->splitterMain) {
+        QList<int> sizes = ui->splitterMain->sizes();
+        if (sizes.size() >= 3) {
+            int leftW = 330;
+            int rightW = ui->widgetRightPanel->isVisible() ? sizes[2] : 0;
+            int centerW = std::max(200, ui->splitterMain->width() - leftW - rightW);
+            ui->splitterMain->setSizes({leftW, centerW, rightW});
+        }
+    }
 }
 
 void MainWindow::on_btnToggleRightPanel_clicked()
@@ -1752,5 +1757,14 @@ void MainWindow::on_btnToggleRightPanel_clicked()
     bool visible = !ui->widgetRightPanel->isVisible();
     ui->widgetRightPanel->setVisible(visible);
     ui->btnToggleRightPanel->setText(visible ? "收起右栏" : "展开右栏");
+    if (visible && ui->splitterMain) {
+        QList<int> sizes = ui->splitterMain->sizes();
+        if (sizes.size() >= 3) {
+            int rightW = 330;
+            int leftW = ui->widgetLeftPanel->isVisible() ? sizes[0] : 0;
+            int centerW = std::max(200, ui->splitterMain->width() - leftW - rightW);
+            ui->splitterMain->setSizes({leftW, centerW, rightW});
+        }
+    }
 }
 
