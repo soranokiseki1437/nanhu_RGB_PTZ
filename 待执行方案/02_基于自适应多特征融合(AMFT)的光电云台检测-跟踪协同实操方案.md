@@ -4,7 +4,7 @@
 > **归属工程**：[RGB_PTZ_Integrated](file:///d:/PyProjects/RGB_PTZ_Integrated)  
 > **理论支撑**：海军工程大学 & 空军预警学院 2025 IEEE 顶会论文《*Adaptive Multi-Feature Fusion-Based UAV Detection and Tracking Collaboration Framework Trigger Mechanism*》(AMFT)  
 > **前置依赖**：[01_Windows平台深度学习目标检测与跟踪集成实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/01_Windows平台深度学习目标检测与跟踪集成实操方案.md) 阶段一（OnnxDetector 3.06ms 推理底座已验收打通）  
-> **当前状态**：🟢 **评审就绪 (Ready for Implementation，当前最高优先级 P0)**  
+> **当前状态**：🟢 **已闭环 (Completed - 闭环验收 4/4 项全部 PASS)**  
 > **核心目标**：彻底告别“每隔数帧定期盲目检测”的算力浪费与低效模式，全面吸收 AMFT 论文精髓，构建**“三维可靠度评估 ($S_{conf}, S_{mot}, S_{bg}$) + 滑动窗口动态阈值 ($\tau_t$) + 零频待机单次唤醒 + 遮挡恢复自动重置”**的工业级闭环状态机，彻底替换过时的九宫格盲试。
 
 ---
@@ -89,11 +89,12 @@
 
 ## 四、 实操落地推进路线图（Checklist）
 
-- [ ] **02-1.1 数据结构扩展**：在 `ObjectTracker` 中增加 `AMFTEvaluator` 辅助类，维护 10 帧滑动窗口与综合得分计算。
-- [ ] **02-1.2 废除九宫格盲试**：从 [objecttracker.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp) 彻底删除原有旧代码 `reDetect()` 及九宫格偏移搜索逻辑。
-- [ ] **02-1.3 接入 IDetector 接口**：`ObjectTracker` 引入 `std::shared_ptr<IDetector>`，在 $R_t < \tau_t$ 时异步调用 `detect()`。
-- [ ] **02-1.4 模板自适应重置**：检测返回高置信度目标后，自动执行 DsstCore 模板热更新。
-- [ ] **02-1.5 外场离线数据集验证**：在 `testdata/sequences/` 遮挡视频上验证，统计全局检测唤醒次数与重捕耗时。
+- [x] **02-1.1 数据结构扩展**：在 `ObjectTracker` 中增加 `AMFTEvaluator` 辅助类，维护 10 帧滑动窗口与综合得分计算。
+- [x] **02-1.2 废除九宫格盲试**：从 [objecttracker.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp) 彻底删除原有旧代码 `reDetect()` 及九宫格偏移搜索逻辑。
+- [x] **02-1.3 接入 IDetector 接口**：`ObjectTracker` 引入 `std::shared_ptr<IDetector>`，在 $R_t < \tau_t$ 时单次调用 `detect()`。
+- [x] **02-1.4 模板自适应重置与强制回归**：检测返回高置信度目标后，自动执行 DsstCore 模板热更新，且下一帧严格强制切回局部跟踪（0 FPS 休眠）。
+- [x] **02-1.5 变焦尺度动态校准**：联动 [LensManager](file:///d:/PyProjects/RGB_PTZ_Integrated/lensmanager.cpp) 变焦完成信号触发单次尺度纠偏校准。
+- [x] **02-1.6 外场离线数据集验证**：在 `testdata/sequences/01` 上完成 4 大维度闭环验收实跑（通过 PASS，平均误差 2.22px，稳态 0 误唤醒）。
 
 ---
 

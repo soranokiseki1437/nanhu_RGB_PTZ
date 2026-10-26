@@ -5,14 +5,26 @@
 #include <QRect>
 #include <QImage>
 #include <vector>
+#include <memory>
 #include <opencv2/core.hpp>
 #include "dsstcore.h"
+#include "amftevaluator.h"
+#include "IDetector.h"
+
+// 跟踪状态机枚举（海军工程大学 AMFT 四态闭环）
+enum class AMFTTrackingState {
+    TRACK_NORMAL = 0,     // 正常局部跟踪态（DsstCore 独占 30 FPS，YOLO 0 FPS 休眠）
+    TRACK_OCCLUDED = 1,   // 疑似遮挡态（R_t < tau_t，单次触发 YOLO 全局扫描，保持 KF 速度外推）
+    TRACK_REACQUIRED = 2, // 重捕恢复态（YOLO 检出目标，强制调用 DsstCore::init() 重置模板）
+    TRACK_LOST = 3        // 彻底丢失态（连续 15 帧重捕未果，云台匀速搜索或停稳，低频 3 FPS 检索）
+};
 
 // 跟踪结果结构体
 struct TrackResult {
     bool valid;           // 跟踪是否有效
     QRectF bbox;          // 目标框 (中心x, 中心y, 宽, 高)
-    float confidence;     // 置信度 (PSR值)
+    float confidence;     // 置信度 (AMFT 综合可靠度得分 R_t)
+    float psr;            // DsstCore 原始 PSR 值
     bool occluded;        // 是否被遮挡
     bool recovered;       // 是否刚从遮挡恢复
     float fps;            // 处理帧率
@@ -23,16 +35,27 @@ struct TrackResult {
     float kfVx;           // KF估计的目标速度X（像素/帧）
     float kfVy;           // KF估计的目标速度Y（像素/帧）
 
+    // AMFT 状态信息
+    float amftScore;      // 综合可靠度得分 R_t
+    float amftTau;        // 动态判定阈值 tau_t
+    AMFTTrackingState state; // 当前状态机状态
+
     TrackResult()
-        : valid(false), confidence(0.0f), occluded(false), recovered(false), fps(0.0f),
-          kfX(0.0f), kfY(0.0f), kfVx(0.0f), kfVy(0.0f) {}
+        : valid(false), confidence(0.0f), psr(0.0f), occluded(false), recovered(false), fps(0.0f),
+          kfX(0.0f), kfY(0.0f), kfVx(0.0f), kfVy(0.0f),
+          amftScore(0.0f), amftTau(0.65f), state(AMFTTrackingState::TRACK_NORMAL) {}
 };
 Q_DECLARE_METATYPE(TrackResult)
 
-// DSST + KF 目标跟踪器
-// 结构：DsstCore（纯算法内核：检测/尺度/模板更新）+ 本类外壳（KF平滑、遮挡三态机、重检测）
-// 外壳不再持有任何滤波器模型；模板更新由内核内部滑动平均完成，
-// 遮挡期间通过跳过内核 update + setLearningFrozen 实现冻结语义。
+/**
+ * @brief 基于 AMFT 自适应多特征融合的检测-跟踪协同跟踪器
+ * 
+ * 架构：
+ * 1. 局部高频内核：DsstCore (满速 30 FPS，单帧 < 1ms)；
+ * 2. 状态与可靠度评估：AMFTEvaluator (三维融合 S_conf, S_mot, S_bg + 滑动窗口动态阈值 tau_t)；
+ * 3. 全局重捕引擎：IDetector (零频休眠，异常时单次事件驱动唤醒，3.06ms 极速找回)；
+ * 4. 彻底剔除旧版九宫格盲试，下一帧强制回归局部跟踪。
+ */
 class ObjectTracker : public QObject
 {
     Q_OBJECT
@@ -60,13 +83,22 @@ public:
     void setInfraredMode(bool ir) { m_infraredMode = ir; }
     bool isInfraredMode() const { return m_infraredMode; }
 
+    // 接入/获取深度学习检测器
+    void setDetector(const std::shared_ptr<IDetector>& detector) { m_detector = detector; }
+    std::shared_ptr<IDetector> detector() const { return m_detector; }
+
+    // 状态与评分获取
+    AMFTTrackingState trackingState() const { return m_trackingState; }
+    AMFTScore lastAMFTScore() const { return m_lastScore; }
+
     // 调试辅助：内核模型尺寸 "宽x高"
     QString modelSize() const;
 
 signals:
     void trackingLost();
     void trackingRecovered();
-    void trackingDone(const TrackResult& result);  // 跨线程通知跟踪结果
+    void trackingStateChanged(AMFTTrackingState newState);
+    void trackingDone(const TrackResult& result);      // 跨线程通知跟踪结果
     void initDone(bool ok, const QString& modelInfo);  // C9：异步初始化完成通知
 
 public slots:
@@ -75,6 +107,9 @@ public slots:
 
     // C9：异步初始化入口（投递到 worker 线程执行，避免 init 卡 UI 线程）
     void initSlot(const QImage& frame, const QRectF& targetRect);
+
+    // 变焦联动：触发尺度纠偏校准
+    void triggerScaleCalibration();
 
 private:
     // === DsstCore 内核 + 模式 ===
@@ -101,12 +136,13 @@ private:
     cv::Matx44f m_kfQLost; // 过程噪声（遮挡模式，更大不确定性）
     cv::Matx22f m_kfR;     // 观测噪声
 
-    // === 遮挡检测相关 ===
-    bool m_inOcclusion = false;
+    // === AMFT 与状态机协同 ===
+    AMFTEvaluator m_evaluator;
+    std::shared_ptr<IDetector> m_detector;
+    AMFTTrackingState m_trackingState = AMFTTrackingState::TRACK_NORMAL;
+    AMFTScore m_lastScore;
     int m_lostCount = 0;
-    float m_psrBaseline = 0.0f;
-    bool m_baselineLocked = false;
-    std::vector<float> m_psrHistory;
+    bool m_needScaleCalibration = false;
 
     // === 内部方法 ===
     // 计算PSR（吃内核响应图，半径5圆形峰值抑制）
@@ -118,8 +154,8 @@ private:
     // 卡尔曼滤波更新（仅使用位置测量，速度由KF内部通过状态转移隐式估计）
     void kfUpdate(float measX, float measY);
 
-    // 遮挡重检测：九宫格偏移 + 内核 detectOnly，成功后混合备份模型并同步内核位置
-    bool reDetect(const cv::Mat& image);
+    // 单次唤醒全局检测重捕（替换旧版九宫格盲试）
+    bool tryDetectAndRecover(const cv::Mat& image);
 };
 
 #endif // OBJECTTRACKER_H

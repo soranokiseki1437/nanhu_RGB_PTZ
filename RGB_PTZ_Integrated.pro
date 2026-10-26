@@ -28,7 +28,8 @@ SOURCES += \
     logging_categories.cpp \
     imagematconvert.cpp \
     yolopostprocessor.cpp \
-    onnxdetector.cpp
+    onnxdetector.cpp \
+    amftevaluator.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -52,7 +53,8 @@ HEADERS += \
     imagematconvert.h \
     IDetector.h \
     yolopostprocessor.h \
-    onnxdetector.h
+    onnxdetector.h \
+    amftevaluator.h
 
 FORMS += \
     mainwindow.ui

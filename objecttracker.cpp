@@ -1,8 +1,11 @@
 #include "objecttracker.h"
 #include "imagematconvert.h"
 #include "logging_categories.h"
+#include "onnxdetector.h"
 #include <cmath>
 #include <QElapsedTimer>
+#include <QFile>
+#include <algorithm>
 
 // ========================
 // 构造函数 / 析构函数
@@ -12,6 +15,7 @@ ObjectTracker::ObjectTracker(QObject *parent)
     , m_kfQ(cv::Matx44f::eye() * 100.0f)
     , m_kfQLost(cv::Matx44f::eye() * 900.0f)
     , m_kfR(cv::Matx22f::eye() * 100.0f)
+    , m_evaluator(10, 0.65f, 0.5f)
 {
 }
 
@@ -25,20 +29,27 @@ ObjectTracker::~ObjectTracker()
 void ObjectTracker::reset()
 {
     m_initialized = false;
-    m_inOcclusion = false;
+    m_trackingState = AMFTTrackingState::TRACK_NORMAL;
     m_lostCount = 0;
-    m_psrBaseline = 0.0f;
-    m_baselineLocked = false;
-    m_psrHistory.clear();
     m_frameCount = 0;
-    // 内核无需显式重置：外壳 m_initialized=false 后不会再访问，
-    // 下次 init() 会完整重建内核状态
+    m_needScaleCalibration = false;
+    m_evaluator.reset();
+    m_lastScore = AMFTScore();
 }
 
 QString ObjectTracker::modelSize() const
 {
     const cv::Size ms = m_core.modelSize();
     return QString("%1x%2").arg(ms.width).arg(ms.height);
+}
+
+// ========================
+// 变焦联动：触发尺度纠偏校准
+// ========================
+void ObjectTracker::triggerScaleCalibration()
+{
+    m_needScaleCalibration = true;
+    qCDebug(trackerLog) << "[Tracker] 变焦尺度纠偏已标记，下一帧将触发 AI 尺度校准";
 }
 
 // ========================
@@ -98,7 +109,13 @@ bool ObjectTracker::init(const QImage& frame, const QRectF& targetRect)
     m_kf.x = cv::Vec4f(m_posX, m_posY, 0.0f, 0.0f);
     m_kf.P = cv::Matx44f::eye() * 8.0f;
 
+    // AMFT 评估器初始化
+    m_evaluator.init(cv::Rect2f(m_posX - m_targetW * 0.5f,
+                                m_posY - m_targetH * 0.5f,
+                                m_targetW, m_targetH));
+
     m_initialized = true;
+    m_trackingState = AMFTTrackingState::TRACK_NORMAL;
     qCDebug(trackerLog) << "[ObjectTracker] 初始化成功, 模型尺寸:" << modelSize()
              << "目标:(" << m_posX << "," << m_posY << ") " << m_targetW << "x" << m_targetH
              << " 红外模式:" << m_infraredMode;
@@ -159,7 +176,9 @@ void ObjectTracker::kfPredict()
                         0.0f, 0.0f, 0.0f, 1.0f);
 
     m_kf.x = A * m_kf.x;
-    const cv::Matx44f& activeQ = m_inOcclusion ? m_kfQLost : m_kfQ;
+    const bool inLoss = (m_trackingState == AMFTTrackingState::TRACK_OCCLUDED ||
+                         m_trackingState == AMFTTrackingState::TRACK_LOST);
+    const cv::Matx44f& activeQ = inLoss ? m_kfQLost : m_kfQ;
     m_kf.P = A * m_kf.P * A.t() + activeQ;
 }
 
@@ -227,73 +246,109 @@ void ObjectTracker::kfUpdate(float measX, float measY)
 }
 
 // ========================
-// 遮挡重检测
-// 九宫格偏移逐点调内核 detectOnly（不动内核状态），取PSR最高的候选；
-// 成功后：混合备份模型(0.6/0.4) + 回同步内核位置 + 解除冻结
+// 单次唤醒全局检测重捕（替换旧版九宫格盲试）
 // ========================
-bool ObjectTracker::reDetect(const cv::Mat& image)
+bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
 {
-    if (!m_baselineLocked) return false;
+    // 如果未外部设置检测器，则尝试懒加载默认模型
+    if (!m_detector || !m_detector->isLoaded()) {
+        const QString defaultModel = "models/yolov8n.onnx";
+        if (QFile::exists(defaultModel)) {
+            auto onnxDet = std::make_shared<OnnxDetector>();
+            DetectorConfig cfg;
+            cfg.useGpu = true;
+            if (onnxDet->loadModel(defaultModel, cfg)) {
+                m_detector = onnxDet;
+                qCDebug(trackerLog) << "[Tracker] 自动载入默认检测器成功:" << defaultModel;
+            }
+        }
+    }
+
+    if (!m_detector || !m_detector->isLoaded()) {
+        return false;
+    }
+
+    // 单次唤醒 YOLO 全图检测 (DirectML 仅耗时 3.06ms)
+    std::vector<DetectionBox> detections = m_detector->detect(image);
+    if (detections.empty()) {
+        return false;
+    }
 
     const float kfX = m_kf.x[0];
     const float kfY = m_kf.x[1];
     const float vx = m_kf.x[2];
     const float vy = m_kf.x[3];
     const float speed = std::sqrt(vx * vx + vy * vy);
-    const int searchRadius = std::max(
-        static_cast<int>(std::max(m_targetW, m_targetH) * 2.0f),
-        static_cast<int>(speed * 4.0f));
 
-    static constexpr int offsets[9][2] = {
-        {-1, -1}, {-1, 0}, {-1, 1},
-        { 0, -1}, { 0, 0}, { 0, 1},
-        { 1, -1}, { 1, 0}, { 1, 1}
-    };
+    const float currentW = m_targetW * m_currentScale;
+    const float currentH = m_targetH * m_currentScale;
+    const float targetDiag = std::sqrt(currentW * currentW + currentH * currentH);
 
-    const cv::Size modelSz = m_core.modelSize();
-    const float scale = m_core.currentScale();
+    // 根据目标尺寸与运动速度估计合理的最大搜索半径
+    float maxRadius = std::max(targetDiag * 3.5f, speed * std::min(m_lostCount, 15) * 1.5f + 60.0f);
+    maxRadius = std::min(maxRadius, static_cast<float>(std::max(image.cols, image.rows)) * 0.8f);
 
-    float bestPsr = 0.0f;
-    float bestPosX = kfX;
-    float bestPosY = kfY;
+    float bestCandidateScore = 0.0f;
+    DetectionBox bestBox;
+    bool found = false;
 
-    for (int i = 0; i < 9; ++i) {
-        const cv::Point2f center(kfX + offsets[i][1] * searchRadius,
-                                 kfY + offsets[i][0] * searchRadius);
-        cv::Mat resp;
-        const cv::Rect r = m_core.detectOnly(image, center, &resp);
-        if (r.width <= 0 || resp.empty()) continue;
+    for (const auto& det : detections) {
+        if (det.confidence < 0.25f) continue;
 
-        const float psr = computePSR(resp);
-        if (psr > bestPsr) {
-            // 由响应峰值反推精确位置（与旧版 dx/dy 逻辑一致）
-            cv::Point maxLoc;
-            cv::minMaxLoc(resp, nullptr, nullptr, nullptr, &maxLoc);
-            bestPsr = psr;
-            bestPosX = center.x + scale * (-modelSz.width / 2.0f + maxLoc.x);
-            bestPosY = center.y + scale * (-modelSz.height / 2.0f + maxLoc.y);
+        float cx = static_cast<float>(det.rect.x() + det.rect.width() * 0.5f);
+        float cy = static_cast<float>(det.rect.y() + det.rect.height() * 0.5f);
+
+        float dist = std::sqrt((cx - kfX) * (cx - kfX) + (cy - kfY) * (cy - kfY));
+        if (dist > maxRadius) continue;
+
+        float detArea = static_cast<float>(det.rect.width() * det.rect.height());
+        float origArea = std::max(1.0f, currentW * currentH);
+        float areaRatio = detArea / origArea;
+        if (areaRatio < 0.15f || areaRatio > 6.0f) continue;
+
+        float distPenalty = 1.0f - 0.5f * (dist / maxRadius);
+        float areaPenalty = std::min(areaRatio, 1.0f / areaRatio);
+        float candidateScore = det.confidence * distPenalty * areaPenalty;
+
+        if (candidateScore > bestCandidateScore) {
+            bestCandidateScore = candidateScore;
+            bestBox = det;
+            found = true;
         }
     }
 
-    const float recoverThr = 0.8f * m_psrBaseline;
-    if (bestPsr <= recoverThr) return false;
+    if (!found || bestCandidateScore < 0.18f) {
+        return false;
+    }
 
-    // 验证与KF预测的距离
-    const float dist = std::sqrt((bestPosX - kfX) * (bestPosX - kfX)
-                               + (bestPosY - kfY) * (bestPosY - kfY));
-    const float maxDist = std::max(m_targetW, m_targetH) * 4.0f;
-    if (dist >= maxDist) return false;
+    // 命中目标：以全新高精检测框重置 DsstCore 模板
+    cv::Rect newRoi(static_cast<int>(std::round(bestBox.rect.x())),
+                    static_cast<int>(std::round(bestBox.rect.y())),
+                    static_cast<int>(std::round(bestBox.rect.width())),
+                    static_cast<int>(std::round(bestBox.rect.height())));
+    newRoi &= cv::Rect(0, 0, image.cols, image.rows);
 
-    m_posX = bestPosX;
-    m_posY = bestPosY;
+    if (newRoi.width < 4 || newRoi.height < 4) {
+        return false;
+    }
 
-    // 恢复内核：位置回同步 + 模型混合（备份60% + 当前40%）+ 解除冻结
-    m_core.setPosition(cv::Point2f(m_posX, m_posY));
-    m_core.blendBackup(0.6f);
+    if (!m_core.init(image, newRoi)) {
+        return false;
+    }
+
     m_core.setLearningFrozen(false);
+    m_posX = newRoi.x + newRoi.width * 0.5f;
+    m_posY = newRoi.y + newRoi.height * 0.5f;
+    m_targetW = static_cast<float>(newRoi.width);
+    m_targetH = static_cast<float>(newRoi.height);
+    m_currentScale = 1.0f;
 
-    // KF更新（标准卡尔曼：仅位置测量，速度隐式估计）
+    // 更新 KF 状态与 AMFT 评估器
     kfUpdate(m_posX, m_posY);
+    m_evaluator.init(cv::Rect2f(m_posX - m_targetW * 0.5f,
+                                m_posY - m_targetH * 0.5f,
+                                m_targetW, m_targetH));
+
     return true;
 }
 
@@ -350,124 +405,163 @@ TrackResult ObjectTracker::update(const QImage& frame)
     }
 
     ++m_frameCount;
-    const bool logThisFrame = (m_frameCount % 100 == 1);  // 日志节流：每100帧输出一次
+    const bool logThisFrame = (m_frameCount % 50 == 1);
 
-    // === KF预测 ===
+    // === 1. KF 预测 ===
     kfPredict();
     const float kfPredX = m_kf.x[0];
     const float kfPredY = m_kf.x[1];
 
-    result.occluded = m_inOcclusion;
-    result.recovered = false;
+    // === 2. 状态机分流 ===
+    if (m_trackingState == AMFTTrackingState::TRACK_OCCLUDED || m_trackingState == AMFTTrackingState::TRACK_LOST) {
+        // --- 遮挡或丢失状态 ---
+        m_core.setLearningFrozen(true);
+        m_lostCount++;
 
-    if (m_inOcclusion) {
-        // === 遮挡中：不跑内核检测（冻结内核状态+省算力），纯 KF 预测 ===
-        if (m_lostCount >= 10) {
-            if (reDetect(image)) {
-                m_inOcclusion = false;
-                m_lostCount = 0;
-                result.recovered = true;
-                result.occluded = false;
-                emit trackingRecovered();
-                qCDebug(trackerLog) << "[Tracker] 重检测成功，恢复跟踪 pos=("
-                         << m_posX << "," << m_posY << ") psr候选达标";
-            } else {
-                m_posX = kfPredX;
-                m_posY = kfPredY;
-                m_lostCount++;
-            }
+        // 在 OCCLUDED 态每帧尝试单次重捕（至多持续 15 帧）
+        // 在 LOST 态降频每 10 帧尝试一次 (3 FPS 待机检索，彻底杜绝算力浪费)
+        bool shouldScan = (m_trackingState == AMFTTrackingState::TRACK_OCCLUDED)
+                       || (m_lostCount % 10 == 0);
+
+        bool recovered = false;
+        if (shouldScan) {
+            recovered = tryDetectAndRecover(image);
+        }
+
+        if (recovered) {
+            // 命中！进入重捕恢复态
+            m_trackingState = AMFTTrackingState::TRACK_REACQUIRED;
+            m_lostCount = 0;
+            result.recovered = true;
+            result.occluded = false;
+            emit trackingRecovered();
+            emit trackingStateChanged(m_trackingState);
+            qCDebug(trackerLog) << "[Tracker] AMFT 协同唤醒: YOLO 重捕成功! 目标位置=("
+                                << m_posX << "," << m_posY << ") 模板已强制重置";
         } else {
+            // 未重捕，保持 KF 速度外推预测
             m_posX = kfPredX;
             m_posY = kfPredY;
-            m_lostCount++;
+            result.occluded = true;
+            result.recovered = false;
+
+            if (m_lostCount >= 15 && m_trackingState != AMFTTrackingState::TRACK_LOST) {
+                m_trackingState = AMFTTrackingState::TRACK_LOST;
+                emit trackingLost();
+                emit trackingStateChanged(m_trackingState);
+                qCDebug(trackerLog) << "[Tracker] 连续 15 帧重捕未果，转入 TRACK_LOST 态势";
+            }
         }
     } else {
-        // === 正常跟踪：内核检测 + 尺度估计 + 模板更新（内核内部完成）===
+        // --- 正常局部跟踪态 (TRACK_NORMAL) 或刚重捕态 (TRACK_REACQUIRED) ---
+        // 铁律执行：如果前一帧是 TRACK_REACQUIRED，本帧强制回归 TRACK_NORMAL！
+        if (m_trackingState == AMFTTrackingState::TRACK_REACQUIRED) {
+            m_trackingState = AMFTTrackingState::TRACK_NORMAL;
+            emit trackingStateChanged(m_trackingState);
+        }
+
+        // 检查变焦尺度纠偏
+        if (m_needScaleCalibration) {
+            m_needScaleCalibration = false;
+            tryDetectAndRecover(image);
+        }
+
+        // 局部跟踪主循环：DsstCore 高频检测 + 尺度估计 + 模板更新 (<1ms)
         cv::Mat response;
         const cv::Rect bbox = m_core.update(image, &response);
         const bool detValid = (bbox.width > 0 && bbox.height > 0);
         const float psr = detValid ? computePSR(response) : 0.0f;
-        result.confidence = psr;
+        result.psr = psr;
 
-        // 内核位置即本帧检测位置（未 clamp 的真实值）
         float detX = m_posX;
         float detY = m_posY;
         if (detValid) {
             const cv::Point2f p = m_core.position();
-            detX = std::isnan(p.x) || std::isinf(p.x) ? m_posX : p.x;
-            detY = std::isnan(p.y) || std::isinf(p.y) ? m_posY : p.y;
+            detX = (std::isnan(p.x) || std::isinf(p.x)) ? m_posX : p.x;
+            detY = (std::isnan(p.y) || std::isinf(p.y)) ? m_posY : p.y;
             m_currentScale = m_core.currentScale();
         }
 
-        // === 决策逻辑（三态机，阈值沿用旧版）===
-        const bool lowPsr = !detValid || (m_baselineLocked && psr < 0.75f * m_psrBaseline);
+        // 构建当前目标框供 AMFT 评估
+        const float currentW = m_targetW * m_currentScale;
+        const float currentH = m_targetH * m_currentScale;
+        cv::Rect2f evalBox(detX - currentW * 0.5f, detY - currentH * 0.5f, currentW, currentH);
 
-        if (lowPsr) {
-            m_lostCount++;
-        } else {
-            m_lostCount = 0;
-        }
+        // === AMFT 三维特征评估 + 动态滑动阈值 ===
+        m_lastScore = m_evaluator.evaluate(psr, detValid, evalBox, image);
+        result.amftScore = m_lastScore.rTotal;
+        result.amftTau = m_lastScore.dynamicTau;
+        result.confidence = m_lastScore.rTotal;
 
-        if (m_lostCount >= 3) {
-            // 连续低PSR -> 确认遮挡，切换到纯KF预测模式
-            m_inOcclusion = true;
-            m_lostCount = 1;
-            m_posX = kfPredX;
-            m_posY = kfPredY;
-            result.occluded = true;
-            m_core.setLearningFrozen(true);  // 冻结内核模型滑动平均（保险：本帧起不再更新）
-            emit trackingLost();
-        } else if (m_lostCount > 0) {
-            // PSR下降过渡态（未确认遮挡）：使用检测位置但不喂 KF（防污染）
-            if (detValid) {
-                m_posX = detX;
-                m_posY = detY;
-            } else {
-                m_posX = kfPredX;
-                m_posY = kfPredY;
-            }
-        } else {
-            // 正常跟踪
+        if (m_lastScore.isReliable) {
+            // --- 跟踪稳健 (R_t >= tau_t) ---
             m_posX = detX;
             m_posY = detY;
             kfUpdate(m_posX, m_posY);
+            m_lostCount = 0;
+            result.occluded = false;
+        } else {
+            // --- 可靠度异常 (R_t < tau_t) ---
+            m_lostCount++;
+            qCDebug(trackerLog) << "[Tracker] AMFT 警告: R_t=" << m_lastScore.rTotal
+                                << " < tau_t=" << m_lastScore.dynamicTau
+                                << " (conf=" << m_lastScore.sConf
+                                << ", mot=" << m_lastScore.sMot
+                                << ", bg=" << m_lastScore.sBg << ")";
 
-            // 收集PSR基线（锁定后限制历史长度，防止内存无限增长）
-            if (!m_baselineLocked) {
-                m_psrHistory.push_back(psr);
-                if (static_cast<int>(m_psrHistory.size()) >= 30) {
-                    float sum = 0.0f;
-                    for (float v : m_psrHistory) sum += v;
-                    m_psrBaseline = sum / m_psrHistory.size();
-                    m_baselineLocked = true;
-                    m_psrHistory.clear();  // 锁定后释放，不再需要
+            if (m_lostCount >= 2) {
+                // 确认进入遮挡/微失锁态
+                m_trackingState = AMFTTrackingState::TRACK_OCCLUDED;
+                m_core.setLearningFrozen(true);
+                emit trackingLost();
+                emit trackingStateChanged(m_trackingState);
+
+                // 立即触发单次检测重捕
+                if (tryDetectAndRecover(image)) {
+                    m_trackingState = AMFTTrackingState::TRACK_REACQUIRED;
+                    m_lostCount = 0;
+                    result.recovered = true;
+                    result.occluded = false;
+                    emit trackingRecovered();
+                    emit trackingStateChanged(m_trackingState);
+                } else {
+                    m_posX = kfPredX;
+                    m_posY = kfPredY;
+                    result.occluded = true;
                 }
+            } else {
+                // 瞬时过渡态：暂用当前检测位置但不更新 KF 协方差
+                m_posX = detValid ? detX : kfPredX;
+                m_posY = detValid ? detY : kfPredY;
+                result.occluded = false;
             }
         }
 
         if (logThisFrame) {
-            qCDebug(trackerLog) << "[Tracker] frame" << m_frameCount
-                     << "psr=" << psr << "valid=" << detValid
-                     << "pos=(" << m_posX << "," << m_posY << ")"
-                     << "scale=" << m_currentScale
-                     << "baseline=" << m_psrBaseline
-                     << (m_baselineLocked ? "(locked)" : "");
+            qCDebug(trackerLog) << "[Tracker] frame=" << m_frameCount
+                                << "state=" << static_cast<int>(m_trackingState)
+                                << "R_t=" << m_lastScore.rTotal
+                                << "tau_t=" << m_lastScore.dynamicTau
+                                << "psr=" << psr
+                                << "pos=(" << m_posX << "," << m_posY << ")"
+                                << "scale=" << m_currentScale;
         }
     }
 
-    // === 构建结果 ===
+    // === 构建输出结果 ===
     const float currentW = m_targetW * m_currentScale;
     const float currentH = m_targetH * m_currentScale;
-    result.bbox = QRectF(m_posX - currentW / 2.0f, m_posY - currentH / 2.0f,
+    result.bbox = QRectF(m_posX - currentW * 0.5f, m_posY - currentH * 0.5f,
                          currentW, currentH);
     result.valid = true;
+    result.state = m_trackingState;
     result.fps = 1000.0f / std::max(1LL, timer.elapsed());
 
-    // 提取KF内部状态供伺服控制器使用（前馈+PID）
-    result.kfX  = m_kf.x[0];  // KF滤波后的平滑位置X
-    result.kfY  = m_kf.x[1];  // KF滤波后的平滑位置Y
-    result.kfVx = m_kf.x[2];  // KF估计的目标速度X（像素/帧）
-    result.kfVy = m_kf.x[3];  // KF估计的目标速度Y（像素/帧）
+    // 提取 KF 状态
+    result.kfX  = m_kf.x[0];
+    result.kfY  = m_kf.x[1];
+    result.kfVx = m_kf.x[2];
+    result.kfVy = m_kf.x[3];
 
     return result;
 }
@@ -479,6 +573,6 @@ QRectF ObjectTracker::getCurrentBBox() const
 {
     const float currentW = m_targetW * m_currentScale;
     const float currentH = m_targetH * m_currentScale;
-    return QRectF(m_posX - currentW / 2.0f, m_posY - currentH / 2.0f,
+    return QRectF(m_posX - currentW * 0.5f, m_posY - currentH * 0.5f,
                   currentW, currentH);
 }

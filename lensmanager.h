@@ -85,6 +85,7 @@ signals:
     void focusModeChanged(bool isManualFocus); // 聚焦模式变化信号
     void irisModeChanged(bool isManualIris); // 光圈模式变化信号
     void userIDChanged(uint64_t userID);
+    void zoomFinished(); // 变焦完成信号（联动跟踪器尺度校准）
     // 内部信号 - 用于跨线程传递命令
     void commandQueued(UNIV_PTZ_COMMAND command, uint8_t speed, uint8_t stop);
     void setFocusModeRequested(bool isManual, uint64_t userID);

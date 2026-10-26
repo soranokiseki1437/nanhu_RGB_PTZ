@@ -421,6 +421,9 @@ void LensManager::zoomIn(uint8_t speed, bool stop)
     if (speed > 100) speed = 100;
     
     emit commandQueued(ZOOM_IN, speed, stop ? 1 : 0);
+    if (stop) {
+        emit zoomFinished();
+    }
 }
 
 void LensManager::zoomOut(uint8_t speed, bool stop)
@@ -429,6 +432,9 @@ void LensManager::zoomOut(uint8_t speed, bool stop)
     if (speed > 100) speed = 100;
     
     emit commandQueued(ZOOM_OUT, speed, stop ? 1 : 0);
+    if (stop) {
+        emit zoomFinished();
+    }
 }
 
 void LensManager::focusNear(uint8_t speed, bool stop)

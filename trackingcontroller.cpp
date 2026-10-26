@@ -1,6 +1,8 @@
 #include "trackingcontroller.h"
+#include "onnxdetector.h"
 #include <QDebug>
 #include <QtMath>
+#include <QFile>
 
 TrackingController::TrackingController(QObject *parent)
     : QObject(parent)
@@ -23,6 +25,16 @@ TrackingController::TrackingController(QObject *parent)
     , m_I_max(15.0f)
     , m_pidInitialized(false)
 {
+    const QString defaultModel = "models/yolov8n.onnx";
+    if (QFile::exists(defaultModel)) {
+        auto detector = std::make_shared<OnnxDetector>();
+        DetectorConfig cfg;
+        cfg.useGpu = true;
+        if (detector->loadModel(defaultModel, cfg)) {
+            m_detector = detector;
+            qDebug() << "[TrackingController] DirectML AI 目标检测引擎加载成功:" << defaultModel;
+        }
+    }
 }
 
 TrackingController::~TrackingController()
@@ -69,6 +81,9 @@ void TrackingController::setTarget(const QImage& frame, const QRectF& targetRect
     m_trackerThread = new QThread(this);
     m_tracker = new ObjectTracker(nullptr);
     m_tracker->setInfraredMode(m_infraredMode);  // 模式须在 init 前设置
+    if (m_detector) {
+        m_tracker->setDetector(m_detector);
+    }
 
     connect(m_tracker, &ObjectTracker::initDone, this, &TrackingController::onTrackerInitDone);
     connect(m_tracker, &ObjectTracker::trackingDone, this, [this](const TrackResult& result) {
@@ -324,6 +339,13 @@ void TrackingController::setInfraredMode(bool ir)
     m_infraredMode = ir;
     qDebug() << "[TrackCtrl] 跟踪源模式切换为" << (ir ? "红外" : "可见光")
              << "（下次框选生效）";
+}
+
+void TrackingController::triggerScaleCalibration()
+{
+    if (m_tracker) {
+        QMetaObject::invokeMethod(m_tracker, "triggerScaleCalibration", Qt::QueuedConnection);
+    }
 }
 
 void TrackingController::resumeTracking()

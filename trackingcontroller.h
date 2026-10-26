@@ -5,7 +5,9 @@
 #include <QTimer>
 #include <QThread>
 #include <atomic>
+#include <memory>
 #include "objecttracker.h"
+#include "IDetector.h"
 
 // PTZ自动跟踪控制器
 // 负责：接收视频帧 → 调用跟踪器 → 计算脱靶量 → 输出PTZ控制指令
@@ -85,6 +87,13 @@ public slots:
     void setInfraredMode(bool ir);
     bool isInfraredMode() const { return m_infraredMode; }
 
+    // 变焦联动：触发跟踪器尺度校准
+    void triggerScaleCalibration();
+
+    // 深度学习检测器配置
+    void setDetector(const std::shared_ptr<IDetector>& detector) { m_detector = detector; }
+    std::shared_ptr<IDetector> detector() const { return m_detector; }
+
 signals:
     // 跟踪结果信号
     void trackingResult(const TrackResult& result);
@@ -111,6 +120,7 @@ private slots:
 private:
     ObjectTracker* m_tracker;
     QThread* m_trackerThread;
+    std::shared_ptr<IDetector> m_detector;
 
     bool m_infraredMode = false;  // 跟踪源模式：false=可见光，true=红外
 

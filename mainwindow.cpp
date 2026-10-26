@@ -207,6 +207,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         connect(ui->checkBoxManualIris, &QCheckBox::clicked, this, &MainWindow::on_checkBoxManualIris_clicked);
         connect(m_deviceManager->getLensManager(), &LensManager::irisModeChanged, this, &MainWindow::onIrisModeChanged);
     }
+
+    // 变焦联动：变焦停止时自动触发跟踪器 AI 尺度纠偏校准
+    if (m_deviceManager && m_deviceManager->getLensManager() && m_trackingController) {
+        connect(m_deviceManager->getLensManager(), &LensManager::zoomFinished,
+                m_trackingController, &TrackingController::triggerScaleCalibration);
+    }
 }
 
 MainWindow::~MainWindow()
