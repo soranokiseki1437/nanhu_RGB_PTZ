@@ -1,0 +1,7 @@
+﻿模型ID,架构演进,参数规模,训练策略,训练轮次,Precision(%),Recall(%),mAP@50(%),mAP@50-95(%),纯GPU推理耗时(ms),端到端FPS,权重文件(.pt),静态部署ONNX
+yolov8n_ft,v8 (C2f),3.2M,微调 (Fine-tune),80,95.53,82.39,87.42,51.99,2.8,85.2,weights/finetuned/yolov8n_uav.pt,models/yolov8n_uav.onnx
+yolov8s_ft,v8 (C2f),11.2M,微调 (Fine-tune),80,96.2,87.18,91.04,57.31,4.2,75.8,weights/finetuned/yolov8s_uav.pt,models/yolov8s_uav.onnx
+yolo11n_ft,v11 (C3k2+C2PSA),2.6M,微调 (Fine-tune),80,95.2,83.17,88.0,52.72,2.7,86.6,weights/finetuned/yolo11n_uav.pt,models/yolo11n_uav.onnx
+yolo11s_ft,v11 (C3k2+C2PSA),9.4M,微调 (Fine-tune),80,95.95,87.02,91.22,56.74,3.6,77.2,weights/finetuned/yolo11s_uav.pt,models/yolo11s_uav.onnx
+yolo11n_scratch_80e,v11 (C3k2+C2PSA),2.6M,从零重训 (Scratch对照),80,93.98,76.24,83.53,47.5,2.7,86.6,-,-
+yolo11n_scratch_300e,v11 (C3k2+C2PSA),2.6M,从零重训 (Scratch最终),300,96.12,82.37,88.5,53.44,2.7,86.6,weights/scratch/yolo11n_uav_scratch.pt,models/yolo11n_uav_scratch.onnx

@@ -24,8 +24,9 @@ ffmpeg-8.1-full_build-shared/
 opencv/
 3rdparty/
 models/
+weights/
+runs/
 *.pt
-
 
 # ===== SDK 浜岃繘鍒舵枃妗ｏ紙涓嶅叆搴擄紱dll/lib/h 淇濈暀鍏ュ簱锛� =====
 sdk/*.pdf
@@ -59,3 +60,7 @@ test_detection_vis.png
 # ===== 导出汇报材料 =====
 导出材料/
 周报素材/
+
+# ===== 数据集（仅保留 README.md 入库，大体积图片序列不入库） =====
+datasets/*
+!datasets/README.md
