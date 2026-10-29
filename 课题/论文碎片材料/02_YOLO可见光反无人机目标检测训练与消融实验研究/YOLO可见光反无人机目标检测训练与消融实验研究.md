@@ -78,7 +78,9 @@
 - `06_yolo11n_ft_pr_curve.png`：微调 80 轮 P-R 曲线；
 - `07_yolo11n_scratch_confusion_matrix.png`：300 轮归一化混淆矩阵；
 - `08_yolo11n_ft_confusion_matrix.png`：微调归一化混淆矩阵；
-- `09_real_detection_visualization.png`：外场实机推断可视化图。
+- `09_real_detection_visualization.png`：外场实机推断可视化图 (早期未微调 COCO 混淆反面教材)；
+- `12_distant_uav_detections_gallery.png`：★ **真实远场景/弱小目标空域推断全景与高倍画中画特写图集 (26×15, 30×18 px 等微弱目标)**；
+- `distant_samples/`：6 份高清远场景单帧全景画中画大图。
 
 ### 2. 原始实验数据 (`raw_data/`)
 - `yolo11n_uav_ft_results.csv`：微调 80 轮逐轮打点日志；

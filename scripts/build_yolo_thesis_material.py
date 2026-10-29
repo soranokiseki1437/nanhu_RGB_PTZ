@@ -379,7 +379,13 @@ def build_docx_report():
     add_fig(os.path.join(FIG_DIR, "05_yolo11n_scratch_pr_curve.png"), "图 3: YOLO11n 从零训练 300 轮 Precision-Recall (P-R) 曲线")
     add_fig(os.path.join(FIG_DIR, "06_yolo11n_ft_pr_curve.png"), "图 4: YOLO11n 预训练微调 80 轮 Precision-Recall (P-R) 曲线")
     add_fig(os.path.join(FIG_DIR, "07_yolo11n_scratch_confusion_matrix.png"), "图 5: YOLO11n 从零重训混淆矩阵 (Confusion Matrix)")
-    add_fig(os.path.join(FIG_DIR, "09_real_detection_visualization.png"), "图 6: 部署级 ONNX 在外场真实长焦视频流中的弱小目标检测与置信度输出可视化")
+    add_fig(os.path.join(FIG_DIR, "09_real_detection_visualization.png"), "图 6: 早期未微调 COCO 原生模型在长焦视频流中的类别混淆反面教材 (误分类为 bird)")
+
+    add_h2("7.4 真实远场景长焦弱小目标实测泛化分析 (极远空域微弱目标)")
+    add_body("在真实空域反无防御任务中，无人机早期入侵往往距离极远，在 1080P/720P 长焦大视野中仅呈现为数十像素的极弱小斑点。为直观评估模型在真实长焦远场景下的感知能力，系统抽取了 6 组典型高空远场景（涵盖晴空极远距离、厚重积云掩映、低空地平线杂波），采用顶刊学术“全景大视野 + 局部画中画高倍特写（Zoom-in Inset）”进行推断可视化（见图 7）：")
+    add_body("实测结果显示，在目标尺寸仅为 26×15 像素（占全图面积仅 0.04%）、30×18 像素（占幅宽仅 1.5%）的极限远距场景下，YOLO11 模型依然能够以 0.71~0.80 的高置信度稳定捕获目标，画中画特写清晰显示检测框严密锁死在机身与旋翼边缘，未出现漏检或背景漂移，充分印证了微调模型对远场景极弱小航迹的优异表征能力。")
+
+    add_fig(os.path.join(FIG_DIR, "12_distant_uav_detections_gallery.png"), "图 7: YOLO11 可见光反无人机模型在【真实远场景 / 弱小目标空域】中的全景视野推断与局部画中画高倍特写图集 (包含 26×15, 30×18 等极限弱小目标)")
 
     # 8. 工程落地与选型推荐
     add_h1("八、 工程落地与上位机运行时部署规范")
@@ -474,7 +480,9 @@ def build_markdown_report():
 - `06_yolo11n_ft_pr_curve.png`：微调 80 轮 P-R 曲线；
 - `07_yolo11n_scratch_confusion_matrix.png`：300 轮归一化混淆矩阵；
 - `08_yolo11n_ft_confusion_matrix.png`：微调归一化混淆矩阵；
-- `09_real_detection_visualization.png`：外场实机推断可视化图。
+- `09_real_detection_visualization.png`：外场实机推断可视化图 (早期未微调 COCO 混淆反面教材)；
+- `12_distant_uav_detections_gallery.png`：★ **真实远场景/弱小目标空域推断全景与高倍画中画特写图集 (26×15, 30×18 px 等微弱目标)**；
+- `distant_samples/`：6 份高清远场景单帧全景画中画大图。
 
 ### 2. 原始实验数据 (`raw_data/`)
 - `yolo11n_uav_ft_results.csv`：微调 80 轮逐轮打点日志；
