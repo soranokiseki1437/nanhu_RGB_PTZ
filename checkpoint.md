@@ -40,8 +40,7 @@ flowchart LR
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
-| **代码分支** | `main` | 工作区改动已全部通过构建并验证完毕 |
-| **最新进展** | 🟢 **微调 (4款) 与从零训练 (YOLO11n 300轮) 100% 全量达成；前沿文献 (UAV-DETR) 与弱小目标损失函数探索储备纳编** | 4 款微调模型与 1 款 300 轮从零模型全量闭环归档；前沿成果 UAV-DETR 深度剖析与学术横评入库；弱小目标损失函数 (Inner-CIoU / NWD) 探索与实测选型方案纳编方案 03/06 |
+| **最新进展** | 🟢 **微调 (4款) 与从零训练 (YOLO11n 300轮) 100% 全量达成；前沿文献 (UAV-DETR) 与弱小目标损失函数探索储备纳编** | 4 款微调模型与 1 款 300 轮从零模型全量闭环归档；前沿成果 UAV-DETR 深度剖析与学术横评入库；弱小目标损失函数 (Inner-CIoU / NWD) 探索与实测选型方案统筹纳编方案 06 专项储备 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
 | **GPU 推理基准** | 🟢 **77.2~86.6 FPS (端到端) / 2.7~5.8ms (纯GPU)** | NVIDIA RTX 5070 Laptop GPU (DirectML/CUDA 硬件加速)：各微调模型纯推理耗时稳定在 2.7~5.8ms 极速区间，大幅优于 15ms 伺服安全窗口 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 纯算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
@@ -249,11 +248,10 @@ flowchart LR
      - 深度剖析其 WTConv 小波骨干、SWSA-IFI 编码器、ECFRFN 颈部及 Inner-CIoU + NWD 混合损失数学机理；
      - 建立本系统 YOLO11/YOLOv8 与 UAV-DETR 在 DUT Anti-UAV 上的精度（mAP@50 / mAP@50:95）、召回率、推理时延（2.7ms vs 16.5ms）、伺服裕度、DirectML 静态 ONNX 及 RK3588 NPU 部署友好度的学术横评三线大表；
      - 明确该论文在硕士论文第 1、2、3、5 章的引用与论证切入点；
-  2. **弱小目标边界框损失函数探索池纳编方案 03 与 06**：
-     - 在 [待执行方案/03_YOLO多模型(v8n_11n_11s)性能横评与动态切换实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/03_YOLO多模型(v8n_11n_11s)性能横评与动态切换实操方案.md) 增补第七章“课题探索储备：弱小目标边界框损失函数选型与对比规划”；
+  2. **弱小目标边界框损失函数探索方案统筹纳编方案 06**：
+     - 在 [待执行方案/06_后续创新规划.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/06_后续创新规划.md) 确立“方案 11 弱小目标边界框损失函数选型与消融探索实操规划”专项储备，保持方案 03 专注基线交付；
      - 针对 DUT Anti-UAV 80.9% 弱小目标导致的 IoU 剧烈抖动与梯度震荡痛点，确立候选损失函数池（基准 CIoU、Inner-CIoU、NWD、Inner-CIoU+NWD 混合损失）；
      - 确立“探索阶段遵循实测驱动选型，哪个指标与弱小目标召回率最好就用哪个”的执行原则，且明确损失函数零额外推理耗时、不影响 2.7ms 极速推理与部署基线；
-     - 在 [待执行方案/06_后续创新规划.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/06_后续创新规划.md) 增列方案 11 储备分支；
   3. **小文件检查点与文献清单轻量维护**：
      - Checkpoint #31 ~ #32 完整沉淀归档至 [checkpoints/archive/checkpoint_archive_31_32.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_32.md)；
      - [课题/论文碎片材料/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/论文碎片材料/README.md) 同步登记前沿文献碎片材料编号 03。
