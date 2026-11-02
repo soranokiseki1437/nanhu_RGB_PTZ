@@ -1,221 +1,222 @@
 # -*- coding: utf-8 -*-
 """
 脚本名称: init_tracking_benchmark_workspace.py
-功能: 在 D:\PyProjects\不知道取什么名字 目录下初始化标准科研工程规范，
-      写入 UTF-8 编码的 README.md 与 WORKFLOW.md。
+功能: 在 D:\PyProjects\不知道取什么名字 目录下初始化【纯对比算法基准库 (SOT Benchmark Zoo)】，
+      包含纯开源算法归档、统一适配评测层、实验数据指标保存与标准工作流。
+      彻底剥离任何自研创新内容，专注“扒开源代码、下官方权重、批量运行、记录数据”。
 """
 
 import os
+import shutil
 from pathlib import Path
 
 TARGET_DIR = Path(r"D:\PyProjects\不知道取什么名字")
 
-README_CONTENT = """# 可见光反无人机单目标跟踪算法横评、科研创新与消融实验基准库 (LightUAV-Tracking-Benchmark)
+README_CONTENT = """# 可见光单目标跟踪开源基线算法库与横向评测平台 (SOT-Benchmark-Zoo)
 
-> **工程定位**：面向地面/车载长焦可见光光电云台反无人机（Anti-UAV）场景的**纯算法科研、开源基线横向打点、自研网络两阶段训练、消融实验矩阵与学术图表生产工作区**。  
-> **上游主工程**：[RGB_PTZ_Integrated](file:///d:/PyProjects/RGB_PTZ_Integrated)（C++ / Qt 6 上位机、视频解码与 Pelco-D 云台机电伺服闭环）  
-> **下游交付物**：纯静态解耦 ONNX 模型（`sot_template.onnx` + `sot_search.onnx`）交付至主工程 `models/` 目录，供 DirectML 硬件加速与 C++ `ISotTracker` 运行时加载  
+> **工程定位**：面向地面/车载长焦可见光反无人机（Anti-UAV）及通用单目标跟踪场景的**纯开源基线算法集中纳编、环境部署、统一评测与实验指标沉淀平台**。  
+> **核心原则**：**专注开源对比算法（Baselines）**。本工程不包含任何自研创新模型开发，专注于将学术界与工业界用于对比的经典、顶会开源跟踪算法集中抓取、跑通、评测、打点并沉淀客观数据。  
 > **算力硬件与环境**：NVIDIA GeForce RTX 5070 Laptop GPU（Blackwell 架构，PyTorch 2.14.1 + CUDA 13.0，Conda 环境：`anti_uav_yolo`）  
-> **权威基准数据集**：[datasets/Anti-UAV/tracking/](file:///d:/PyProjects/不知道取什么名字/datasets/Anti-UAV/tracking/)（20 组真机长焦飞行连续序列 + 官方逐帧 Ground Truth，已通过系统 Junction 共享无冗余链接）
+> **评测基准数据集**：[datasets/Anti-UAV/tracking/](file:///d:/PyProjects/不知道取什么名字/datasets/Anti-UAV/tracking/)（20 组真机长焦飞行连续序列 + 官方逐帧 Ground Truth，已通过系统 Junction 零拷贝软链接打通）
 
 ---
 
-## 一、 项目体系架构与全景目录树
+## 一、 纯基线工作区目录结构树
 
-为了保持纯算法科研与工程生产代码的清晰解耦，本项目所有开源代码、数据记录、论文图表与权重统一规范管理：
+工程所有目录均服务于“**扒算法源码 -> 下官方权重 -> 统一接口评测 -> 保存预测与指标**”：
 
 ```text
-D:\\PyProjects\\不知道取什么名字/ (推荐重命名为: LightUAV-Tracking-Benchmark)
-├── README.md                   # 本文件：项目学术定位、全景架构与算法体系说明
-├── WORKFLOW.md                 # 核心工作流：从拉取开源、打点评测到消融训练的可执行操作指南
-├── datasets/                   # [Junction 软链接] 映射至主工程 datasets/，零硬盘拷贝
-│   └── Anti-UAV/tracking/      # 20 组真机对空无人机连续跟踪序列与逐帧 GT 标注
-├── tracking_benchmarks/        # 核心对比算法开源仓库集中纳编库
-│   ├── 01_traditional/         # 第一梯队：传统滤波基准 (KCF, DSST)
-│   ├── 02_heavyweight/         # 第二梯队：经典重型深度网络 (DaSiamRPN, SiamRPN++)
-│   ├── 03_lightweight/         # 第三梯队：同算力级顶会轻量竞品 (NanoTrack, FEAR, OSTrack, LightTrack)
-│   └── 04_reparam/             # 第四梯队：重参数化直接对照组 (RepViT-Track)
-├── models/                     # 本课题自研创新网络代码库
-│   └── lightuav_sot/           # Rep-LightTrack 源码 (RepViT 骨干 + MFFN 细节融合 + DAC-Head 动态匹配)
-├── experiments/                # 自动化实验流水线脚本
-│   ├── eval_benchmarks.py      # 一键批量执行 OPE 协议横向打点脚本 (输出逐帧数据与汇总 CSV)
-│   ├── dataset_sot_pair.py     # 正负样本对切片与空天时序增强数据加载器
-│   ├── train_lightuav.py       # 两阶段端到端自研网络训练脚本 (Warm-up 冻结 + Joint 微调)
-│   ├── run_ablation.py         # Exp 1 ~ Exp 5 自动化消融实验调度矩阵
-│   └── export_onnx.py          # 纯静态双分支 ONNX 导出脚本 (折叠重参数化结构，输出生产模型)
-├── results/                    # 实验成果沉淀 (严禁随意覆盖)
-│   ├── raw_csv/                # 各算法在 20 组序列上的逐帧预测框、时延与重叠度原始打点
-│   ├── figures/                # 硕士论文高清图表 (Success Plots, Precision Plots, 属性雷达图)
-│   └── tables/                 # 硕士论文标准学术三线大表 (Markdown / Excel / Word / LaTeX)
-├── checkpoints/                # 模型权重归档
-│   ├── pretrained/             # 各开源算法官方权威预训练权重 (*.pth)
-│   └── trained/                # 本课题自研模型各消融阶段与最终收敛最优权重
-└── outputs/                    # 交付物与工程桥接库
-    └── onnx/                   # 纯静态部署模型：sot_template.onnx 与 sot_search.onnx
+D:\\PyProjects\\不知道取什么名字/ (推荐命名: SOT-Benchmark-Zoo 或 SOT_Tracking_Baselines)
+├── README.md                   # 本文件：纯基线算法库定位、收录清单与目录规范
+├── WORKFLOW.md                 # 核心工作流：逐个克隆源码、下载权重、运行打点与导出图表的保姆级指南
+├── datasets/                   # [Junction 软链接] 映射至主工程 datasets/，直接读取 Anti-UAV 航迹
+├── algorithms/                 # ★ 核心对比算法官方开源源码集中克隆目录
+│   ├── LightTrack/             # ICCV 2021 Oral (微软亚洲研究院轻量 NAS 跟踪器)
+│   ├── FEAR-Tracker/           # ECCV 2022 (动态双模板轻量跟踪器)
+│   ├── NanoTrack/              # ICCV 2021 (超轻量级移动端跟踪器)
+│   ├── OSTrack/                # ECCV 2022 (单流 Vision Transformer 轻量版 OSTrack-Tiny)
+│   ├── pysot/                  # CVPR 2019 Oral (商汤经典 SiamRPN++, DaSiamRPN)
+│   ├── SiamCAR/                # CVPR 2020 (经典无锚框 Siamese 跟踪器)
+│   └── traditional/            # 传统滤波对拍脚本 (KCF, DSST)
+├── checkpoints/                # 对应各算法官方权威预训练权重 (*.pth)
+│   ├── lighttrack/             # lighttrack_mobile.pth
+│   ├── fear/                   # FEAR_M.pth / FEAR_L.pth
+│   ├── nanotrack/              # nanotrack.pth
+│   ├── ostrack/                # ostrack_tiny.pth
+│   └── pysot/                  # siamrpn_r50_l234_dwxcorr.pth
+├── evaluation/                 # 统一评测框架与算法适配层 (统一接口)
+│   ├── run_eval.py             # 统一入口批量评测脚本 (支持跑单模型或一键跑全量模型)
+│   ├── trackers/               # 各算法统一适配器 (继承自 BaseTracker，统一输入输出)
+│   │   ├── base_tracker.py     # 纯虚适配基类 (init / track)
+│   │   ├── lighttrack_adapter.py
+│   │   ├── fear_adapter.py
+│   │   ├── nanotrack_adapter.py
+│   │   ├── ostrack_adapter.py
+│   │   ├── pysot_adapter.py
+│   │   └── traditional_adapter.py
+│   └── metrics.py              # OPE 协议核算函数 (AUC, DP@20px, 纯 GPU 时延与绘图)
+└── results/                    # 实验成果沉淀 (每次运行自动归档，不覆盖历史)
+    ├── raw_predictions/        # 各算法逐帧预测框输出 (*.txt)
+    ├── figures/                # 硕士论文高清对比图 (Success Plots, Precision Plots)
+    └── benchmark_summary.csv   # 最终核心指标汇总三线大表 (AUC, CLE, 时延, FPS, 参数量, FLOPs)
 ```
 
 ---
 
-## 二、 学术对比体系：实测 8 款 + 文献 3 款豪华阵容
+## 二、 纳入横评的开源算法梯队清单
 
-本项目构建了层次极其分明的学术实验体系，彻底封死答辩与盲审专家的各类质疑：
-
-```
-                             ┌──────────────────────────────────────┐
-                             │       可见光单目标跟踪学术对比体系        │
-                             └──────────────────────────────────────┘
-                                                 │
-         ┌───────────────────────────┬───────────┴───────────┬───────────────────────────┐
-         ▼                           ▼                       ▼                           ▼
-  【第一梯队：传统滤波】       【第二梯队：经典重型深度】    【第三梯队：同级轻量顶会】    【第四梯队：重参数化前沿】
-  • KCF (TPAMI 2015)          • DaSiamRPN (ECCV 2018)     • NanoTrack (ICCV 2021)     • RepViT-Track (CVPR 2024)
-  • DSST (工程自研 C++)       • SiamRPN++ (CVPR 2019)     • FEAR-L (ECCV 2022)        (直接回应仅换骨干疑问)
-  (证明深度学习代差优势)      (证明轻量化极致能效比)       • OSTrack-Tiny (ECCV 2022)               │
-                                                          • LightTrack (ICCV/TPAMI)                 ▼
-                                                          (同算力级核心竞品横评)      【本课题：Rep-LightTrack】
-                                                                                     (自研创新多模块协同网络)
-```
-
-### 锦上添花：大表末尾文献对比（免代码调试）
-在最终汇总的论文大表中，表底补充 3 款业界知名大模型（TransT、SwinTrack、SiamFC）作为背景文献参考数据，使全表呈现 **11~12 款算法的豪华学术阵容**。
+| 梯队分类 | 算法名称 | 会议/期刊出处 | 官方开源 GitHub 仓库 | 预训练模型与权重类型 |
+| :--- | :--- | :--- | :--- | :--- |
+| **传统滤波基准** | **KCF / DSST** | TPAMI 2015 / 2017 | `opencv-python` / 纯数学实现 | 纯数学无权重 |
+| **经典重型深度** | **DaSiamRPN** | ECCV 2018 | `https://github.com/foolwood/DaSiamRPN` | 官方 PyTorch 权重 |
+| **经典重型深度** | **SiamRPN++** | CVPR 2019 Oral | `https://github.com/STVIR/pysot` | ResNet-50 骨干官方权重 |
+| **经典无锚孪生** | **SiamCAR** | CVPR 2020 | `https://github.com/ohhhyeahhh/SiamCAR` | 官方 ResNet-50 权重 |
+| **同级轻量顶会** | **NanoTrack** | ICCV 2021 | `https://github.com/HonglinChu/NanoTrack` | 官方 NanoTrack 权重 (0.4M) |
+| **同级轻量顶会** | **LightTrack** | ICCV 2021 Oral | `https://github.com/researchmm/LightTrack` | 官方 MobileNet-NAS 权重 (1.6M) |
+| **同级轻量顶会** | **FEAR-L** | ECCV 2022 | `https://github.com/vasgaowei/FEAR-Tracker` | 官方 FEAR 权重 (1.2M) |
+| **同级轻量顶会** | **OSTrack-Tiny** | ECCV 2022 | `https://github.com/bactrl/OSTrack` | 官方 OSTrack-Tiny 权重 (5.8M) |
 
 ---
 
-## 三、 本课题自研创新网络：`Rep-LightTrack` (LightUAV-SOT)
+## 三、 数据保存与论文图表生产机制
 
-针对长焦对空反无人机中目标弱小、长焦剧烈晃动、空地杂波强烈的痛点，网络设计了三大核心创新：
-1. **RepViT 结构重参数化骨干**：训练态多分支（$3\\times 3$ 卷积 + $1\\times 1$ 卷积 + 残差）丰富表征，部署态等价折叠为单路 $3\\times 3$ 卷积，保障端侧极致推断；
-2. **MFFN 多尺度跨层细节融合**：融合浅层高分辨率细节特征与深层抽象语义特征，防止弱小无人机在深层下采样中淹没；
-3. **DAC-Head 动态加权相关匹配头**：引入空间与通道自适应双重注意力门控，抑制云层与地表林木背景伪峰，强化目标主体关联度。
-
----
-
-## 四、 成果交接机制（如何与上位机 C++ 工程无缝桥接）
-
-本工作区最终收官时，执行 `experiments/export_onnx.py` 将自研收敛最优权重导出为纯静态 ONNX：
-- `outputs/onnx/sot_template.onnx`（输入尺寸固定：`1x3x127x127`，RGB 归一化）
-- `outputs/onnx/sot_search.onnx`（输入尺寸固定：`1x3x255x255`，RGB 归一化）
-
-生成的文件直接拷贝回 [RGB_PTZ_Integrated/models/](file:///d:/PyProjects/RGB_PTZ_Integrated/models/)，由上位机的 `OnnxSotTracker` 动态加载并以 DirectML 硬件加速运行，实现 $\\ge 60\\text{ FPS}$ 伺服闭环！
+1. **逐帧轨迹保存**：每个算法在 20 组航迹上跑完后，将逐帧预测框 `[x, y, w, h]` 保存在 `results/raw_predictions/<算法名>/<序列名>.txt`；
+2. **标准指标核算**：
+   - **Success (AUC)**：IoU 阈值从 0 到 1 的曲线下面积；
+   - **Precision (DP@20px)**：中心位置误差小于 20 像素的帧数比例；
+   - **GPU 纯推理时延 (ms)** 与 **端到端 FPS**；
+3. **成果导出**：
+   - 自动生成符合 IEEE / CVPR 标准配色的 Success Plot 与 Precision Plot；
+   - 自动导出 `benchmark_summary.csv` 与 Markdown 三线大表。
 """
 
-WORKFLOW_CONTENT = """# 可见光单目标跟踪基准评测、自研创新训练与消融实验标准工作流 (WORKFLOW.md)
+WORKFLOW_CONTENT = """# SOT 基线算法库环境配置、代码拉取与批量评测工作流 (WORKFLOW.md)
 
-> 本工作流是本工作区研发与实验推进的**保姆级、可执行操作指南**。  
-> 按照以下 6 大标准阶段依次执行，即可完整产出硕士论文所需的所有学术图表、大表数据与上位机生产级 ONNX 模型。
+> 本指南用于指导如何在当前工作区中**逐个下载各开源跟踪算法、放置预训练权重、运行统一打点并沉淀指标数据**。
 
 ---
 
-## 阶段一：运行环境激活与专属依赖打通
+## 阶段一：运行环境激活与通用工具库就绪
 
-本项目直接复用已验证 Blackwell RTX 5070 (sm_120) 硬件特性的 Python 3.11 专属环境：
+直接复用主工程打通的 `anti_uav_yolo` 环境（Python 3.11 + PyTorch 2.14.1 + CUDA 13.0，适配 RTX 5070）：
 
-### 1.1 激活专属环境
-在终端执行：
 ```powershell
-# 切换至专属环境
+# 1. 激活专属环境
 & "D:\\miniconda3\\Scripts\\activate.bat" anti_uav_yolo
 
-# 验证 GPU 与 PyTorch 状态
-python -c "import torch; print('PyTorch:', torch.__version__, '| GPU:', torch.cuda.get_device_name(0))"
-# 预期输出: PyTorch: 2.14.1+cu130 | GPU: NVIDIA GeForce RTX 5070 Laptop GPU
-```
-
-### 1.2 增量安装跟踪评测与通用学术库
-```powershell
-pip install easydict pyyaml timm opencv-python matplotlib pandas scipy got10k openpyxl onnx onnxruntime-directml
+# 2. 补装跟踪评测与通用依赖库
+pip install easydict pyyaml timm opencv-python matplotlib pandas scipy got10k openpyxl yacs
 ```
 
 ---
 
-## 阶段二：基线算法源码拉取与权威预训练权重归档
+## 阶段二：逐个拉取开源对比算法源码与下载官方权重
 
-将各对比算法统一拉取至 `tracking_benchmarks/` 对应梯队目录，并下载其官方预训练权重至 `checkpoints/pretrained/`：
+在 `algorithms/` 目录下克隆各算法官方仓库，并将下载的权重文件放入 `checkpoints/`：
 
-| 算法名称 | 建议目录 | 官方 GitHub 仓库 | 预训练模型与权重放置路径 |
-| :--- | :--- | :--- | :--- |
-| **LightTrack** | `tracking_benchmarks/03_lightweight/LightTrack` | `https://github.com/researchmm/LightTrack` | `checkpoints/pretrained/lighttrack_mobile.pth` |
-| **FEAR-Tracker** | `tracking_benchmarks/03_lightweight/FEAR-Tracker` | `https://github.com/vasgaowei/FEAR-Tracker` | `checkpoints/pretrained/FEAR_M.pth` |
-| **NanoTrack** | `tracking_benchmarks/03_lightweight/NanoTrack` | `https://github.com/HonglinChu/NanoTrack` | `checkpoints/pretrained/nanotrack.pth` |
-| **OSTrack** | `tracking_benchmarks/03_lightweight/OSTrack` | `https://github.com/bactrl/OSTrack` | `checkpoints/pretrained/ostrack_tiny.pth` |
-| **PySOT (SiamRPN++)** | `tracking_benchmarks/02_heavyweight/pysot` | `https://github.com/STVIR/pysot` | `checkpoints/pretrained/siamrpn_r50_l234_dwxcorr.pth` |
+### 2.1 拉取 LightTrack (ICCV 2021 Oral)
+```powershell
+cd algorithms
+git clone https://github.com/researchmm/LightTrack.git
+# 官方预训练权重 lighttrack_mobile.pth 下载后放入:
+# checkpoints/lighttrack/lighttrack_mobile.pth
+```
+
+### 2.2 拉取 FEAR-Tracker (ECCV 2022)
+```powershell
+git clone https://github.com/vasgaowei/FEAR-Tracker.git
+# 官方预训练权重 FEAR_M.pth / FEAR_L.pth 下载后放入:
+# checkpoints/fear/FEAR_M.pth
+```
+
+### 2.3 拉取 NanoTrack (ICCV 2021)
+```powershell
+git clone https://github.com/HonglinChu/NanoTrack.git
+# 官方预训练权重 nanotrack.pth 下载后放入:
+# checkpoints/nanotrack/nanotrack.pth
+```
+
+### 2.4 拉取 PySOT (含 SiamRPN++ / DaSiamRPN)
+```powershell
+git clone https://github.com/STVIR/pysot.git
+# 官方预训练权重 siamrpn_r50_l234_dwxcorr.pth 下载后放入:
+# checkpoints/pysot/siamrpn_r50_l234_dwxcorr.pth
+```
+
+### 2.5 拉取 OSTrack (ECCV 2022)
+```powershell
+git clone https://github.com/bactrl/OSTrack.git
+# 官方预训练权重 ostrack_tiny.pth 下载后放入:
+# checkpoints/ostrack/ostrack_tiny.pth
+```
 
 ---
 
-## 阶段三：一键执行自动化基线横向打点（OPE 协议）
+## 阶段三：运行统一评测脚本批量打点
 
-编写统一评测入口 `experiments/eval_benchmarks.py`，全自动读取 [datasets/Anti-UAV/tracking/](file:///d:/PyProjects/不知道取什么名字/datasets/Anti-UAV/tracking/) 序列：
+通过 `evaluation/run_eval.py` 驱动各算法在 [datasets/Anti-UAV/tracking/](file:///d:/PyProjects/不知道取什么名字/datasets/Anti-UAV/tracking/) 序列上运行：
 
-### 3.1 运行评测脚本
+### 3.1 单个算法快速试跑验证
 ```powershell
-python experiments/eval_benchmarks.py --dataset_dir datasets/Anti-UAV/tracking --output_dir results/raw_csv
+# 仅评测 LightTrack
+python evaluation/run_eval.py --tracker lighttrack --dataset_dir datasets/Anti-UAV/tracking
 ```
 
-### 3.2 自动产出成果
-1. **原始打点数据**：`results/raw_csv/` 中保存各算法在每组航迹上的逐帧中心误差 (CLE) 与 IoU 重叠度；
-2. **论文高清曲线**：`results/figures/` 中自动绘制 `success_plots.png` 与 `precision_plots.png`；
-3. **学术三线大表**：`results/tables/benchmark_summary.md` 自动聚合 Success (AUC)、Precision (DP@20px) 与 GPU 单帧推理时延。
+### 3.2 全量基线一键批量横评打点
+```powershell
+# 一键批量评测全部已就绪算法，自动计时并核算指标
+python evaluation/run_eval.py --tracker all --dataset_dir datasets/Anti-UAV/tracking
+```
 
 ---
 
-## 阶段四：自研网络 `Rep-LightTrack` 两阶段端到端训练
+## 阶段四：产出并检视评测指标与图表
 
-自研网络代码放置于 `models/lightuav_sot/`。采用分层科学初始化与两阶段训练流水线：
-
-### 4.1 阶段一：头部预热训练（Warm-up 阶段，10 Epochs）
-冻结骨干网络，仅训练自研 MFFN 细节融合层与 DAC-Head 动态匹配头：
-```powershell
-python experiments/train_lightuav.py --stage 1 --epochs 10 --batch_size 32 --lr 1e-3 --freeze_backbone
-```
-
-### 4.2 阶段二：全网络联合微调（Joint Fine-tuning 阶段，40 Epochs）
-解冻全部网络权重，针对长焦反无人机空天背景、大角度机动完成域适应对齐：
-```powershell
-python experiments/train_lightuav.py --stage 2 --epochs 40 --batch_size 16 --lr 1e-4 --unfreeze_all --pretrained checkpoints/trained/stage1_best.pth
-```
-收敛最优权重自动保存至：`checkpoints/trained/lightuav_best.pth`。
-
----
-
-## 阶段五：第 3 章分级递进消融实验矩阵（Ablation Study Matrix）
-
-执行自动化消融调度脚本 `experiments/run_ablation.py`，一键运行 5 组实验并打点：
-- **Exp 1**：Baseline (LightTrack 原版)
-- **Exp 2**：Baseline + Rep-Backbone (重参数化骨干)
-- **Exp 3**：Baseline + Rep-Backbone + MFFN (浅层多尺度细节融合)
-- **Exp 4**：Baseline + Rep-Backbone + MFFN + DAC-Head (动态相关匹配头)
-- **Exp 5**：Full Model (Rep-LightTrack，完整集成模型)
-
-脚本将自动生成硕士论文必备的消融数据大表 `results/tables/ablation_matrix.md` 与雷达对比图。
-
----
-
-## 阶段六：纯静态 ONNX 解耦导出与上位机 C++ 交付
-
-自研网络训练收敛后，执行解耦导出脚本：
-```powershell
-python experiments/export_onnx.py --weights checkpoints/trained/lightuav_best.pth --output_dir outputs/onnx
-```
-
-### 6.1 导出标准与验证
-1. **重参数化结构折叠**：自动将训练态多分支等价融合为单路平铺的 $3\\times 3$ 卷积；
-2. **纯静态双分支**：
-   - `outputs/onnx/sot_template.onnx` (`1x3x127x127`)
-   - `outputs/onnx/sot_search.onnx` (`1x3x255x255`)
-3. **交付物回归**：
-   将导出的两份 `.onnx` 拷贝至 [D:\\PyProjects\\RGB_PTZ_Integrated\\models\\](file:///d:/PyProjects/RGB_PTZ_Integrated/models/)，即可无缝启动上位机 DirectML 60 FPS 实机闭环伺服！
+运行完毕后，检查成果沉淀目录：
+1. **指标汇总大表**：打开 `results/benchmark_summary.csv`，查看各算法的 Success(AUC)、DP@20px、GPU耗时与吞吐帧率；
+2. **学术曲线图**：打开 `results/figures/success_plots.png` 与 `results/figures/precision_plots.png`；
+3. **逐帧原始数据**：`results/raw_predictions/` 下已妥善留存每帧的预测位置，供后续撰写论文时按需绘制跟踪轨迹对拍图。
 """
 
 def main():
     TARGET_DIR.mkdir(parents=True, exist_ok=True)
     
+    # 清理掉之前可能创建的多余子目录 (保持纯净)
+    obsolete_dirs = [
+        TARGET_DIR / "models",
+        TARGET_DIR / "outputs",
+        TARGET_DIR / "tracking_benchmarks"  # 改为更直观的 algorithms/
+    ]
+    for d in obsolete_dirs:
+        if d.exists() and d.is_dir():
+            shutil.rmtree(d)
+            print(f"[CLEAN] Removed obsolete dir: {d.name}")
+            
+    # 创建纯基线评测的标准子目录
+    required_dirs = [
+        TARGET_DIR / "algorithms" / "traditional",
+        TARGET_DIR / "checkpoints" / "lighttrack",
+        TARGET_DIR / "checkpoints" / "fear",
+        TARGET_DIR / "checkpoints" / "nanotrack",
+        TARGET_DIR / "checkpoints" / "ostrack",
+        TARGET_DIR / "checkpoints" / "pysot",
+        TARGET_DIR / "evaluation" / "trackers",
+        TARGET_DIR / "results" / "raw_predictions",
+        TARGET_DIR / "results" / "figures"
+    ]
+    for rd in required_dirs:
+        rd.mkdir(parents=True, exist_ok=True)
+        
+    print("[OK] Directories structured for Pure Baseline Zoo.")
+    
+    # 写入规范的 README.md 与 WORKFLOW.md
     readme_path = TARGET_DIR / "README.md"
     readme_path.write_text(README_CONTENT.strip(), encoding="utf-8")
-    print(f"[OK] Successfully created: {readme_path}")
+    print(f"[OK] Successfully updated: {readme_path}")
     
     workflow_path = TARGET_DIR / "WORKFLOW.md"
     workflow_path.write_text(WORKFLOW_CONTENT.strip(), encoding="utf-8")
-    print(f"[OK] Successfully created: {workflow_path}")
+    print(f"[OK] Successfully updated: {workflow_path}")
 
 if __name__ == "__main__":
     main()
