@@ -230,20 +230,21 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #35）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md) 与 [checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #36）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)、[checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md) 与 [checkpoints/archive/checkpoint_archive_36.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_36.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-02 #36
+### Checkpoint 2026-11-02 #37
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：方案 04 自研创新架构确立、两阶段训练流水线设计、基线横评体系升级、Git 远程推送
+- **类型**：SOT 纯算法基准专属工作区独立构建、标准化目录树与保姆级工作流归档、Junction 数据集零拷贝共享、Git 远程推送
 - **核心内容**：
-  1. **方案 04 核心理论与架构全面重塑**：
-     - 在 [待执行方案/04_基于轻量深度网络的可见光云台单目标跟踪实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04_基于轻量深度网络的可见光云台单目标跟踪实操方案.md) 中正式确立自研网络 `LightUAV-SOT`：融合结构重参数化骨干（Rep-Backbone）、浅层细节与深层语义自适应跨层融合（MFFN）、动态加权相关匹配头（DAC-Head）；
-     - 明确“Benchmark First”策略：将自研 DSST、SiamCAR、LightTrack 纳入统一基准横向打点，为学术论文奠定绝对 Baseline；
-     - 确立两阶段训练流水线：骨干继承 ImageNet 预训练权重防止梯度发散，针对 Anti-UAV 空天弱小目标进行正负样本对切片、时序数据增强与端到端微调。
-  2. **轻量检查点归档与同步**：
-     - 归档 Checkpoint #35 至 `checkpoints/archive/checkpoint_archive_35.md`，更新阶段五 Roadmap 为 6 个细分技术节点。
+  1. **算法工作区独立构建**：
+     - 在 `D:\PyProjects\不知道取什么名字` 初始化纯算法科研与横评基准工程规范，建立 `tracking_benchmarks/`、`models/`、`experiments/`、`results/`、`checkpoints/` 与 `outputs/` 目录树；
+     - 通过 Windows 系统级 Junction 软链接将 `datasets/` 映射至主工程数据集，实现 20 组真机长焦 Anti-UAV 航迹零拷贝跨工作区无缝共享；
+  2. **标准化指引与工作流交付**：
+     - 生成 [README.md](file:///d:/PyProjects/不知道取什么名字/README.md)（学术体系定位、8+3 款算法阵容与交付机制）与 [WORKFLOW.md](file:///d:/PyProjects/不知道取什么名字/WORKFLOW.md)（环境激活、源码拉取、自动化打点、自研两阶段训练、消融矩阵与 ONNX 导出 6 大标准阶段）；
+     - 在主工程编写并纳编初始化工具 [scripts/init_tracking_benchmark_workspace.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/init_tracking_benchmark_workspace.py)；
   3. **Git 同步与远程推送**：
      - 执行 `git add`、规范化语义提交并推送至远程仓库（`git push origin main`）。
+
 
 
 
