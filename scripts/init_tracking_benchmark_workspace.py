@@ -10,14 +10,14 @@ import os
 import shutil
 from pathlib import Path
 
-TARGET_DIR = Path(r"D:\PyProjects\不知道取什么名字")
+TARGET_DIR = Path(r"D:\PyProjects\SOT_Tracking_Baselines")
 
-README_CONTENT = """# 可见光单目标跟踪开源基线算法库与横向评测平台 (SOT-Benchmark-Zoo)
+README_CONTENT = """# 可见光单目标跟踪开源基线算法库与横向评测平台 (SOT_Tracking_Baselines)
 
 > **工程定位**：面向地面/车载长焦可见光反无人机（Anti-UAV）及通用单目标跟踪场景的**纯开源基线算法集中纳编、环境部署、统一评测与实验指标沉淀平台**。  
 > **核心原则**：**专注开源对比算法（Baselines）**。本工程不包含任何自研创新模型开发，专注于将学术界与工业界用于对比的经典、顶会开源跟踪算法集中抓取、跑通、评测、打点并沉淀客观数据。  
 > **算力硬件与环境**：NVIDIA GeForce RTX 5070 Laptop GPU（Blackwell 架构，PyTorch 2.14.1 + CUDA 13.0，Conda 环境：`anti_uav_yolo`）  
-> **评测基准数据集**：[datasets/Anti-UAV/tracking/](file:///d:/PyProjects/不知道取什么名字/datasets/Anti-UAV/tracking/)（20 组真机长焦飞行连续序列 + 官方逐帧 Ground Truth，已通过系统 Junction 零拷贝软链接打通）
+> **评测基准数据集**：[datasets/Anti-UAV/tracking/](file:///d:/PyProjects/SOT_Tracking_Baselines/datasets/Anti-UAV/tracking/)（20 组真机长焦飞行连续序列 + 官方逐帧 Ground Truth，已通过系统 Junction 零拷贝软链接打通）
 
 ---
 
@@ -26,7 +26,7 @@ README_CONTENT = """# 可见光单目标跟踪开源基线算法库与横向评�
 工程所有目录均服务于“**扒算法源码 -> 下官方权重 -> 统一接口评测 -> 保存预测与指标**”：
 
 ```text
-D:\\PyProjects\\不知道取什么名字/ (推荐命名: SOT-Benchmark-Zoo 或 SOT_Tracking_Baselines)
+D:\\PyProjects\\SOT_Tracking_Baselines/
 ├── README.md                   # 本文件：纯基线算法库定位、收录清单与目录规范
 ├── WORKFLOW.md                 # 核心工作流：逐个克隆源码、下载权重、运行打点与导出图表的保姆级指南
 ├── datasets/                   # [Junction 软链接] 映射至主工程 datasets/，直接读取 Anti-UAV 航迹
