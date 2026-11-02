@@ -212,12 +212,13 @@ flowchart LR
 - [x] **03-5 C++ 多规格模型免重启热切换**：`OnnxDetector` 互斥锁加固与界面下拉菜单无缝实时重载。
 - [ ] **03-6 VaL_CNN 抗虚警二级校验**：放宽初筛低门限（0.2）同时抑制背景虚警（待补充数据集测试）。
 
-### 阶段五：基于轻量深度网络的可见光单目标跟踪（方案 04，已纳编）
-- [ ] **04-1 LightTrack / RepSOT 结构选型与静态 ONNX 导出**：解耦模板与搜索分支，纯卷积静态算子。
-- [ ] **04-2 ISotTracker 接口与 OnnxSotTracker DirectML 运行时构建**：面向对象接口设计，单帧推理 $\le 4.0\text{ ms}$。
-- [ ] **04-3 局部快速前处理与 RGB 3通道高维色彩特征提取**：充分利用可见光色彩辨识度，攻克地表杂波与形变漂移。
-- [ ] **04-4 离线工具链闭环评测**：编写 `test_sot.cpp` 与标准数据集对拍，量化对比 DSST。
-- [ ] **04-5 ObjectTracker 内核热切换接入与 AMFT 协同状态机闭环**：置信度无缝映射，异常单次唤醒检测重捕。
+### 阶段五：基于轻量深度网络的可见光单目标跟踪（方案 04，当前推进 P0）
+- [ ] **04-1.1 跟踪评测流水线搭建**：编写 `scripts/eval_sot_benchmarks.py`，加载 [datasets/Anti-UAV/tracking/](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/Anti-UAV/tracking/) 序列与 Ground Truth。
+- [ ] **04-1.2 传统与开源基线横评**：统一拉取自研 [DsstCore](file:///d:/PyProjects/RGB_PTZ_Integrated/dsstcore.h)、SiamCAR、LightTrack 进行 Success/Precision/FPS 打点（Benchmark First）。
+- [ ] **04-2.1 自研轻量 SOT 网络搭建**：在 `models/sot/` 构建包含 Rep-Backbone、MFFN 多尺度细节融合与 DAC-Head 动态匹配头的自研架构。
+- [ ] **04-2.2 样本对生成与两阶段训练**：编写样本对切片与空天时序增强管线，基于 ImageNet 预训练骨干在 RTX 5070 GPU 上端到端训练收敛。
+- [ ] **04-3.1 学术消融与曲线绘制**：完成 4 组模块消融对比，生成学术三线表与 AUC/CLE 曲线图。
+- [ ] **04-4.1 纯静态 ONNX 解耦与 DirectML 部署**：导出 `sot_template.onnx` 与 `sot_search.onnx`，实现 C++ `OnnxSotTracker` 并闭环伺服。
 
 ### 阶段六：光电跟踪系统 RK3588 边缘端量化与工程移植实操方案（方案 05，终极规划）
 - [ ] **05-1 真实长焦工况校准集与全系统模型 INT8 量化**：YOLO 与 LightTrack 统一定点量化为 RKNN。
@@ -229,21 +230,20 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #34）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md) 与 [checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #35）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md) 与 [checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-02 #35
+### Checkpoint 2026-11-02 #36
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：感知体系定性澄清（仅目标检测为深度学习，目标跟踪仍为传统算法）、检查点与待办状态同步、Git 远程推送
+- **类型**：方案 04 自研创新架构确立、两阶段训练流水线设计、基线横评体系升级、Git 远程推送
 - **核心内容**：
-  1. **系统算法架构与物理边界明确定性**：
-     - **目标检测阶段**：基于深度学习算法（YOLOv8/YOLO11，DirectML GPU 加速，5 款纯静态 ONNX 已入库，纯 C++ NMS），常态 0 FPS 休眠按需单次唤醒；
-     - **目标跟踪阶段**：仍采用传统相关滤波算法（[DsstCore](file:///d:/PyProjects/RGB_PTZ_Integrated/dsstcore.h)，纯 C++17/OpenCV 连续内存实现），高频独占运行并输出单一脱靶量；
-     - **调度大脑**：[AMFTEvaluator](file:///d:/PyProjects/RGB_PTZ_Integrated/amftevaluator.cpp) 三维综合可靠度评估动态连接传统跟踪与深度检测；
-     - **后续规划**：可见光深度单目标跟踪（LightTrack/RepSOT）归属于方案 04，尚未实装。
-  2. **状态快照与待办清单客观校准**：
-     - 刷新方案 03 落地 Checklist，准确反映 03-3-B、03-4、03-5 已闭环状态；
-     - 归档 Checkpoint #34 至 `checkpoints/archive/checkpoint_archive_34.md`，保持根目录 `checkpoint.md` 唯一事实源轻量化。
+  1. **方案 04 核心理论与架构全面重塑**：
+     - 在 [待执行方案/04_基于轻量深度网络的可见光云台单目标跟踪实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04_基于轻量深度网络的可见光云台单目标跟踪实操方案.md) 中正式确立自研网络 `LightUAV-SOT`：融合结构重参数化骨干（Rep-Backbone）、浅层细节与深层语义自适应跨层融合（MFFN）、动态加权相关匹配头（DAC-Head）；
+     - 明确“Benchmark First”策略：将自研 DSST、SiamCAR、LightTrack 纳入统一基准横向打点，为学术论文奠定绝对 Baseline；
+     - 确立两阶段训练流水线：骨干继承 ImageNet 预训练权重防止梯度发散，针对 Anti-UAV 空天弱小目标进行正负样本对切片、时序数据增强与端到端微调。
+  2. **轻量检查点归档与同步**：
+     - 归档 Checkpoint #35 至 `checkpoints/archive/checkpoint_archive_35.md`，更新阶段五 Roadmap 为 6 个细分技术节点。
   3. **Git 同步与远程推送**：
      - 执行 `git add`、规范化语义提交并推送至远程仓库（`git push origin main`）。
+
 
 
