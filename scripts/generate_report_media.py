@@ -104,7 +104,7 @@ def main():
         # 顶部深色 HUD 栏
         cv2.rectangle(vis, (0, 0), (w_out, 38), (20, 20, 20), -1)
         cv2.line(vis, (0, 38), (w_out, 38), (0, 200, 100), 1)
-        vis = draw_text_cn(vis, "光电吊舱红外侦搜 | AI目标检测与自适应跟踪系统", (12, 8),
+        vis = draw_text_cn(vis, "光电云台可见光跟踪 | AI目标检测与自适应协同系统", (12, 8),
                            font_size=15, color_bgr=(0, 255, 128), bold=True)
         vis = draw_text_cn(vis, f"帧序号: {i:04d}/399", (w_out - 140, 9),
                            font_size=14, color_bgr=(200, 200, 200), bold=False)
@@ -135,16 +135,16 @@ def main():
     sw, sh = int(gw * scale_480), int(gh * scale_480)
     cx, cy = sx + sw // 2, sy + sh // 2
     
-    # ------------------ 面板 A: 原始红外图像 ------------------
+    # ------------------ 面板 A: 原始可见光视频帧 ------------------
     p1 = f0_scaled.copy()
     # 顶部标题栏
     cv2.rectangle(p1, (0, 0), (pw, 40), (25, 25, 25), -1)
     cv2.line(p1, (0, 40), (pw, 40), (80, 80, 80), 1)
-    p1 = draw_text_cn(p1, "(A) 原始红外视频帧 (256×256 分辨率)", (12, 9),
+    p1 = draw_text_cn(p1, "(A) 原始可见光视频帧 (256×256 分辨率)", (12, 9),
                       font_size=16, color_bgr=(240, 240, 240), bold=True)
     # 底部图例说明条
     cv2.rectangle(p1, (0, ph - 36), (pw, ph), (25, 25, 25), -1)
-    p1 = draw_text_cn(p1, "特征说明: 远距离无人机弱小目标，对比度低且伴随云层杂波", (12, ph - 27),
+    p1 = draw_text_cn(p1, "特征说明: 可见光长焦视频帧，目标伴随空域背景杂波", (12, ph - 27),
                       font_size=13, color_bgr=(180, 180, 180), bold=False)
     
     # ------------------ 面板 B: 目标检测与真值比对 ------------------

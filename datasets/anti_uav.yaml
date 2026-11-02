@@ -1,0 +1,11 @@
+# Anti-UAV 专属无人机目标检测数据集配置 (DUT Anti-UAV Detection)
+# 任务映射: 地空视轴仰拍无人机小目标检测 (Target: UAV)
+
+path: d:/PyProjects/RGB_PTZ_Integrated/datasets/Anti-UAV/detection
+train: train/images
+val: val/images
+test: val/images
+
+# 单类别无人机定义
+nc: 1
+names: ['UAV']

@@ -1,18 +1,16 @@
-对拍数据放置说明（离线验证用）
-=====================================
+地空背景弱小飞行器目标检测与跟踪基准数据集 (IRSTD_22) 说明
+========================================================================
 
-目录结构（把图像序列放进来即可）：
+1. 真实学术出处：
+   本目录数据来自知名公开学术基准：
+   《A Dataset for Infrared Image Dim-Small Aircraft Target Detection and Tracking Under Ground / Air Background》
+   （作者：Hui et al.，发布于 Science Data Bank / ScienceDB 权威科学数据平台）。
 
-  testdata/sequence01/
-    imgs/               ← 帧图，按文件名排序即可（支持 0000.bmp / 0001.png / frame_001.jpg 等）
-    initial_box.txt     ← 首帧目标框，一行四个整数：x y w h（左上角原点，单位像素）
+2. 物理存储位置（已归拢至 datasets 统管）：
+   datasets/IRSTD_22/
+   - 包含 01 ~ 22 共 22 个连续飞行序列、30 条航迹、16,000+ 帧图像与官方 Ground Truth 标注 (*_gt.txt)。
+   - 目标大多在 6x6 ~ 24x24 像素的微小尺度。
 
-说明：
-- 帧率/分辨率不限，几十帧就够；要求连续、目标始终在画面内（中途可短暂遮挡，正好测遮挡逻辑）。
-- initial_box.txt 请与 imgs/ 里第一帧对应；若暂时不标，我可以用一个默认框（画面中心 64x64）先跑通流程。
-- 该目录下的 imgs/ 已被 .gitignore 忽略（图片不入库，box 文件会入库）。
-
-生成 CSV 对拍结果的两个程序（我来写）：
-  tools/offline_runner --ref  ... → reference 原版 DSST 的输出
-  tools/offline_runner --port ... → 移植版 DsstCore 的输出
-两者 CSV 逐帧比较中心点误差，< 2px 视为移植正确。
+3. 目录联接说明：
+   本目录 (testdata/sequences) 为系统级 Junction 软链接，直接指向 datasets/IRSTD_22，
+   确保现有测试工具 (test_detector.cpp / test_amft.cpp 等) 零修改无缝兼容运行。

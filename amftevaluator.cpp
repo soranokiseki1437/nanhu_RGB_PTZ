@@ -131,7 +131,7 @@ float AMFTEvaluator::computeSBg(const cv::Rect2f& currentBox, const cv::Mat& ima
         return 0.5f;
     }
 
-    // 目标与环形背景特征提取（自适应双模：RGB 可见光使用 HSV 2D 颜色直方图，单通道红外使用 16-bin 灰度直方图）
+    // 目标与环形背景特征提取（RGB 图像使用 HSV 2D 颜色直方图）
     cv::Mat patchTarget = image(targetRoi);
     cv::Mat patchBg = image(bgRoi);
 
@@ -146,7 +146,7 @@ float AMFTEvaluator::computeSBg(const cv::Rect2f& currentBox, const cv::Mat& ima
     cv::Mat histTarget, histBg;
 
     if (image.channels() >= 3) {
-        // 可见光 RGB：转换至 HSV 空间，计算 H-S 2D 颜色直方图 (16 bins H, 8 bins S)
+        // 转换至 HSV 空间，计算 H-S 2D 颜色直方图 (16 bins H, 8 bins S)
         cv::Mat hsvTarget, hsvBg;
         cv::cvtColor(patchTarget, hsvTarget, cv::COLOR_BGR2HSV);
         cv::cvtColor(patchBg, hsvBg, cv::COLOR_BGR2HSV);
@@ -160,7 +160,7 @@ float AMFTEvaluator::computeSBg(const cv::Rect2f& currentBox, const cv::Mat& ima
         cv::calcHist(&hsvTarget, 1, channels, cv::Mat(), histTarget, 2, histSize, ranges, true, false);
         cv::calcHist(&hsvBg, 1, channels, maskBg, histBg, 2, histSize, ranges, true, false);
     } else {
-        // 红外热成像：单通道 16-bin 灰度直方图
+        // 单通道图像灰度直方图兜底
         int histSize = 16;
         float range[] = { 0.0f, 256.0f };
         const float* histRange = { range };

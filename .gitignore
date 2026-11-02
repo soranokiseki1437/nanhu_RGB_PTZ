@@ -61,6 +61,13 @@ test_detection_vis.png
 导出材料/
 周报素材/
 
-# ===== 数据集（仅保留 README.md 入库，大体积图片序列不入库） =====
+# ===== 数据集（仅保留说明与配置文件，大体积图片序列不入库） =====
 datasets/*
 !datasets/README.md
+!datasets/*.yaml
+
+# ===== Python 缓存 =====
+__pycache__/
+*.pyc
+*.pyo
+

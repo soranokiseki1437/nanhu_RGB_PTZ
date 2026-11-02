@@ -36,7 +36,7 @@ flowchart LR
 
 ---
 
-## 二、当前项目状态快照（2026-10-31 最新）
+## 二、当前项目状态快照（2026-11-02 最新）
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
@@ -97,20 +97,13 @@ flowchart LR
 
 ## 四、Git 状态深度体检与处置指引
 
-### 4.1 当前 Git 状态全景（`git status -s`）
+### 4.1 当前 Git 状态全景
+工作区代码、方案规范、离线验证工具链及学术材料已完成对齐，执行全量阶段提交与远程推送（`origin/main`）。
 
-```text
- M checkpoint.md (检查点刷新至 Checkpoint #15)
- M mainwindow.cpp (拔除 10 处双重 connect、COW 零拷贝优化、UI 状态文本一致性)
- M onnxdetector.cpp (loadModel/析构/isLoaded 加互斥锁保障多线程热切换安全)
-```
-
-### 4.2 诊断分析与建议处置方案
-
-| 现象分类 | 产生根因分析 | 推荐处置方案 | 对应 Git 命令 |
-| :--- | :--- | :--- | :--- |
-| **1. 生产代码加固与冗余拔除** | 完成 `OnnxDetector` 多线程互斥保护、拔除 10 处信号槽重复绑定、`displayImage` 155MB/s 零拷贝优化及状态机一致性。 | **提交入库**。闭环本次体检与去冗余成果。 | `git add onnxdetector.cpp mainwindow.cpp checkpoint.md`<br>`git commit -m "fix(core): 闭环OnnxDetector多线程互斥锁，拔除10处双重connect并优化COW零拷贝"` |
-| **2. 分支状态** | 工作区通过 Release 构建与全景验收测试，准备提交。 | **提交并推送**。 | `git push origin main` |
+### 4.2 处置方案与执行指引
+- **方案规范重命名**：方案 04、05 命名与权责重新对齐，拔除历史过渡痕迹；
+- **忽略规则精细化**：`.gitignore` 过滤 Python 缓存，保留 `datasets/README.md` 与 `datasets/anti_uav.yaml`；
+- **全量归档与同步**：执行规范语义提交并推送至远程仓库（`git push origin main`）。
 
 ---
 
@@ -236,24 +229,22 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #32）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 与 [checkpoints/archive/checkpoint_archive_31_32.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_32.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #33）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 与 [checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-10-31 #33
+### Checkpoint 2026-11-02 #34
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：反无人机前沿文献 (UAV-DETR) 深度剖析入库、横向对比三线大表构建与弱小目标损失函数探索方案纳编
+- **类型**：方案体系与工作区规范化重构、工具链与学术文献归档、全量阶段提交与远程推送
 - **核心内容**：
-  1. **前沿文献素材系统化收录与对比矩阵构建**：
-     - 在 [课题/论文碎片材料/反无人机目标检测前沿文献引用与对比.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/论文碎片材料/反无人机目标检测前沿文献引用与对比.md) 建立专题材料；
-     - 系统收录 2026 年最新前沿成果 **UAV-DETR (arXiv:2603.22841)** 标准 GB/T 7714 与 BibTeX 引用；
-     - 深度剖析其 WTConv 小波骨干、SWSA-IFI 编码器、ECFRFN 颈部及 Inner-CIoU + NWD 混合损失数学机理；
-     - 建立本系统 YOLO11/YOLOv8 与 UAV-DETR 在 DUT Anti-UAV 上的精度（mAP@50 / mAP@50:95）、召回率、推理时延（2.7ms vs 16.5ms）、伺服裕度、DirectML 静态 ONNX 及 RK3588 NPU 部署友好度的学术横评三线大表；
-     - 明确该论文在硕士论文第 1、2、3、5 章的引用与论证切入点；
-  2. **弱小目标边界框损失函数探索方案统筹纳编方案 06**：
-     - 在 [待执行方案/06_后续创新规划.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/06_后续创新规划.md) 确立“方案 11 弱小目标边界框损失函数选型与消融探索实操规划”专项储备，保持方案 03 专注基线交付；
-     - 针对 DUT Anti-UAV 80.9% 弱小目标导致的 IoU 剧烈抖动与梯度震荡痛点，确立候选损失函数池（基准 CIoU、Inner-CIoU、NWD、Inner-CIoU+NWD 混合损失）；
-     - 确立“探索阶段遵循实测驱动选型，哪个指标与弱小目标召回率最好就用哪个”的执行原则，且明确损失函数零额外推理耗时、不影响 2.7ms 极速推理与部署基线；
-  3. **小文件检查点与文献清单轻量维护**：
-     - Checkpoint #31 ~ #32 完整沉淀归档至 [checkpoints/archive/checkpoint_archive_31_32.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_32.md)；
-     - [课题/论文碎片材料/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/论文碎片材料/README.md) 同步登记前沿文献碎片材料编号 03。
+  1. **方案体系与工作区清洁重构**：
+     - 重命名重构方案 04（可见光深度单目标跟踪）与方案 05（RK3588 边缘端量化与工程移植），更新方案总览与执行推进管理规范；
+     - 完善 `.gitignore` 规则，加入 Python 缓存过滤并放行标准化数据集元数据与配置文件（`datasets/README.md`, `datasets/*.yaml`）；
+     - 拔除 [amftevaluator.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/amftevaluator.cpp) 注释中的历史过渡痕迹，维持纯净规范。
+  2. **离线工具链与学术材料归档**：
+     - 将数据转换、自动下载、格式校验、消融评估等工具脚本统一纳入版本管理；
+     - 归档 [reference/papers/](file:///d:/PyProjects/RGB_PTZ_Integrated/reference/papers/) 下 11 篇反无人机检测与跟踪学术支撑文献；
+     - 归档 [项目说明/系统3_RGB_PTZ_Integrated说明书.md](file:///d:/PyProjects/RGB_PTZ_Integrated/项目说明/系统3_RGB_PTZ_Integrated说明书.md)。
+  3. **检查点归档与 Git 提交推送**：
+     - 将 Checkpoint #33 归档至 [checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)，保持根目录 `checkpoint.md` 轻量化；
+     - 执行全量 `git add`、规范化语义提交并推送至 `origin/main`。
 
 
