@@ -40,11 +40,12 @@ flowchart LR
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
+| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO)；目标跟踪：传统算法 (DSST相关滤波)** | 当前版本中**仅目标检测阶段接入了深度学习算法**（YOLOv8/11，DirectML GPU 加速，5 款 ONNX 已入库）；**目标跟踪阶段仍采用传统相关滤波算法**（DsstCore 纯 C++17/OpenCV）并由 AMFT 三维可靠度评估进行状态机协同调度。深度单目标跟踪（LightTrack/RepSOT）列为后续方案 04。 |
 | **最新进展** | 🟢 **微调 (4款) 与从零训练 (YOLO11n 300轮) 100% 全量达成；前沿文献 (UAV-DETR) 与弱小目标损失函数探索储备纳编** | 4 款微调模型与 1 款 300 轮从零模型全量闭环归档；前沿成果 UAV-DETR 深度剖析与学术横评入库；弱小目标损失函数 (Inner-CIoU / NWD) 探索与实测选型方案统筹纳编方案 06 专项储备 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
-| **GPU 推理基准** | 🟢 **77.2~86.6 FPS (端到端) / 2.7~5.8ms (纯GPU)** | NVIDIA RTX 5070 Laptop GPU (DirectML/CUDA 硬件加速)：各微调模型纯推理耗时稳定在 2.7~5.8ms 极速区间，大幅优于 15ms 伺服安全窗口 |
-| **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 纯算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
-| **待执行核心任务** | 🟢 **方案 03 核心目标全部闭环！5 款部署级 ONNX 齐备入库** | 方案 03 所有检测模型训练与消融全部圆满交付；下一步可根据规划推进方案 04（可见光深度单目标跟踪 LightTrack/RepSOT 探索）或实机联调 |
+| **GPU 推理基准** | 🟢 **77.2~86.6 FPS (端到端) / 2.7~5.8ms (纯GPU)** | NVIDIA RTX 5070 Laptop GPU (DirectML/CUDA 硬件加速)：各微调检测模型纯推理耗时稳定在 2.7~5.8ms 极速区间，大幅优于 15ms 伺服安全窗口 |
+| **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
+| **待执行核心任务** | 🟢 **方案 03 核心目标全部闭环！5 款部署级 ONNX 齐备入库** | 方案 03 所有检测模型训练与消融全部圆满交付；下一步可推进方案 04（可见光深度单目标跟踪 LightTrack/RepSOT 实操）或 Step 7 实机联调 |
 | **Git 工作区状态** | 🟢 **良好** | 生产代码、训练脚本、四款微调权重库、学术文献库与标准化数据集均完整归档就位 |
 
 ---
@@ -65,8 +66,8 @@ flowchart LR
                                                                       │ QueuedConnection
                                                                       ▼
                                                              [ObjectTracker] (Worker 线程)
-                                                               - DsstCore (C++17/OpenCV 内核)
-                                                               - 3态机遮挡检测 + 9宫格重检测
+                                                               - DsstCore (C++17/OpenCV 传统相关滤波内核)
+                                                               - AMFT 三维可靠度评估 + 单次唤醒 YOLO 深度检测
                                                                - 异步 initSlot / processFrameSlot
                                                                - 卡尔曼滤波 (KF) 状态平滑与速度估计
                                                                       │
@@ -205,12 +206,11 @@ flowchart LR
 - [x] **03-3 四款候选模型领域微调流水线 (Phase 1 100% 达成)**：
   - **完成四款模型同构受控微调**：`yolo11n` (88.00% / 5.5MB)、`yolo11s` (91.22% / 19.2MB)、`yolov8n` (87.42% / 6.5MB)、`yolov8s` (91.40% / 22.5MB) 全量 80 轮收敛；
   - **核心资产完整归档**：4 份最优权重入库 [weights/finetuned/](file:///d:/PyProjects/RGB_PTZ_Integrated/weights/finetuned/)，4 份部署级静态 ONNX 入库 [models/](file:///d:/PyProjects/RGB_PTZ_Integrated/models/)，UI 动态热加载已全面支持；
-- [ ] **03-3-B 第二批次从零重新训练流水线 (Phase 2: Train from Scratch，当前首要任务)**：
-  - 启动命令 `& "D:\miniconda3\envs\anti_uav_yolo\python.exe" scripts/train_uav_detector.py --model all --mode scratch --epochs 80 --batch 16`；
-  - 依次纯基于 `*.yaml` 拓扑从零随机初始化重训 4 款模型，权重归档至 `weights/scratch/`，导出 `models/*_uav_scratch.onnx`，为硕士论文完成“微调 vs 从零”全维度消融对照；
-- [ ] **03-4 硕士论文 2×2×2 消融实验多维打点与选型论证**：在 2,600 张验证集上统一打点，量化核算 mAP@50、mAP@50-95、弱小目标召回率与推理时延，建立“代际(v8 vs 11) × 尺度(Nano vs Small) × 训练策略(微调 vs 从零)”全景学术三线大表。
-- [ ] **03-5 C++ 多规格模型免重启热切换**：`OnnxDetector` 互斥锁加固与界面下拉菜单无缝实时重载。
-- [ ] **03-6 VaL_CNN 抗虚警二级校验**：放宽初筛低门限（0.2）同时抑制背景虚警。
+- [x] **03-3-B 第二批次从零重新训练流水线 (Phase 2: Train from Scratch 验证)**：
+  - 完成 YOLO11n 300 轮从零训练闭环，权重归档至 `weights/scratch/`，导出 `models/yolo11n_uav_scratch.onnx`，为硕士论文完成“微调 vs 从零”全维度消融对照。
+- [x] **03-4 硕士论文 2×2×2 消融实验多维打点与选型论证**：在 2,600 张验证集上统一打点，量化核算 mAP@50、mAP@50-95、弱小目标召回率与推理时延，建立全景学术三线大表并完成 Word 报告。
+- [x] **03-5 C++ 多规格模型免重启热切换**：`OnnxDetector` 互斥锁加固与界面下拉菜单无缝实时重载。
+- [ ] **03-6 VaL_CNN 抗虚警二级校验**：放宽初筛低门限（0.2）同时抑制背景虚警（待补充数据集测试）。
 
 ### 阶段五：基于轻量深度网络的可见光单目标跟踪（方案 04，已纳编）
 - [ ] **04-1 LightTrack / RepSOT 结构选型与静态 ONNX 导出**：解耦模板与搜索分支，纯卷积静态算子。
@@ -229,22 +229,21 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #33）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 与 [checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #34）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md) 与 [checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-02 #34
+### Checkpoint 2026-11-02 #35
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：方案体系与工作区规范化重构、工具链与学术文献归档、全量阶段提交与远程推送
+- **类型**：感知体系定性澄清（仅目标检测为深度学习，目标跟踪仍为传统算法）、检查点与待办状态同步、Git 远程推送
 - **核心内容**：
-  1. **方案体系与工作区清洁重构**：
-     - 重命名重构方案 04（可见光深度单目标跟踪）与方案 05（RK3588 边缘端量化与工程移植），更新方案总览与执行推进管理规范；
-     - 完善 `.gitignore` 规则，加入 Python 缓存过滤并放行标准化数据集元数据与配置文件（`datasets/README.md`, `datasets/*.yaml`）；
-     - 拔除 [amftevaluator.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/amftevaluator.cpp) 注释中的历史过渡痕迹，维持纯净规范。
-  2. **离线工具链与学术材料归档**：
-     - 将数据转换、自动下载、格式校验、消融评估等工具脚本统一纳入版本管理；
-     - 归档 [reference/papers/](file:///d:/PyProjects/RGB_PTZ_Integrated/reference/papers/) 下 11 篇反无人机检测与跟踪学术支撑文献；
-     - 归档 [项目说明/系统3_RGB_PTZ_Integrated说明书.md](file:///d:/PyProjects/RGB_PTZ_Integrated/项目说明/系统3_RGB_PTZ_Integrated说明书.md)。
-  3. **检查点归档与 Git 提交推送**：
-     - 将 Checkpoint #33 归档至 [checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)，保持根目录 `checkpoint.md` 轻量化；
-     - 执行全量 `git add`、规范化语义提交并推送至 `origin/main`。
+  1. **系统算法架构与物理边界明确定性**：
+     - **目标检测阶段**：基于深度学习算法（YOLOv8/YOLO11，DirectML GPU 加速，5 款纯静态 ONNX 已入库，纯 C++ NMS），常态 0 FPS 休眠按需单次唤醒；
+     - **目标跟踪阶段**：仍采用传统相关滤波算法（[DsstCore](file:///d:/PyProjects/RGB_PTZ_Integrated/dsstcore.h)，纯 C++17/OpenCV 连续内存实现），高频独占运行并输出单一脱靶量；
+     - **调度大脑**：[AMFTEvaluator](file:///d:/PyProjects/RGB_PTZ_Integrated/amftevaluator.cpp) 三维综合可靠度评估动态连接传统跟踪与深度检测；
+     - **后续规划**：可见光深度单目标跟踪（LightTrack/RepSOT）归属于方案 04，尚未实装。
+  2. **状态快照与待办清单客观校准**：
+     - 刷新方案 03 落地 Checklist，准确反映 03-3-B、03-4、03-5 已闭环状态；
+     - 归档 Checkpoint #34 至 `checkpoints/archive/checkpoint_archive_34.md`，保持根目录 `checkpoint.md` 唯一事实源轻量化。
+  3. **Git 同步与远程推送**：
+     - 执行 `git add`、规范化语义提交并推送至远程仓库（`git push origin main`）。
 
 
