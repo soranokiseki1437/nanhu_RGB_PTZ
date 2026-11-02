@@ -230,20 +230,21 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #36）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)、[checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md) 与 [checkpoints/archive/checkpoint_archive_36.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_36.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #37）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)、[checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md)、[checkpoints/archive/checkpoint_archive_36.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_36.md) 与 [checkpoints/archive/checkpoint_archive_37.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_37.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-02 #37
+### Checkpoint 2026-11-02 #38
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：SOT 纯算法基准专属工作区独立构建、标准化目录树与保姆级工作流归档、Junction 数据集零拷贝共享、Git 远程推送
+- **类型**：轻量化 SOT 与反无人机前沿对比算法全面重构、学术选型清单与工作区目录同步刷新、Git 远程推送
 - **核心内容**：
-  1. **算法工作区独立构建与命名**：
-     - 在 [D:\PyProjects\SOT_Tracking_Baselines](file:///d:/PyProjects/SOT_Tracking_Baselines) 初始化纯算法科研与横评基准工程规范，建立 `algorithms/`、`checkpoints/`、`evaluation/` 与 `results/` 目录树；
-     - 通过 Windows 系统级 Junction 软链接将 `datasets/` 映射至主工程数据集，实现 20 组真机长焦 Anti-UAV 航迹零拷贝跨工作区无缝共享；
-  2. **标准化指引与工作流交付**：
-     - 生成 [README.md](file:///d:/PyProjects/SOT_Tracking_Baselines/README.md)（学术体系定位、8+3 款算法阵容与交付机制）与 [WORKFLOW.md](file:///d:/PyProjects/SOT_Tracking_Baselines/WORKFLOW.md)（环境激活、源码拉取、统一评测打点与指标汇总 4 大标准阶段）；
-     - 在主工程编写并纳编初始化工具 [scripts/init_tracking_benchmark_workspace.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/init_tracking_benchmark_workspace.py)；
+  1. **算法选型体系向轻量化与垂直赛道全面聚焦**：
+     - 确立“同算力级公平对比与轻量化前沿对齐”原则，剔除不具备端侧低时延伺服可行性的大型通用网络；
+     - 深度调研并纳编开源前沿：**UAV-DETR**（2024 前沿反无人机微小目标轻量感知网络，GitHub: `wd-sir/UAVDETR`，WTConv + SWSA-IFI 编码器）、**TCTrack**（CVPR 2022 / TPAMI 2023，同济大学 Vision4Robotics 空天时序自适应轻量跟踪器）、**HiFT**（ICCV 2021 无人机分层轻量 Transformer）、**NanoTrack**（0.4M）、**LightTrack**（1.6M 黄金基准）、**FEAR-L**（1.2M）以及 **RepViT-Track**（CVPR 2024 重参数化骨干消融组）；
+  2. **双端文档与工程规范同步交付**：
+     - 深度重写 [课题/可见光单目标跟踪算法选型与对比基线清单.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/可见光单目标跟踪算法选型与对比基线清单.md)，重构梯队理论架构、开源仓库索引、三线大表模板与消融矩阵；
+     - 更新 [scripts/init_tracking_benchmark_workspace.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/init_tracking_benchmark_workspace.py) 并实机执行，同步刷新外部基准工作区 [D:\PyProjects\SOT_Tracking_Baselines](file:///d:/PyProjects/SOT_Tracking_Baselines) 的 `README.md`、`WORKFLOW.md` 及算法与权重子目录树；
   3. **Git 同步与远程推送**：
-     - 执行 `git add`、规范化语义提交并推送至远程仓库（`git push origin main`）。
+     - 历史检查点 #37 归档至 [checkpoints/archive/checkpoint_archive_37.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_37.md)；
+     - 执行 `git add`、规范语义提交并推送至远程仓库（`git push origin main`）。
 
 
 
