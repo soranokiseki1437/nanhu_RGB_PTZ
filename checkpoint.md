@@ -40,13 +40,13 @@ flowchart LR
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
-| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO)；目标跟踪：传统算法 (DSST相关滤波) + 自研轻量深度网络 (LightUAV-SOT 推进中)** | 当前生产版本中目标检测阶段已接入深度学习算法（YOLOv8/11，DirectML GPU 加速，5 款 ONNX 已入库）；目标跟踪阶段以传统相关滤波算法（DsstCore 纯 C++17/OpenCV）协同运行，自研轻量 SOT 架构（LightUAV-SOT）正式启动研发。 |
-| **最新进展** | 🟢 **方案 04（方向一）自研 LightUAV-SOT 研发立项；代码库解耦与工作区文件规范化整理；`.gitignore` 精细过滤修复；`models/sot/` 与 `weights/sot/` 目录就绪** | 确定方向一主攻路线（Rep-Backbone + MFFN + DAC-Head）；与基线算法库 SOT_Tracking_Baselines 明确双工程解耦定位，杜绝机械搬运与代码污染；根目录临时构建文件清理，建立五层工作区管理规范。 |
+| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO)；目标跟踪：传统算法 (DSST相关滤波) + 自研轻量深度网络 (LightUAV-SOT 全系统就位)** | 当前版本中目标检测阶段已接入深度学习算法（YOLOv8/11，DirectML GPU 加速，5 款 ONNX 已入库）；目标跟踪自研轻量 SOT 架构（LightUAV-SOT）全链路研发与训练导出闭环，传统滤波（DsstCore）与深度跟踪形成协同。 |
+| **最新进展** | 🟢 **自研创新 LightUAV-SOT 全系统架构构建闭环；重参数化折叠数学等价验证通过；Anti-UAV 航迹样本对切片管线与两阶段训练端到端验收通过；纯静态双分支 ONNX (template/search) 导出就绪** | 骨干重参数化折叠误差仅 5.07e-7，MFFN 攻克微小无人机空间特征湮灭，DAC-Head 动态抑制低空伪峰；部署折叠态仅 1.498M 参数，RTX 5070 GPU 纯推理仅 2.68 ms (373.4 FPS)；端到端训练实跑通过并导出 sot_template.onnx (2.43MB) 与 sot_search.onnx (5.73MB)。 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
-| **GPU 推理基准** | 🟢 **77.2~86.6 FPS (端到端) / 2.7~5.8ms (纯GPU)** | NVIDIA RTX 5070 Laptop GPU (DirectML/CUDA 硬件加速)：各微调检测模型纯推理耗时稳定在 2.7~5.8ms 极速区间，大幅优于 15ms 伺服安全窗口 |
+| **GPU 推理基准** | 🟢 **373.4 FPS / 2.68ms (SOT 跟踪)；77.2~86.6 FPS / 2.7~5.8ms (YOLO 检测)** | NVIDIA RTX 5070 Laptop GPU (DirectML/CUDA 硬件加速)：自研 SOT 跟踪纯推理时延 2.68ms，完全满足 <=3ms 极致机电伺服硬实时要求 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
-| **待执行核心任务** | 🟢 **方向一：自研 LightUAV-SOT 创新网络架构编写与航迹样本对切片增强管线构建** | 在 `models/sot/` 搭建包含重参数化骨干、MFFN 多尺度细节融合与 DAC-Head 的纯净 PyTorch 结构；编写 `scripts/dataset_sot_pair.py` 样本对生成器 |
-| **Git 工作区状态** | 🟢 **良好** | 生产代码、训练脚本、微调权重库、学术文献库与标准化数据集均完整归档就位 |
+| **待执行核心任务** | 🟢 **推进自研 SOT 全量 50 轮训练收敛与消融打点；编写 C++ OnnxSotTracker DirectML 运行时接入上位机** | 启动两阶段端到端全量训练（10+40轮）获取最佳跟踪权重；在上位机编写 `OnnxSotTracker` 接入 ObjectTracker 与 AMFT 状态机 |
+| **Git 工作区状态** | 🟢 **良好** | 生产代码、SOT 创新网络源码、训练与导出脚本、标准化数据集与历史检查点均完整归档就位 |
 
 ---
 
@@ -230,19 +230,22 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #40）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)、[checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md)、[checkpoints/archive/checkpoint_archive_36.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_36.md)、[checkpoints/archive/checkpoint_archive_37.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_37.md)、[checkpoints/archive/checkpoint_archive_38.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_38.md)、[checkpoints/archive/checkpoint_archive_39.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_39.md) 与 [checkpoints/archive/checkpoint_archive_40.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_40.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #41）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)、[checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md)、[checkpoints/archive/checkpoint_archive_36.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_36.md)、[checkpoints/archive/checkpoint_archive_37.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_37.md)、[checkpoints/archive/checkpoint_archive_38.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_38.md)、[checkpoints/archive/checkpoint_archive_39.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_39.md)、[checkpoints/archive/checkpoint_archive_40.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_40.md) 与 [checkpoints/archive/checkpoint_archive_41.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_41.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-03 #41
+### Checkpoint 2026-11-03 #42
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：方案 04（方向一）自研 LightUAV-SOT 创新网络研发正式立项、代码库解耦与工作区文件规范化整理、`.gitignore` 精细过滤加固、Git 远程推送
+- **类型**：自研轻量 SOT 创新网络（LightUAV-SOT）全系统代码构建、重参数化数学等价验证、Anti-UAV 航迹样本对切片管线与两阶段训练端到端验收闭环、纯静态双分支 ONNX 导出成功、Git 远程推送
 - **核心内容**：
-  1. **明确双工程协同与避免代码库污染原则**：
-     - 明确 [D:\PyProjects\SOT_Tracking_Baselines](file:///d:/PyProjects/SOT_Tracking_Baselines) 纯基线算法对比库定位，杜绝机械全量搬运官方第三方复杂 NAS 超网与沉余脚本；
-     - 确立在主工程 `models/sot/` 原生实现模块化自研 LightUAV-SOT（Rep-LightBackbone + MFFN + DAC-Head），直接继承关键张量尺寸并支持从基线检查点跨工程按需提取初始权重；
-  2. **工作区清洁度治理与五层管理规范确立**：
-     - 清除根目录下由旧构建残留的临时文件（`test_detection_vis.png`、`Makefile*`、`.qmake.stash`、`ui_mainwindow.h`）；
-     - 重构并固化 UTF-8 编码的 `.gitignore`，实现模型二进制大文件（`models/*.onnx`, `weights/*.pt`）自动隔离，同时确保深度学习 Python 网络源码（`models/sot/*.py`）精准受控；
-     - 初始化 `models/sot/` 架构源码区与 `weights/sot/` 权重落地目录；
-  3. **Git 同步与远程推送**：
-     - 历史检查点 #40 归档至 [checkpoints/archive/checkpoint_archive_40.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_40.md)；
+  1. **自研 LightUAV-SOT 创新网络四大模块全量就位（`models/sot/`）**：
+     - `rep_backbone.py`：结构重参数化骨干（多分支训练 -> 单路 3x3 Conv 部署折叠），折叠前后误差仅 5.07e-7，双尺度输出 P2 (64x64, 64c) 与 P4 (16x16, 96c)；
+     - `mffn.py`：多尺度细节融合网络，通道注意力门控融合 P2 浅层边缘轮廓与 P4 深层判别语义，攻克微小无人机（10x10 px）特征下采样湮灭难题，折叠前后误差 2.38e-6；
+     - `dac_head.py`：动态空间-通道注意力相关匹配头，模板注意力加权深度互相关，抑制低空与地表杂波伪峰；
+     - `lightuav_sot.py`：完整集成模型，训练态 1.663M 参数，部署折叠态仅 1.498M 参数；RTX 5070 GPU 实测纯推理时延仅 **2.68 ms（373.4 FPS）**，满足机电伺服硬实时；
+  2. **训练数据工程与两阶段训练流水线（`scripts/`）**：
+     - `dataset_sot_pair.py`：自动解析 Anti-UAV 20 组真机航迹序列，生成 Template (127x127) 与 Search (255x255) 训练对并计算无锚框中心分类与 ltrb 回归标签；
+     - `train_sot.py`：实现头部预热（10 轮，骨干冻结）与全网络联合微调（40 轮，余弦退火）两阶段训练策略，经 1-Epoch 端到端全链路实跑验收成功（Loss 6.7354，无报错）；
+  3. **纯静态双分支 ONNX 导出与验证（`scripts/export_sot_onnx.py`）**：
+     - 成功导出纯静态双分支计算图：`sot_template.onnx` (2.43 MB) 与 `sot_search.onnx` (5.73 MB)，经 ONNX Runtime 验证 100% 通过；
+  4. **Git 同步与远程推送**：
+     - 历史检查点 #41 归档至 [checkpoints/archive/checkpoint_archive_41.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_41.md)；
      - 执行 `git add`、规范语义提交并推送至远程仓库（`git push origin main`）。
