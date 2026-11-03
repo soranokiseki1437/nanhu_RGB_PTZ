@@ -18,3 +18,4 @@
   3. **Git 同步与远程推送**：
      - 历史检查点 #42 归档至 [checkpoints/archive/checkpoint_archive_42.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_42.md)；
      - 执行 `git add`、规范语义提交并推送至远程仓库（`git push origin main`）。
+

@@ -1,7 +1,8 @@
 """
-LightUAV-SOT Two-Stage Training Pipeline.
-Stage 1: Warmup Fusion & Prediction Heads (Backbone frozen)
-Stage 2: Joint End-to-End Fine-Tuning (All layers active with Cosine Annealing)
+LightUAV-SOT Two-Stage Training Pipeline (100 Epochs Protocol).
+Stage 1: Warmup Fusion & Prediction Heads (15 Epochs, Backbone frozen)
+Stage 2: Joint End-to-End Fine-Tuning (85 Epochs, Cosine Annealing, All layers active)
+Ablation Milestones: Checkpoints automatically saved at Epochs 30, 50, 80, 100, plus Global Best.
 Hardware Acceleration: RTX 5070 Laptop GPU (CUDA 13.0)
 """
 
@@ -9,6 +10,7 @@ import os
 import sys
 import time
 import argparse
+import csv
 import numpy as np
 import torch
 import torch.nn as nn
@@ -16,7 +18,6 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from typing import Dict
 
-# Add workspace root to sys.path
 WORKSPACE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if WORKSPACE_ROOT not in sys.path:
     sys.path.insert(0, WORKSPACE_ROOT)
@@ -27,7 +28,7 @@ from scripts.dataset_sot_pair import AntiUAVPairDataset
 
 class SOTLoss(nn.Module):
     """
-    Combined Focal Loss (Cls) + IoU/Smooth-L1 Loss (Reg) on Anchor-free Grid.
+    Combined Focal Loss (Cls) + Smooth-L1 Loss (Reg) on Anchor-free Grid.
     """
     def __init__(self, alpha: float = 0.75, gamma: float = 2.0, reg_weight: float = 1.2):
         super(SOTLoss, self).__init__()
@@ -52,7 +53,7 @@ class SOTLoss(nn.Module):
 
         # 2. Smooth L1 Loss on Positive Grid Points
         num_pos = reg_mask.sum().clamp(min=1.0)
-        reg_diff = F.smooth_l1_loss(reg_pred, reg_gt, reduction='none')  # [B, 4, 16, 16]
+        reg_diff = F.smooth_l1_loss(reg_pred, reg_gt, reduction='none')
         reg_loss = (reg_diff * reg_mask).sum() / (num_pos * 4.0)
 
         total_loss = cls_loss + self.reg_weight * reg_loss
@@ -64,7 +65,7 @@ class SOTLoss(nn.Module):
 
 
 def train_one_epoch(model: nn.Module, loader: DataLoader, optimizer: torch.optim.Optimizer,
-                    criterion: nn.Module, device: torch.device, epoch: int) -> Dict[str, float]:
+                    criterion: nn.Module, device: torch.device) -> Dict[str, float]:
     model.train()
     total_loss_accum = 0.0
     cls_loss_accum = 0.0
@@ -72,7 +73,7 @@ def train_one_epoch(model: nn.Module, loader: DataLoader, optimizer: torch.optim
     steps = 0
 
     t0 = time.time()
-    for batch_idx, batch in enumerate(loader):
+    for batch in loader:
         template = batch['template'].to(device, non_blocking=True)
         search = batch['search'].to(device, non_blocking=True)
         target = {
@@ -104,11 +105,11 @@ def train_one_epoch(model: nn.Module, loader: DataLoader, optimizer: torch.optim
 
 
 def main():
-    parser = argparse.ArgumentParser(description="LightUAV-SOT Training Pipeline")
+    parser = argparse.ArgumentParser(description="LightUAV-SOT 100-Epoch Training Pipeline")
     parser.add_argument('--data-root', type=str, default='datasets/Anti-UAV/tracking')
     parser.add_argument('--save-dir', type=str, default='weights/sot')
-    parser.add_argument('--epochs-warmup', type=int, default=10, help='Epochs to warmup heads (backbone frozen)')
-    parser.add_argument('--epochs-joint', type=int, default=40, help='Epochs for joint end-to-end training')
+    parser.add_argument('--epochs-warmup', type=int, default=15, help='Warmup epochs with frozen backbone (default: 15)')
+    parser.add_argument('--epochs-joint', type=int, default=85, help='Joint end-to-end fine-tuning epochs (default: 85)')
     parser.add_argument('--batch-size', type=int, default=16)
     parser.add_argument('--lr-warmup', type=float, default=1e-3)
     parser.add_argument('--lr-joint', type=float, default=2e-4)
@@ -117,43 +118,63 @@ def main():
 
     os.makedirs(args.save_dir, exist_ok=True)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'Starting LightUAV-SOT Training on device: {device}')
+    print(f'Starting LightUAV-SOT Training on device: {device}', flush=True)
 
-    # Model & Loss
+    # Initialize Model & Loss
     model = LightUAV_SOT().to(device)
     total_p, trainable_p = model.get_num_params()
-    print(f'Model initialized. Total params: {total_p / 1e6:.3f}M, Trainable: {trainable_p / 1e6:.3f}M')
+    print(f'Model initialized. Total params: {total_p / 1e6:.3f}M, Trainable: {trainable_p / 1e6:.3f}M', flush=True)
 
     criterion = SOTLoss()
     dataset = AntiUAVPairDataset(data_root=args.data_root, is_train=True)
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
+    # Setup CSV Metrics Logger
+    csv_log_path = os.path.join(args.save_dir, 'train_metrics.csv')
+    csv_file = open(csv_log_path, 'w', newline='', encoding='utf-8')
+    csv_writer = csv.writer(csv_file)
+    csv_writer.writerow(['global_epoch', 'phase', 'phase_epoch', 'lr', 'total_loss', 'cls_loss', 'reg_loss', 'time_s'])
+    csv_file.flush()
+
     if args.test_run:
-        print('=== Executing Test Run (1 Epoch) ===')
+        print('=== Executing Test Run (1 Epoch) ===', flush=True)
         opt = torch.optim.AdamW(model.parameters(), lr=args.lr_warmup)
-        metrics = train_one_epoch(model, loader, opt, criterion, device, epoch=1)
-        print(f"Test Run Success: Loss={metrics['total_loss']:.4f} (Cls={metrics['cls_loss']:.4f}, Reg={metrics['reg_loss']:.4f}) in {metrics['time_s']:.1f}s")
-        # Save test checkpoint
+        metrics = train_one_epoch(model, loader, opt, criterion, device)
+        print(f"Test Run Success: Loss={metrics['total_loss']:.4f} (Cls={metrics['cls_loss']:.4f}, Reg={metrics['reg_loss']:.4f}) in {metrics['time_s']:.1f}s", flush=True)
         torch.save(model.state_dict(), os.path.join(args.save_dir, 'lightuav_sot_test.pth'))
+        csv_file.close()
         return
 
+    milestone_epochs = [30, 50, 80, 100]
+    best_loss = float('inf')
+    global_epoch = 0
+
     # ================= Stage 1: Warmup (Backbone Frozen) =================
-    print(f"\n=================== Stage 1: Warmup Heads ({args.epochs_warmup} Epochs) ===================")
+    print(f"\n=================== Stage 1: Warmup Heads ({args.epochs_warmup} Epochs) ===================", flush=True)
     for p in model.backbone.parameters():
         p.requires_grad = False
 
     warmup_params = [p for p in model.parameters() if p.requires_grad]
     optimizer_w = torch.optim.AdamW(warmup_params, lr=args.lr_warmup, weight_decay=1e-4)
 
-    best_loss = float('inf')
     for ep in range(1, args.epochs_warmup + 1):
-        metrics = train_one_epoch(model, loader, optimizer_w, criterion, device, epoch=ep)
-        print(f"[Stage 1 - Epoch {ep:02d}/{args.epochs_warmup:02d}] "
+        global_epoch += 1
+        metrics = train_one_epoch(model, loader, optimizer_w, criterion, device)
+        print(f"[Stage 1 - Epoch {ep:02d}/{args.epochs_warmup:02d} | Global {global_epoch:03d}/100] "
               f"Loss: {metrics['total_loss']:.4f} (Cls: {metrics['cls_loss']:.4f}, Reg: {metrics['reg_loss']:.4f}) "
-              f"Time: {metrics['time_s']:.1f}s")
+              f"Time: {metrics['time_s']:.1f}s", flush=True)
+
+        csv_writer.writerow([global_epoch, 'Warmup', ep, args.lr_warmup,
+                             f"{metrics['total_loss']:.4f}", f"{metrics['cls_loss']:.4f}",
+                             f"{metrics['reg_loss']:.4f}", f"{metrics['time_s']:.1f}"])
+        csv_file.flush()
+
+        if metrics['total_loss'] < best_loss:
+            best_loss = metrics['total_loss']
+            torch.save(model.state_dict(), os.path.join(args.save_dir, 'lightuav_sot_best.pth'))
 
     # ================= Stage 2: Joint End-to-End Fine-Tuning =================
-    print(f"\n=================== Stage 2: Joint Fine-Tuning ({args.epochs_joint} Epochs) ===================")
+    print(f"\n=================== Stage 2: Joint Fine-Tuning ({args.epochs_joint} Epochs) ===================", flush=True)
     for p in model.backbone.parameters():
         p.requires_grad = True
 
@@ -161,28 +182,43 @@ def main():
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer_j, T_max=args.epochs_joint, eta_min=1e-6)
 
     for ep in range(1, args.epochs_joint + 1):
-        metrics = train_one_epoch(model, loader, optimizer_j, criterion, device, epoch=ep)
+        global_epoch += 1
+        metrics = train_one_epoch(model, loader, optimizer_j, criterion, device)
         scheduler.step()
         cur_lr = scheduler.get_last_lr()[0]
 
-        print(f"[Stage 2 - Epoch {ep:02d}/{args.epochs_joint:02d} | lr: {cur_lr:.2e}] "
+        print(f"[Stage 2 - Epoch {ep:02d}/{args.epochs_joint:02d} | Global {global_epoch:03d}/100 | lr: {cur_lr:.2e}] "
               f"Loss: {metrics['total_loss']:.4f} (Cls: {metrics['cls_loss']:.4f}, Reg: {metrics['reg_loss']:.4f}) "
-              f"Time: {metrics['time_s']:.1f}s")
+              f"Time: {metrics['time_s']:.1f}s", flush=True)
 
+        csv_writer.writerow([global_epoch, 'Joint', ep, f"{cur_lr:.2e}",
+                             f"{metrics['total_loss']:.4f}", f"{metrics['cls_loss']:.4f}",
+                             f"{metrics['reg_loss']:.4f}", f"{metrics['time_s']:.1f}"])
+        csv_file.flush()
+
+        # Update global best checkpoint
         if metrics['total_loss'] < best_loss:
             best_loss = metrics['total_loss']
             best_ckpt = os.path.join(args.save_dir, 'lightuav_sot_best.pth')
             torch.save(model.state_dict(), best_ckpt)
-            print(f" -> Best checkpoint saved: {best_ckpt} (Loss: {best_loss:.4f})")
+            print(f" -> Best checkpoint updated: {best_ckpt} (Loss: {best_loss:.4f})", flush=True)
 
-    # Export deploy model with fused Conv3x3s
-    print("\nFolding multi-branch weights for deployment...")
+        # Milestone snapshot checkpoint saving (Epochs 30, 50, 80, 100)
+        if global_epoch in milestone_epochs:
+            ms_ckpt = os.path.join(args.save_dir, f'lightuav_sot_epoch_{global_epoch}.pth')
+            torch.save(model.state_dict(), ms_ckpt)
+            print(f" ==> Milestone checkpoint archived: {ms_ckpt}", flush=True)
+
+    csv_file.close()
+
+    # Final deployment export
+    print("\nFolding structural re-parameterization weights for deployment...", flush=True)
     model.switch_to_deploy()
     deploy_ckpt = os.path.join(args.save_dir, 'lightuav_sot_deploy.pth')
     torch.save(model.state_dict(), deploy_ckpt)
-    print(f"Deploy-folded model saved: {deploy_ckpt}")
+    print(f"Deploy-folded model saved: {deploy_ckpt}", flush=True)
+    print("LightUAV-SOT 100-Epoch Training Protocol Completed Successfully!", flush=True)
 
 
 if __name__ == '__main__':
     main()
-
