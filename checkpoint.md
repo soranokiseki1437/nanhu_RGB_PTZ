@@ -230,17 +230,19 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #42）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)、[checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md)、[checkpoints/archive/checkpoint_archive_36.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_36.md)、[checkpoints/archive/checkpoint_archive_37.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_37.md)、[checkpoints/archive/checkpoint_archive_38.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_38.md)、[checkpoints/archive/checkpoint_archive_39.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_39.md)、[checkpoints/archive/checkpoint_archive_40.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_40.md)、[checkpoints/archive/checkpoint_archive_41.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_41.md) 与 [checkpoints/archive/checkpoint_archive_42.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_42.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #43）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)、[checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md)、[checkpoints/archive/checkpoint_archive_36.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_36.md)、[checkpoints/archive/checkpoint_archive_37.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_37.md)、[checkpoints/archive/checkpoint_archive_38.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_38.md)、[checkpoints/archive/checkpoint_archive_39.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_39.md)、[checkpoints/archive/checkpoint_archive_40.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_40.md)、[checkpoints/archive/checkpoint_archive_41.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_41.md)、[checkpoints/archive/checkpoint_archive_42.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_42.md) 与 [checkpoints/archive/checkpoint_archive_43.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_43.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-03 #43
+### Checkpoint 2026-11-04 #44
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：确定聚焦纯算法创新验证与数据集实验主线（暂不推进移植）、航迹 OPE 跟踪评测打点管线（eval_sot.py）构建与验证、Git 远程推送
+- **类型**：方案 04 架构组成与两阶段训练机理深度完善、预训练权重与数据集选型核实、顶会训练轮数文献横评调研闭环、Git 远程推送
 - **核心内容**：
-  1. **明确战略聚焦纯算法创新验证（暂不考虑 C++ 移植）**：
-     - 严格遵循人类开发者指示，将全部算力与精力聚焦于 Anti-UAV 航迹数据集上的创新网络训练、OPE 跟踪打点与阶梯式消融实验验证，暂不开展 C++ 移植与上位机集成；
-  2. **航迹 OPE 跟踪评测打点引擎构建与验证（`scripts/eval_sot.py`）**：
-     - 构建 `LightUAVTracker` 推理追踪器，实现汉宁窗平滑、尺度与比例惩罚，对接标准 OPE 评测协议；
-     - 在 2 组航迹序列（1,131 帧）上实跑验证通过（平均 71.1 FPS），具备无缝评测全部 20 组真机航迹并与 12 款基线横向拉齐能力；
-  3. **Git 同步与远程推送**：
-     - 历史检查点 #42 归档至 [checkpoints/archive/checkpoint_archive_42.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_42.md)；
+  1. **方案 04 规范文档全景扩充与完善**：
+     - 在 [待执行方案/04_基于轻量深度网络的可见光云台单目标跟踪实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04_基于轻量深度网络的可见光云台单目标跟踪实操方案.md) 全面完善四大核心模块拓扑、通道尺寸映射、两阶段梯度冲击（Gradient Shock）规避机理、纯算法科研边界与实测时延数据；
+  2. **预训练权重与数据集选型核实**：
+     - 梳理预训练资产：`SOT_Tracking_Baselines/checkpoints/` 下 `LightTrackM.pth` 与 `nanotrackv3.pth`，以及 Python 环境中的 `timm` (1.0.30) 与 `torchvision` (0.29.1) 官方 ImageNet 骨干库；
+     - 确定预热与微调数据源为 [datasets/Anti-UAV/tracking/](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/Anti-UAV/tracking/)（20 组真机航迹，24,919 帧），每轮动态切片采样 6,000 对模板与搜索帧并施加空天增强；
+  3. **权威顶会无人机跟踪训练轮数文献对齐**：
+     - 调研 TCTrack (CVPR 2022，前 10 轮冻结骨干 + 后 90 轮解冻微调)、LightTrack (30 轮) 与 UAUTrack/Anti-UAV 领域微调文献，验证特定视频序列微调 20~50 轮为防止背景过拟合的黄金配置，确认本工程 10 轮预热 + 40 轮全网微调策略在学术界完全标准统一；
+  4. **Git 同步与远程推送**：
+     - 历史检查点 #43 归档至 [checkpoints/archive/checkpoint_archive_43.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_43.md)；
      - 执行 `git add`、规范语义提交并推送至远程仓库（`git push origin main`）。
