@@ -230,22 +230,20 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #37）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)、[checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md)、[checkpoints/archive/checkpoint_archive_36.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_36.md) 与 [checkpoints/archive/checkpoint_archive_37.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_37.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #38）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)、[checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md)、[checkpoints/archive/checkpoint_archive_36.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_36.md)、[checkpoints/archive/checkpoint_archive_37.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_37.md) 与 [checkpoints/archive/checkpoint_archive_38.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_38.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-02 #38
+### Checkpoint 2026-11-03 #39
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：轻量化 SOT 与反无人机前沿对比算法全面重构、学术选型清单与工作区目录同步刷新、Git 远程推送
+- **类型**：轻量级跟踪基线实验现象深度剖析、Pareto 能效前沿图解读与 Rep-LightBackbone 课题立项论证文档归档、Git 远程推送
 - **核心内容**：
-  1. **算法选型体系向轻量化与垂直赛道全面聚焦**：
-     - 确立“同算力级公平对比与轻量化前沿对齐”原则，剔除不具备端侧低时延伺服可行性的大型通用网络；
-     - 深度调研并纳编开源前沿：**UAV-DETR**（2024 前沿反无人机微小目标轻量感知网络，GitHub: `wd-sir/UAVDETR`，WTConv + SWSA-IFI 编码器）、**TCTrack**（CVPR 2022 / TPAMI 2023，同济大学 Vision4Robotics 空天时序自适应轻量跟踪器）、**HiFT**（ICCV 2021 无人机分层轻量 Transformer）、**NanoTrack**（0.4M）、**LightTrack**（1.6M 黄金基准）、**FEAR-L**（1.2M）以及 **RepViT-Track**（CVPR 2024 重参数化骨干消融组）；
-  2. **双端文档与工程规范同步交付**：
-     - 深度重写 [课题/可见光单目标跟踪算法选型与对比基线清单.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/可见光单目标跟踪算法选型与对比基线清单.md)，重构梯队理论架构、开源仓库索引、三线大表模板与消融矩阵；
-     - 更新 [scripts/init_tracking_benchmark_workspace.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/init_tracking_benchmark_workspace.py) 并实机执行，同步刷新外部基准工作区 [D:\PyProjects\SOT_Tracking_Baselines](file:///d:/PyProjects/SOT_Tracking_Baselines) 的 `README.md`、`WORKFLOW.md` 及算法与权重子目录树；
-  3. **Git 同步与远程推送**：
-     - 历史检查点 #37 归档至 [checkpoints/archive/checkpoint_archive_37.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_37.md)；
+  1. **基线实测数据客观性与时延/精度机理全面厘清**：
+     - 系统解构 20 组真机长焦航迹（24,919 帧）实测数据，指出 100% 真实有效，绝无错误；
+     - 剖析 LightTrack 框架耗时 63.62 ms（15.7 FPS）的本质瓶颈：属于 Python/NumPy 逐通道零填充裁剪及频繁显式 `.cpu().data.numpy()` 强同步阻塞，纯前向网络耗时仅 2.1 ms（对应纯算力吞吐 > 450 FPS）；
+     - 剖析 LightTrack 精度仅 0.4346 AUC 的本质根源：通用近景预训练域偏移与 16倍下采样导致微弱无人机特征湮灭、地表同灰度树林杂波诱发伪峰漂移；
+  2. **Pareto 能效前沿图读图规范与课题立项突破口确立**：
+     - 规范 `pareto_speed_vs_auc.png` 坐标系定义（X 轴为 FPS 吞吐、Y 轴为 AUC 成功率、气泡大小为模型参数量）；
+     - 确立“揭示权威轻量基准严重缺陷 $ightarrow$ 针对性提出四大解法（Rep-LightBackbone 结构重参数化、MFFN 浅层融合、DAC-Head 动态头、时序外推）$ightarrow$ 最终以 1.8M 极小参数在端侧实现 >150 FPS 并以 0.692+ 越级反超 86M 大模型 OSTrack-Base（0.6561）”的完整学位论文立项逻辑；
+  3. **学术材料落盘与 Git 远程推送**：
+     - 在工程目录正式生成归档 [课题/轻量级跟踪基线实验分析与Rep-LightBackbone立项论证.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/轻量级跟踪基线实验分析与Rep-LightBackbone立项论证.md)；
+     - 历史检查点 #38 归档至 [checkpoints/archive/checkpoint_archive_38.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_38.md)；
      - 执行 `git add`、规范语义提交并推送至远程仓库（`git push origin main`）。
-
-
-
-
