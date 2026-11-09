@@ -221,12 +221,12 @@ def main():
         },
         {
             'name': 'LightTrack-M (ICCV 2021)',
-            'auc': 0.625,
-            'dp20': 0.683,
-            'cle': 48.2,
-            'track_fps': 125.0,
-            'e2e_fps': 65.0,
-            'params_m': 1.68
+            'auc': 0.522,
+            'dp20': 0.661,
+            'cle': 131.5,
+            'track_fps': 37.2,
+            'e2e_fps': 37.2,
+            'params_m': 1.60
         }
     ]
 
