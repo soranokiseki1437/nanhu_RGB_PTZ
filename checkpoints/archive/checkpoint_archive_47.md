@@ -15,3 +15,4 @@
      - 在 `AGENTS.md` 增补第五章“严谨客观科研与指标汇报铁律”，坚决杜绝选择性失明与粉饰成果；
      - 归档 Checkpoint #46 至 `checkpoints/archive/checkpoint_archive_46.md`；
      - 执行 `git add`、规范语义提交并推送至远程仓库（`git push origin main`）。
+
