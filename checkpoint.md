@@ -40,8 +40,8 @@ flowchart LR
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
-| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO)；目标跟踪：自研轻量深度网络 (LightUAV-SOT 四阶消融与 20 组航迹全量评测达标) + 传统滤波 (DSST)** | 目标检测阶段已全面交付 5 款部署级 ONNX；目标跟踪阶段按照最新战略决策**全面锁定纯算法科研与 Anti-UAV 航迹数据集创新验证（暂不推进 C++ 移植）**，自研 LightUAV-SOT 创新网络 100 轮全量训练收敛、四阶消融实验及 20 组真机航迹全量打点验收圆满达标（DP@20 75.32%，模型 FPS 224.5）。 |
-| **最新进展** | 🟢 **完成四阶递进式模块消融实验 (Baseline -> Rep -> MFFN -> DAC)；在 20 组真机航迹（24,784 帧）全量评测通过达标 (DP@20 75.32%, 224.5 FPS)；产出学术三线表与 300-DPI Pareto 前沿图** | 在 20 组长焦真机航迹序列上实测：DAC-Head 赋能下 DP@20 达 75.32%（相比无 DAC 基线 0.79% 实现决定性突破）；模型推理吞吐率达 224.5 FPS（折合 4.45 ms，大幅超越 60 FPS 伺服硬实时红线）；生成 Pareto 能效前沿图与 100 轮收敛轨迹图，三线表与 LaTeX 源码已沉淀至课题/目录。 |
+| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO)；目标跟踪：自研轻量深度网络 (LightUAV-SOT 四阶消融与 20 组航迹全量评测，DP@20 75.32% 但 AUC 仅 22.99% 存在尺度回归短板) + 传统滤波 (DSST)** | 目标检测阶段已全面交付 5 款部署级 ONNX；目标跟踪阶段按照最新战略决策**全面锁定纯算法科研与 Anti-UAV 航迹数据集创新验证（暂不推进 C++ 移植）**，自研 LightUAV-SOT 创新网络 100 轮全量训练收敛、四阶消融实验及 20 组真机航迹全量打点验收完成。客观数据呈现两极化：DP@20 达到 75.32%、纯模型 FPS 达 224.5，但综合成功率 Success (AUC) 仅为 22.99%（落后于基线 LightTrack-M 62.50% 与传统 DSST 45.20%），Mean CLE 达 167.2 px，暴露出未加载预训练权重导致的小目标边界框尺度回归泛化不足瓶颈。 |
+| **最新进展** | 🟡 **完成四阶递进式模块消融实验 (Baseline -> Rep -> MFFN -> DAC)；客观呈现全景指标（DP@20 75.32%, AUC 22.99%, 224.5 FPS）；正视 AUC 垫底缺陷并确立避险改进路线** | 在 20 组长焦真机航迹序列上实测：DAC-Head 赋能下 DP@20 达 75.32%（相比无 DAC 基线 0.79% 实现决定性突破）；模型推理吞吐率达 224.5 FPS（折合 4.45 ms，大幅超越 60 FPS 伺服硬实时红线）；但 Success (AUC) 仅 22.99% 暴露出边界框回归弱项。生成全量三线表、Pareto 前沿图与 100 轮收敛轨迹图，已归档至课题目录，并正视短板启动避险论证。 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
 | **GPU 推理基准** | 🟢 **224.5~373.4 FPS / 2.68~4.45ms (SOT 跟踪)；77.2~86.6 FPS / 2.7~5.8ms (YOLO 检测)** | NVIDIA RTX 5070 Laptop GPU (CUDA 13.0 加速)：自研 SOT 跟踪纯推理时延 2.68~4.45ms，完全满足 <=5ms 极致机电伺服硬实时要求 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
@@ -234,16 +234,17 @@ flowchart LR
 
 ### Checkpoint 2026-11-09 #47
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：四阶递进式模块消融实验全闭环、20 组真机航迹全量 OPE 打点验收达标 (DP@20 75.32%, 224.5 FPS)、学术三线表与 300-DPI Pareto 能效前沿图沉淀、Git 远程推送
+- **类型**：四阶递进式模块消融实验全闭环、20 组真机航迹全量 OPE 客观打点（DP@20 75.32%, AUC 22.99%, 224.5 FPS）、学术三线表与 300-DPI Pareto 能效前沿图沉淀、AGENTS.md 准则加固与 Git 远程推送
 - **核心内容**：
-  1. **完成四阶递进式模块消融实验与真机航迹打点（`scripts/run_sot_ablation.py`）**：
-     - 对比验证 Baseline (Naive XCorr, DP@20 0.79%)、+MFFN (DP@20 0.18%) 与 Full Model (+DAC-Head, DP@20 77.67% / 全集 75.32%)，证明 DAC 动态注意力门控在复杂地表/空天杂波下的决定性抗漂移能力；
+  1. **完成四阶递进式模块消融实验与真机航迹全景打点（`scripts/run_sot_ablation.py`）**：
+     - 对比验证 Baseline (Naive XCorr, DP@20 0.79%, AUC 0.50%)、+MFFN (DP@20 0.18%, AUC 0.23%) 与 Full Model (+DAC-Head, DP@20 75.32%, AUC 22.99%)，证明 DAC 动态注意力门控在复杂地表/空天杂波下的决定性抗漂移能力；
+     - 客观正视全景短板：虽然 DP@20 达到 75.32%，模型 FPS 达 224.5，但**综合成功率 Success (AUC) 仅为 22.99%（垫底，落后于 LightTrack-M 62.50% 与 DSST 45.20%）**，Mean CLE 达 167.2 px，深度剖析根因为“从零训练导致边界框尺度回归缺乏先验”；
      - 验证结构重参数化折叠部署模型 (`lightuav_sot_deploy.pth`) 精度 100% 保持，纯模型推理吞吐率达 231.8 FPS；
-     - 在全量 20 组真机航迹（24,784 帧）上实测：整体 DP@20 为 75.32%（超额达成 $\ge 75.0\%$ 验收线），纯模型 FPS 达 224.5（远超 $\ge 60$ FPS 伺服硬实时线）；
   2. **学术资产与论文材料输出**：
      - 生成 300-DPI Pareto 能效前沿对比图 [课题/sot_ablation_pareto.png](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/sot_ablation_pareto.png)；
      - 生成 300-DPI 100 轮训练收敛轨迹曲线图 [课题/sot_training_loss_curve.png](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/sot_training_loss_curve.png)；
      - 产出学术三线表（Markdown 与 LaTeX 源码）[课题/sot_ablation_summary.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/sot_ablation_summary.md) 及全量指标 JSON [课题/sot_ablation_results.json](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/sot_ablation_results.json)；
-  3. **历史检查点归档与 Git 远程同步**：
+  3. **行为准则加固、历史检查点归档与 Git 远程同步**：
+     - 在 [AGENTS.md](file:///d:/PyProjects/RGB_PTZ_Integrated/AGENTS.md) 增补第五章“严谨客观科研与指标汇报铁律”，坚决杜绝选择性失明与粉饰成果；
      - 归档 Checkpoint #46 至 [checkpoints/archive/checkpoint_archive_46.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_46.md)；
      - 执行 `git add`、规范语义提交并推送至远程仓库（`git push origin main`）。
