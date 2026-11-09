@@ -110,7 +110,8 @@ def main():
     parser.add_argument('--save-dir', type=str, default='weights/sot')
     parser.add_argument('--epochs-warmup', type=int, default=15, help='Warmup epochs with frozen backbone (default: 15)')
     parser.add_argument('--epochs-joint', type=int, default=85, help='Joint end-to-end fine-tuning epochs (default: 85)')
-    parser.add_argument('--batch-size', type=int, default=16)
+    parser.add_argument('--batch-size', type=int, default=32)
+    parser.add_argument('--pairs-per-seq', type=int, default=150, help='Pairs per sequence per epoch (default: 150 -> 3000 pairs/epoch)')
     parser.add_argument('--lr-warmup', type=float, default=1e-3)
     parser.add_argument('--lr-joint', type=float, default=2e-4)
     parser.add_argument('--test-run', action='store_true', help='Execute 1 epoch quick test')
@@ -126,7 +127,7 @@ def main():
     print(f'Model initialized. Total params: {total_p / 1e6:.3f}M, Trainable: {trainable_p / 1e6:.3f}M', flush=True)
 
     criterion = SOTLoss()
-    dataset = AntiUAVPairDataset(data_root=args.data_root, is_train=True)
+    dataset = AntiUAVPairDataset(data_root=args.data_root, is_train=True, pairs_per_seq=args.pairs_per_seq)
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
     # Setup CSV Metrics Logger

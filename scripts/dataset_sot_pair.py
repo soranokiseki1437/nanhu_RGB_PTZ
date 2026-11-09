@@ -68,7 +68,7 @@ class AntiUAVPairDataset(Dataset):
     """
     def __init__(self, data_root: str, max_frame_gap: int = 80,
                  template_sz: int = 127, search_sz: int = 255, stride: int = 16,
-                 is_train: bool = True):
+                 is_train: bool = True, preload_ram: bool = True, pairs_per_seq: int = 150):
         super(AntiUAVPairDataset, self).__init__()
         self.data_root = data_root
         self.max_frame_gap = max_frame_gap
@@ -78,6 +78,10 @@ class AntiUAVPairDataset(Dataset):
         self.grid_sz = search_sz // stride  # 255 // 16 = 15 or 16 (16 for 256)
         # Note: If 255, grid is 16x16 with padding/stride alignment
         self.is_train = is_train
+        self.preload_ram = preload_ram
+        self.pairs_per_seq = pairs_per_seq
+        self.ram_cache: Dict[str, bytes] = {}
+        self.template_cache: Dict[str, np.ndarray] = {}
 
         self.seqs = []
         video_dir = os.path.join(data_root, 'Anti-UAV-Tracking-V0')
@@ -121,9 +125,29 @@ class AntiUAVPairDataset(Dataset):
 
         print(f'Loaded AntiUAVPairDataset: {len(self.seqs)} sequences available.')
 
+        if self.preload_ram:
+            total_frames = sum(len(s['valid_indices']) for s in self.seqs)
+            print(f'Preloading {total_frames} valid frames into RAM cache...', flush=True)
+            for s in self.seqs:
+                for idx in s['valid_indices']:
+                    p = s['img_paths'][idx]
+                    box = s['boxes'][idx]
+                    if p not in self.ram_cache:
+                        with open(p, 'rb') as f:
+                            raw = f.read()
+                        self.ram_cache[p] = raw
+                        arr = np.frombuffer(raw, dtype=np.uint8)
+                        im_bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+                        if im_bgr is not None:
+                            im_rgb = cv2.cvtColor(im_bgr, cv2.COLOR_BGR2RGB)
+                            patch_z, _ = crop_hwc(im_rgb, box, self.template_sz)
+                            self.template_cache[p] = patch_z
+            total_ram = sum(len(v) for v in self.ram_cache.values()) + sum(v.nbytes for v in self.template_cache.values())
+            print(f'RAM Cache Ready: {len(self.ram_cache)} raw frames, {len(self.template_cache)} templates ({total_ram / 1e9:.2f} GB).', flush=True)
+
     def __len__(self) -> int:
-        # Approximate epoch size
-        return max(len(self.seqs) * 300, 1000) if self.is_train else len(self.seqs) * 50
+        # Approximate epoch size (e.g. 20 seqs * 150 = 3000 pairs / epoch)
+        return max(len(self.seqs) * self.pairs_per_seq, 1000) if self.is_train else len(self.seqs) * 50
 
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         # Pick random sequence
@@ -142,22 +166,32 @@ class AntiUAVPairDataset(Dataset):
         else:
             idx_x = random.choice(candidate_indices)
 
-        # Load images (RGB)
-        im_z = cv2.imread(seq['img_paths'][idx_z])
-        im_x = cv2.imread(seq['img_paths'][idx_x])
-        if im_z is None or im_x is None:
-            # Fallback black image
-            im_z = np.zeros((720, 1280, 3), dtype=np.uint8)
-            im_x = np.zeros((720, 1280, 3), dtype=np.uint8)
+        # 1. Fetch template patch
+        p_z = seq['img_paths'][idx_z]
+        if self.preload_ram and p_z in self.template_cache:
+            patch_z = self.template_cache[p_z]
+        else:
+            im_z = cv2.imread(p_z)
+            if im_z is None:
+                im_z = np.zeros((720, 1280, 3), dtype=np.uint8)
+            im_z = cv2.cvtColor(im_z, cv2.COLOR_BGR2RGB)
+            patch_z, _ = crop_hwc(im_z, seq['boxes'][idx_z], self.template_sz)
 
-        im_z = cv2.cvtColor(im_z, cv2.COLOR_BGR2RGB)
-        im_x = cv2.cvtColor(im_x, cv2.COLOR_BGR2RGB)
+        # 2. Fetch search image
+        p_x = seq['img_paths'][idx_x]
+        if self.preload_ram and p_x in self.ram_cache:
+            arr_x = np.frombuffer(self.ram_cache[p_x], dtype=np.uint8)
+            im_x = cv2.imdecode(arr_x, cv2.IMREAD_COLOR)
+            if im_x is None:
+                im_x = np.zeros((720, 1280, 3), dtype=np.uint8)
+            im_x = cv2.cvtColor(im_x, cv2.COLOR_BGR2RGB)
+        else:
+            im_x = cv2.imread(p_x)
+            if im_x is None:
+                im_x = np.zeros((720, 1280, 3), dtype=np.uint8)
+            im_x = cv2.cvtColor(im_x, cv2.COLOR_BGR2RGB)
 
-        box_z = seq['boxes'][idx_z]
         box_x = seq['boxes'][idx_x]
-
-        # Crop template
-        patch_z, _ = crop_hwc(im_z, box_z, self.template_sz)
 
         # Crop search with random scale and translation jitter during training
         if self.is_train:

@@ -40,12 +40,12 @@ flowchart LR
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
-| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO)；目标跟踪：自研轻量深度网络 (LightUAV-SOT 数据集科研验证中) + 传统滤波 (DSST)** | 目标检测阶段已全面交付 5 款部署级 ONNX；目标跟踪阶段按照最新战略决策**全面锁定纯算法科研与 Anti-UAV 航迹数据集创新验证（暂不推进 C++ 移植）**，模型架构、样本对切片、两阶段训练与 OPE 跟踪评测全流程闭环就绪。 |
-| **最新进展** | 🟢 **100 轮两阶段训练管线与消融快照机制构建就绪（Commit ed3d13c）；真机航迹 OPE 跟踪评测打点管线 (eval_sot.py) 实测通过** | SOT 两阶段训练协议（15 轮骨干冻结预热 + 85 轮全网微调）与 Epoch 30/50/80/100 里程碑快照机制全部就绪；OPE 评测引擎具备完整打点能力。 |
+| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO)；目标跟踪：自研轻量深度网络 (LightUAV-SOT 全量 100 轮训练圆满收敛) + 传统滤波 (DSST)** | 目标检测阶段已全面交付 5 款部署级 ONNX；目标跟踪阶段按照最新战略决策**全面锁定纯算法科研与 Anti-UAV 航迹数据集创新验证（暂不推进 C++ 移植）**，自研 LightUAV-SOT 网络 100 轮训练圆满收敛并导出折叠部署模型，OPE 跟踪评测打点管线就绪。 |
+| **最新进展** | 🟢 **LightUAV-SOT 100 轮两阶段全量训练圆满收敛；产出最优权重 (Loss 1.8829)、4 组消融快照并导出重参数化折叠部署模型** | RTX 5070 GPU 耗时 53 分钟完成全量训练（300,000 样本对）；总 Loss 从 11.7293 稳定降至 1.8829（分类损耗 0.0020，回归损耗 1.5674）；产出 Epoch 30/50/80/100 四组消融里程碑快照；导出部署折叠权重 lightuav_sot_deploy.pth（6.0 MB）；收敛日志沉淀至 weights/sot/train_metrics.csv。 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
 | **GPU 推理基准** | 🟢 **373.4 FPS / 2.68ms (SOT 跟踪)；77.2~86.6 FPS / 2.7~5.8ms (YOLO 检测)** | NVIDIA RTX 5070 Laptop GPU (CUDA 13.0 加速)：自研 SOT 跟踪纯推理时延 2.68ms，完全满足 <=3ms 极致机电伺服硬实时要求 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
-| **待执行核心任务** | 🟢 **启动自研 SOT 全量 100 轮两阶段训练收敛；执行四阶递进式模块消融实验 (Baseline -> Rep -> MFFN -> DAC) 并沉淀三线表** | 启动全量训练产出最佳权重与消融里程碑快照，并在 20 组真机航迹（24,919 帧）上执行模块消融评测，生成学术三线表与 300-DPI Pareto 能效前沿图 |
+| **待执行核心任务** | 🟢 **执行四阶递进式模块消融实验 (Baseline -> Rep -> MFFN -> DAC)；在 20 组真机航迹上打点并沉淀学术三线表与 Pareto 前沿图** | 针对 Baseline、+Rep、+MFFN、+DAC 四阶段架构在 20 组真机航迹（24,919 帧）上执行完整 OPE 跟踪打点，生成学术三线表与 300-DPI Pareto 能效前沿对比图 |
 | **Git 工作区状态** | 🟢 **良好** | 生产代码、SOT 创新网络源码、训练与评测脚本、标准化数据集与历史检查点均完整归档就位 |
 
 ---
@@ -230,17 +230,21 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #44）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)、[checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md)、[checkpoints/archive/checkpoint_archive_36.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_36.md)、[checkpoints/archive/checkpoint_archive_37.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_37.md)、[checkpoints/archive/checkpoint_archive_38.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_38.md)、[checkpoints/archive/checkpoint_archive_39.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_39.md)、[checkpoints/archive/checkpoint_archive_40.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_40.md)、[checkpoints/archive/checkpoint_archive_41.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_41.md)、[checkpoints/archive/checkpoint_archive_42.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_42.md)、[checkpoints/archive/checkpoint_archive_43.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_43.md) 与 [checkpoints/archive/checkpoint_archive_44.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_44.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #45）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)、[checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md)、[checkpoints/archive/checkpoint_archive_36.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_36.md)、[checkpoints/archive/checkpoint_archive_37.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_37.md)、[checkpoints/archive/checkpoint_archive_38.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_38.md)、[checkpoints/archive/checkpoint_archive_39.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_39.md)、[checkpoints/archive/checkpoint_archive_40.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_40.md)、[checkpoints/archive/checkpoint_archive_41.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_41.md)、[checkpoints/archive/checkpoint_archive_42.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_42.md)、[checkpoints/archive/checkpoint_archive_43.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_43.md)、[checkpoints/archive/checkpoint_archive_44.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_44.md) 与 [checkpoints/archive/checkpoint_archive_45.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_45.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-09 #45
+### Checkpoint 2026-11-09 #46
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：LightUAV-SOT 100 轮两阶段训练协议与消融快照机制交付、训练/评测全流程就绪、当前工程进展全景梳理
+- **类型**：LightUAV-SOT 100 轮两阶段全量训练圆满收敛、消融里程碑快照归档、重参数化折叠部署权重导出、训练收敛指标沉淀与 Git 远程推送
 - **核心内容**：
-  1. **交付 100 轮两阶段训练管线与里程碑快照机制（Commit `ed3d13c`，`scripts/train_sot.py`）**：
-     - Stage 1: 15 Epochs 冻结骨干网络，预热特征融合与预测头（AdamW, lr=1e-3）；
-     - Stage 2: 85 Epochs 联合端到端微调，余弦退火学习率衰减（lr=2e-4 -> 1e-6）；
-     - 自动捕获保存 Epoch 30、50、80、100 消融里程碑快照与全局最优权重 `lightuav_sot_best.pth`，流式输出 `train_sot_log.csv`；
-  2. **归档历史检查点 #44**：
-     - 历史检查点 #44 分流归档至 [checkpoints/archive/checkpoint_archive_44.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_44.md)；
-  3. **明确当前工程推进节点**：
-     - 系统目前处于方案 04（基于轻量深度网络的可见光云台单目标跟踪）全量训练与消融打点启动节点。
+  1. **LightUAV-SOT 100 轮两阶段端到端训练圆满收敛**：
+     - 基于 RTX 5070 Laptop GPU (CUDA 13.0) 纯硬件加速，耗时 53.2 分钟完成全量训练（累计采样 300,000 对空天增强时序样本）；
+     - Stage 1（前 15 轮骨干冻结预热）：Loss 由 11.7293 稳定降至 3.9974，单轮平均耗时 27.2 秒；
+     - Stage 2（85 轮全网联合微调）：余弦退火学习率调度（$2\times 10^{-4} \rightarrow 1\times 10^{-6}$），总 Loss 收敛至 **1.8829**（分类损失 0.0020，Smooth-L1 回归损失 1.5674），单轮平均耗时 30.6 秒；
+  2. **模型核心资产、消融快照与折叠部署权重归档**：
+     - 自动归档四组消融里程碑快照：`lightuav_sot_epoch_30.pth` (Loss: 2.7035)、`epoch_50.pth` (Loss: 2.2037)、`epoch_80.pth` (Loss: 1.9600)、`epoch_100.pth` (Loss: 1.8829)；
+     - 刷新全局最优权重 `weights/sot/lightuav_sot_best.pth`；
+     - 结构重参数化权重等价折叠（Folded Conv3x3），导出纯单分支部署权重 `weights/sot/lightuav_sot_deploy.pth`（6.0 MB）；
+     - 完整训练指标曲线入库 `weights/sot/train_metrics.csv`；
+  3. **历史检查点归档与 Git 远程同步**：
+     - Checkpoint #45 归档至 [checkpoints/archive/checkpoint_archive_45.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_45.md)；
+     - 执行 `git add`、规范语义提交并推送至远程仓库（`git push origin main`）。
