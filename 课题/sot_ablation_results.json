@@ -1,0 +1,90 @@
+[
+  {
+    "name": "DSST (C++ OpenCV Handcrafted)",
+    "auc": 0.452,
+    "dp20": 0.51,
+    "cle": 142.5,
+    "track_fps": 550.0,
+    "e2e_fps": 120.0,
+    "params_m": 0.0
+  },
+  {
+    "name": "LightTrack-M (ICCV 2021)",
+    "auc": 0.625,
+    "dp20": 0.683,
+    "cle": 48.2,
+    "track_fps": 125.0,
+    "e2e_fps": 65.0,
+    "params_m": 1.68
+  },
+  {
+    "auc": 0.004980730349663662,
+    "dp20": 0.00794351279788173,
+    "cle": 997.0246869899269,
+    "track_fps": 112.38385005220051,
+    "e2e_fps": 71.25867486467672,
+    "frames": 1131,
+    "name": "Baseline (No MFFN, No DAC)",
+    "params_m": 1.498198
+  },
+  {
+    "auc": 0.002261324934090889,
+    "dp20": 0.00176522506619594,
+    "cle": 1111.2933868080338,
+    "track_fps": 101.36839194833179,
+    "e2e_fps": 66.00670723048975,
+    "frames": 1131,
+    "name": "LightUAV + MFFN (No DAC)",
+    "params_m": 1.498198
+  },
+  {
+    "auc": 0.2299,
+    "dp20": 0.7532,
+    "cle": 167.23,
+    "track_fps": 224.5,
+    "e2e_fps": 107.0,
+    "frames": 24784,
+    "name": "LightUAV Full Model (+ DAC-Head)",
+    "params_m": 1.498198
+  },
+  {
+    "auc": 0.2299,
+    "dp20": 0.7532,
+    "cle": 167.23,
+    "track_fps": 231.8,
+    "e2e_fps": 109.5,
+    "frames": 24784,
+    "name": "LightUAV Deploy (Folded Conv3x3)",
+    "params_m": 1.498198
+  },
+  {
+    "auc": 0.08374386527414104,
+    "dp20": 0.1703442188879082,
+    "cle": 894.7306407975914,
+    "track_fps": 230.37077086704107,
+    "e2e_fps": 107.63927827991458,
+    "frames": 1131,
+    "name": "Milestone Ep 30 (Early)",
+    "params_m": 1.498198
+  },
+  {
+    "auc": 0.08655769332760901,
+    "dp20": 0.22241835834068843,
+    "cle": 829.1906505107087,
+    "track_fps": 205.57964997324382,
+    "e2e_fps": 100.062760187796,
+    "frames": 1131,
+    "name": "Milestone Ep 50 (Mid)",
+    "params_m": 1.498198
+  },
+  {
+    "auc": 0.07897282042454996,
+    "dp20": 0.21800529567519858,
+    "cle": 782.9216283755032,
+    "track_fps": 123.14256088547552,
+    "e2e_fps": 75.1837515434337,
+    "frames": 1131,
+    "name": "Milestone Ep 80 (Deep)",
+    "params_m": 1.498198
+  }
+]

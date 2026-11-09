@@ -22,20 +22,23 @@ class LightUAV_SOT(nn.Module):
     and <= 3.0ms inference latency on RTX 5070 / RK3588.
     """
     def __init__(self, channels_p2: int = 64, channels_p4: int = 96,
-                 fused_channels: int = 96, corr_channels: int = 128, stride: int = 16):
+                 fused_channels: int = 96, corr_channels: int = 128, stride: int = 16,
+                 use_mffn: bool = True, use_dac: bool = True):
         super(LightUAV_SOT, self).__init__()
         self.stride = stride
         self.fused_channels = fused_channels
         self.corr_channels = corr_channels
+        self.use_mffn = use_mffn
+        self.use_dac = use_dac
 
         # 1. Structural Re-parameterization Backbone (Shared weights for template and search)
         self.backbone = RepLightBackbone(out_channels_p2=channels_p2, out_channels_p4=channels_p4)
 
         # 2. Multi-scale Feature Fusion Network (Shared weights)
-        self.mffn = MFFN(in_channels_p2=channels_p2, in_channels_p4=channels_p4, out_channels=fused_channels)
+        self.mffn = MFFN(in_channels_p2=channels_p2, in_channels_p4=channels_p4, out_channels=fused_channels, use_mffn=use_mffn)
 
         # 3. Dynamic Attention Correlation
-        self.dac = DynamicAttentionCorrelation(in_channels=fused_channels, out_channels=corr_channels, template_sz=8)
+        self.dac = DynamicAttentionCorrelation(in_channels=fused_channels, out_channels=corr_channels, template_sz=8, use_dac=use_dac)
 
         # 4. Dual-branch Anchor-free Heads
         self.heads = SOTPredictionHeads(in_channels=corr_channels, stride=stride)

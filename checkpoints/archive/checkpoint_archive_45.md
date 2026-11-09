@@ -18,3 +18,4 @@
      - 历史检查点 #44 分流归档至 [checkpoints/archive/checkpoint_archive_44.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_44.md)；
   3. **明确当前工程推进节点**：
      - 系统目前处于方案 04（基于轻量深度网络的可见光云台单目标跟踪）全量训练与消融打点启动节点。
+

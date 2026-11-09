@@ -34,7 +34,8 @@ class LightUAVTracker:
     """
     def __init__(self, model_path: str = None, device: str = 'cuda',
                  instance_sz: int = 255, exemplar_sz: int = 127,
-                 penalty_k: float = 0.05, window_influence: float = 0.40, lr: float = 0.38):
+                 penalty_k: float = 0.05, window_influence: float = 0.40, lr: float = 0.38,
+                 use_mffn: bool = True, use_dac: bool = True):
         self.device = torch.device(device if torch.cuda.is_available() else 'cpu')
         self.instance_sz = instance_sz
         self.exemplar_sz = exemplar_sz
@@ -42,16 +43,21 @@ class LightUAVTracker:
         self.window_influence = window_influence
         self.lr = lr
 
-        self.model = LightUAV_SOT().to(self.device)
+        self.model = LightUAV_SOT(use_mffn=use_mffn, use_dac=use_dac).to(self.device)
+        is_deploy_file = model_path and ('deploy' in os.path.basename(model_path).lower())
+        if is_deploy_file:
+            self.model.switch_to_deploy()
+
         if model_path and os.path.isfile(model_path):
-            print(f"Loading weights from: {model_path}")
+            print(f"Loading weights from: {model_path} (MFFN={use_mffn}, DAC={use_dac})")
             state_dict = torch.load(model_path, map_location=self.device)
             self.model.load_state_dict(state_dict, strict=False)
         else:
-            print("No weights provided or file not found, using initialized weights.")
+            print(f"No weights provided or file not found, using initialized weights (MFFN={use_mffn}, DAC={use_dac}).")
 
         self.model.eval()
-        self.model.switch_to_deploy()
+        if not is_deploy_file:
+            self.model.switch_to_deploy()
 
         # Build 16x16 grid coordinate maps and Hanning window
         grid_sz = 16
@@ -141,14 +147,18 @@ class LightUAVTracker:
         disp_y = (center_y - self.instance_sz / 2.0) / scale_x
 
         # Update position
-        self.target_pos[0] += disp_x
-        self.target_pos[1] += disp_y
+        img_h, img_w = image.shape[:2]
+        self.target_pos[0] = np.clip(self.target_pos[0] + disp_x, 0.0, img_w)
+        self.target_pos[1] = np.clip(self.target_pos[1] + disp_y, 0.0, img_h)
 
         # Update size with adaptive learning rate
         res_w = pred_w[r_max, c_max] / scale_x
         res_h = pred_h[r_max, c_max] / scale_x
         lr_adaptive = penalty[r_max, c_max] * cls_score[r_max, c_max] * self.lr
-        self.target_sz = (1.0 - lr_adaptive) * self.target_sz + lr_adaptive * np.array([res_w, res_h])
+        new_w = (1.0 - lr_adaptive) * self.target_sz[0] + lr_adaptive * res_w
+        new_h = (1.0 - lr_adaptive) * self.target_sz[1] + lr_adaptive * res_h
+        self.target_sz[0] = np.clip(new_w, 5.0, img_w * 0.5)
+        self.target_sz[1] = np.clip(new_h, 5.0, img_h * 0.5)
 
         # Return [x, y, w, h]
         x1 = float(self.target_pos[0] - self.target_sz[0] / 2.0)
@@ -160,7 +170,8 @@ class LightUAVTracker:
         return [x1, y1, w_out, h_out], conf
 
     def _crop_patch(self, image: np.ndarray, center: np.ndarray, crop_sz: float, out_sz: int) -> np.ndarray:
-        crop_sz = max(float(crop_sz), 10.0)
+        img_h, img_w = image.shape[:2]
+        crop_sz = np.clip(float(crop_sz), 10.0, max(img_w, img_h) * 1.5)
         cx, cy = center[0], center[1]
         x1 = int(np.floor(cx - crop_sz / 2.0))
         y1 = int(np.floor(cy - crop_sz / 2.0))
@@ -250,9 +261,12 @@ def evaluate_sequences(tracker: LightUAVTracker, data_root: str, max_seqs: int =
         seq_cles = [0.0]
 
         t0 = time.time()
+        track_time = 0.0
         for idx in range(1, num_frames):
             im = cv2.imread(img_paths[idx])
+            t_track0 = time.time()
             pred_box, conf = tracker.track(im)
+            track_time += time.time() - t_track0
             gt_box = gt_boxes[idx]
 
             if gt_box[2] > 0 and gt_box[3] > 0:
@@ -266,49 +280,64 @@ def evaluate_sequences(tracker: LightUAVTracker, data_root: str, max_seqs: int =
             seq_cles.append(cle)
 
         elapsed = time.time() - t0
-        fps = (num_frames - 1) / max(elapsed, 1e-6)
+        track_fps = (num_frames - 1) / max(track_time, 1e-6)
+        e2e_fps = (num_frames - 1) / max(elapsed, 1e-6)
         total_time += elapsed
+        total_track_time = getattr(evaluate_sequences, 'total_track_time', 0.0) + track_time
+        evaluate_sequences.total_track_time = total_track_time
         total_frames += (num_frames - 1)
 
         auc = np.mean(seq_ious)
         dp20 = np.mean([1.0 if err <= 20.0 else 0.0 for err in seq_cles])
         mean_cle = np.mean(seq_cles)
 
-        print(f"[{video_name:8s}] Frames: {num_frames:4d} | AUC: {auc:.4f} | DP@20: {dp20*100:5.1f}% | CLE: {mean_cle:6.1f}px | FPS: {fps:5.1f}")
+        print(f"[{video_name:8s}] Frames: {num_frames:4d} | AUC: {auc:.4f} | DP@20: {dp20*100:5.1f}% | CLE: {mean_cle:6.1f}px | Model FPS: {track_fps:5.1f} | E2E FPS: {e2e_fps:5.1f}")
         all_ious.extend(seq_ious)
         all_cles.extend(seq_cles)
 
     overall_auc = float(np.mean(all_ious))
     overall_dp20 = float(np.mean([1.0 if err <= 20.0 else 0.0 for err in all_cles]))
     overall_cle = float(np.mean(all_cles))
-    overall_fps = total_frames / max(total_time, 1e-6)
+    overall_e2e_fps = total_frames / max(total_time, 1e-6)
+    total_tr_time = getattr(evaluate_sequences, 'total_track_time', total_time)
+    overall_track_fps = total_frames / max(total_tr_time, 1e-6)
+    evaluate_sequences.total_track_time = 0.0
 
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 65)
     print(f"OVERALL RESULTS ({len(gt_files)} Sequences, {total_frames} Frames):")
-    print(f"Success Rate (AUC)        : {overall_auc:.4f}")
-    print(f"Distance Precision (DP@20): {overall_dp20 * 100:.2f}%")
-    print(f"Mean Center Error (CLE)   : {overall_cle:.2f} px")
-    print(f"Average Throughput (FPS)  : {overall_fps:.1f} FPS")
-    print("=" * 60)
+    print(f"Success Rate (AUC)          : {overall_auc:.4f}")
+    print(f"Distance Precision (DP@20)  : {overall_dp20 * 100:.2f}%")
+    print(f"Mean Center Error (CLE)     : {overall_cle:.2f} px")
+    print(f"Algorithm Throughput (FPS)  : {overall_track_fps:.1f} FPS (Pure Model + GPU)")
+    print(f"End-to-End Throughput (FPS) : {overall_e2e_fps:.1f} FPS (Including Disk I/O)")
+    print("=" * 65)
 
     return {
         'auc': overall_auc,
         'dp20': overall_dp20,
         'cle': overall_cle,
-        'fps': overall_fps,
+        'track_fps': overall_track_fps,
+        'e2e_fps': overall_e2e_fps,
         'frames': total_frames
     }
 
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate LightUAV-SOT on Anti-UAV Dataset")
-    parser.add_argument('--weights', type=str, default='weights/sot/lightuav_sot_test.pth')
+    parser.add_argument('--weights', type=str, default='weights/sot/lightuav_sot_best.pth')
     parser.add_argument('--data-root', type=str, default='datasets/Anti-UAV/tracking')
     parser.add_argument('--max-seqs', type=int, default=None, help='Evaluate first N sequences for quick test')
     parser.add_argument('--device', type=str, default='cuda')
+    parser.add_argument('--no-mffn', action='store_true', help='Disable MFFN multi-scale detail fusion')
+    parser.add_argument('--no-dac', action='store_true', help='Disable DAC dynamic attention correlation')
     args = parser.parse_args()
 
-    tracker = LightUAVTracker(model_path=args.weights, device=args.device)
+    tracker = LightUAVTracker(
+        model_path=args.weights,
+        device=args.device,
+        use_mffn=(not args.no_mffn),
+        use_dac=(not args.no_dac)
+    )
     evaluate_sequences(tracker, data_root=args.data_root, max_seqs=args.max_seqs)
 
 

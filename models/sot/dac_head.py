@@ -42,11 +42,12 @@ class DynamicAttentionCorrelation(nn.Module):
     Dynamic Attention Correlation (DAC) Module.
     Computes spatial-channel saliency on the template to suppress false background peaks.
     """
-    def __init__(self, in_channels: int = 96, out_channels: int = 128, template_sz: int = 8):
+    def __init__(self, in_channels: int = 96, out_channels: int = 128, template_sz: int = 8, use_dac: bool = True):
         super(DynamicAttentionCorrelation, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.template_points = template_sz * template_sz  # 8*8 = 64
+        self.use_dac = use_dac
 
         # Template spatial saliency gate: highlights drone, suppresses background sky/trees
         self.spatial_gate = nn.Sequential(
@@ -72,6 +73,11 @@ class DynamicAttentionCorrelation(nn.Module):
         )
 
     def forward(self, z: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        if not self.use_dac:
+            # Baseline/Ablation: unweighted cross-correlation
+            corr = pixel_corr_mat(z, x)
+            return self.corr_proj(corr)
+
         # Step 1: Spatial saliency on template
         s_weight = self.spatial_gate(z)  # [B, 1, Hz, Wz]
         z_sal = z * s_weight

@@ -40,11 +40,12 @@ class MFFN(nn.Module):
     Output:
       - fused: [B, out_channels, H, W] (Fused representation, default out_channels = 96)
     """
-    def __init__(self, in_channels_p2: int = 64, in_channels_p4: int = 96, out_channels: int = 96):
+    def __init__(self, in_channels_p2: int = 64, in_channels_p4: int = 96, out_channels: int = 96, use_mffn: bool = True):
         super(MFFN, self).__init__()
         self.in_channels_p2 = in_channels_p2
         self.in_channels_p4 = in_channels_p4
         self.out_channels = out_channels
+        self.use_mffn = use_mffn
 
         # 4x Spatial Downsampling for P2: Stride 2 -> Stride 2
         # Using RepBlocks for deployable zero-overhead folding
@@ -64,9 +65,13 @@ class MFFN(nn.Module):
         self.channel_gate = ChannelAttention(channels=out_channels)
 
     def forward(self, p2: torch.Tensor, p4: torch.Tensor) -> torch.Tensor:
+        p4_proj = self.p4_proj(p4)
+        if not self.use_mffn:
+            # Baseline/Ablation: bypass shallow P2 detail fusion, use deep P4 semantics only
+            return p4_proj
+
         # Downsample P2 to match P4's spatial grid [H, W]
         p2_down = self.p2_downsample(p2)
-        p4_proj = self.p4_proj(p4)
 
         # Ensure exact spatial match if rounding occurs on odd dimensions
         if p2_down.shape[-2:] != p4_proj.shape[-2:]:
