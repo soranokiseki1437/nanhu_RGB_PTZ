@@ -41,7 +41,7 @@ flowchart LR
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
 | **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO)；目标跟踪：自研轻量深度网络 (LightUAV-SOT 方案 04B 重训规划，RepVGG-A0 + MFFN + DAC-Head + GIoU/Centerness) + 传统滤波 (DSST)** | 目标检测阶段已交付 5 款部署级 ONNX；目标跟踪阶段按照战略决策全面锁定纯算法科研与真机航迹数据集创新验证，方案 04B 确立三阶训练路线：骨干 RepVGG-A0 加载 ImageNet-1k 官方权重（本地已就绪）、中科院 GOT-10k 50 轮通用尺度与时序预训练、CASIA Anti-UAV300 100 段全量连续航迹 30 轮地对空领域微调，最终在本地 DUT Anti-UAV 20 组真机长焦跟踪序列（24,784 帧）上执行盲测闭环。 |
-| **最新进展** | 🟢 **前沿小模型与地空反无人机关键文献纳入临时规划；离线与验收工具可见光路径对齐；完成阶段性版本库提交与推送** | 在临时演进方案中系统收录并架构映射 6 篇关键学术成果与前沿模型机制；完成离线与验收工具纯可见光数据挂接；完成检查点 #50 归档。 |
+| **最新进展** | 🟢 **前沿文献与数据集全量深度融入课题总纲与方案体系；基线横评大表与消融矩阵扩充；完成阶段性版本库提交与推送** | 在课题规划总纲、创新规划、重训方案与基线论证中全面吸纳 8 篇前沿文献与 4 个数据集；横评大表纳入 Dist-Tracker 与 SiamGR；完成检查点 #52 归档。 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
 | **GPU 推理基准** | 🟢 **224.5~373.4 FPS / 2.68~4.45ms (SOT 跟踪)；77.2~86.6 FPS / 2.7~5.8ms (YOLO 检测)** | NVIDIA RTX 5070 Laptop GPU (CUDA 13.0 加速)：自研 SOT 跟踪纯推理时延 2.68~4.45ms，完全满足 <=5ms 极致机电伺服硬实时要求 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
@@ -232,17 +232,15 @@ flowchart LR
 
 > **归档指引**：历史检查点（#01 ~ #50）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_50.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_50.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-11 #51
+### Checkpoint 2026-11-11 #52
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：纯可见光地对空前沿文献下载与分类归档、方案与课题文件全面对齐单一重参数化骨干及候选池机制
+- **类型**：前沿文献与数据集全量深度融入课题总纲与方案体系、基线横评大表与消融矩阵扩充
 - **核心内容**：
-  1. **方案与课题规划文件全面修订与对齐**：
-     - 在 [待执行方案/06_后续创新规划.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/06_后续创新规划.md) 扩充方案 11（追加 Dist-Tracker 协方差对齐 Wasserstein 损失为候选 5）、方案 07/08（追加 HEDD 边缘高频锐化与时延方程备料），明确候选池仅为工程实验储备，最终论文仅呈现验证有效的设计；
-     - 在 [待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md) 明确模块化损失插件接口；
-     - 在 [课题/反无人机云台视觉跟踪与抗遮挡重检测课题规划指南.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/反无人机云台视觉跟踪与抗遮挡重检测课题规划指南.md) 补齐 5 篇前沿纯可见光关键文献，统一骨干网络为唯一的结构重参数化轻量骨干（Rep-LightBackbone）；
-     - 在 [课题/可见光单目标跟踪算法选型与对比基线清单.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/可见光单目标跟踪算法选型与对比基线清单.md)、[课题/论文碎片材料/反无人机视觉目标检测与跟踪数据集综述与选型论证.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/论文碎片材料/反无人机视觉目标检测与跟踪数据集综述与选型论证.md)、[课题/论文碎片材料/反无人机目标检测前沿文献引用与对比.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/论文碎片材料/反无人机目标检测前沿文献引用与对比.md) 与 [待执行方案/SOT重训数据集下载与准备指南.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/SOT重训数据集下载与准备指南.md) 完成前沿基准全面同步；
-  2. **参考文献库分类重组与论文下载**：
-     - 将 [reference/papers/](file:///d:/PyProjects/RGB_PTZ_Integrated/reference/papers/) 重构成 5 大主题子目录（01_综述与数据基准、02_经典与重型跟踪基准、03_轻量结构与重参数化SOT、04_反无人机专属模型与小目标损失、05_光电云台机电伺服与协同闭环）；
-     - 成功归档 `DUT_AntiUAV_TITS2022.pdf`、`GroundToAir_Review_Drones2025.pdf`、`Dist-Tracker_CVPRW2025.pdf`、`UAV-DETR_2026.pdf`、`LRDDv3_ICRA2026.pdf`、`SkyEV_2026.pdf` 与 `RL_PTZ_Track_Drones2024.pdf` 等全文本体，编写规范索引指南 [reference/papers/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/reference/papers/README.md)；
-  3. **版本库阶段同步**：
-     - 执行 Git 语义化提交并推送至远程仓库（`git push origin main`）。
+  1. **课题规划总纲全量吸纳前沿学术资产**：
+     - 在 [课题/反无人机云台视觉跟踪与抗遮挡重检测课题规划指南.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/反无人机云台视觉跟踪与抗遮挡重检测课题规划指南.md) 第一节核验并补齐 1~24 篇文献（系统增列 SiamGR 双模轻量基线、RL-PTZ-Track 窄视场防出画控制、Ground-Visual-Edge 端侧部署与高度估算、SkyEV 高动态相机机动极限基准）；
+     - 将各文献与数据集的理论支撑精准融入硕士论文第 1~4 章规划（第 1 章地空纯视觉综述机理、第 2 章 HEDD 边缘锐化与 LRDDv3 4K 微小目标泛化、第 3 章 Dist-Tracker 协方差 Wasserstein 损失与 SkyEV 极限测试、第 4 章 PTZ-Latency 机电时延解耦与 RL-PTZ 阻尼自适应）；
+     - 扩充主流跟踪算法横评规划大表与真实工况指标规划表，正式纳入 Dist-Tracker 与 SiamGR 前沿专属轻量对比基准，消融矩阵增列尺度感知几何损失验证项；
+  2. **工程方案 06 与 04B 深度联动**：
+     - 在 [待执行方案/06_后续创新规划.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/06_后续创新规划.md) 方案 08/09/10 中补充 SkyEV 高动态测试、PTZ-Latency 四级延迟解耦方程与 LRDDv3 泛化评估；
+     - 在 [待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md) 增列阶段五前沿扩展极限泛化评估（SkyEV + LRDDv3）；
+     - 在 [课题/轻量级跟踪基线实验分析与Rep-LightBackbone立项论证.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/轻量级跟踪基线实验分析与Rep-LightBackbone立项论证.md) 增列专属前沿基线扩充论证。
