@@ -234,14 +234,13 @@ flowchart LR
 
 ### Checkpoint 2026-11-11 #51
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：前沿小模型与地对空反无人机关键文献纳入规划、离线工具链对齐长焦可见光基准
+- **类型**：纯可见光地对空关键文献架构映射、前沿多分支探索与单主线收敛原则确立、离线验证闭环
 - **核心内容**：
-  1. **元规划方案体系化扩充**：
-     - 在 [待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md) 中完整收录并架构映射 6 篇关键学术成果（DUT Anti-UAV 基石论文、2025 地对空纯视觉反无人机综述、HEDD 小波增强网络、Ground-Visual-Edge 边缘测高系统、PTZ-Latency-Study 云台延迟实证、RL-PTZ-Track 强化学习伺服），系统梳理其技术特征、数学机制与工程映射价值；
+  1. **元规划方案体系化扩充与多分支原则确立**：
+     - 在 [待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md) 中确立“多分支探索与单主线收敛”核心方法论：规划库中布局候选实验探索分支（如损失函数选型、特征增强等），最终学位论文主模型仅收录在实测中表现最优的单条核心主线，候选分支统一作为消融与对比实验支撑，杜绝拼凑冗余；
+     - 严格排查并纯化前沿成果的传感器模态，锁定地对空长焦纯可见光（RGB）物理域，系统映射 DUT Anti-UAV 基石论文、2025 地对空纯视觉反无人机综述、Dist-Tracker 协方差距离度量、HEDD 小波增强网络、Ground-Visual-Edge 边缘测高系统、PTZ-Latency-Study 云台延迟实证与 RL-PTZ-Track 强化学习伺服等关键成果；
   2. **工具链对齐长焦可见光基准与目录规范化**：
      - 离线验证与评测工具源码（[tools/test_detector.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_detector.cpp)、[tools/test_amft.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_amft.cpp)、[scripts/generate_report_media.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/generate_report_media.py)）统一挂接 `datasets/Anti-UAV/tracking/` 地对空长焦可见光序列与逐帧 Ground Truth 标注；
      - 重新构建 `build/release/test_detector.exe` 与 `build/release/test_amft.exe`，执行 `run_test.ps1 models/yolo11n_uav_ft.onnx` 实现 5/5 全景体检 100% 通过（RTX 5070 DirectML 纯推理 2.54ms，220.99 FPS，IoU 88.2%，中心误差 2.81px，零内存泄漏）；
-  3. **检查点归档与轻量化保持**：
-     - 将 Checkpoint #50 完整沉淀归档至 [checkpoints/archive/checkpoint_archive_50.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_50.md)，维持根目录 `checkpoint.md` 单点最新；
-  4. **版本库阶段同步**：
+  3. **版本库阶段同步**：
      - 执行 Git 语义化提交并推送至远程仓库（`git push origin main`）。
