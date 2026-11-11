@@ -10,3 +10,4 @@
      - 重构 [待执行方案/04_轻量单目标跟踪基准模型交付与工程链路跑通方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04_轻量单目标跟踪基准模型交付与工程链路跑通方案.md)，剔除全部说服性修饰词，纯粹陈述 LightTrackM 规格参数、纯静态解耦计算图、输入输出张量尺寸、C++ 接口定义与前后处理公式；
   3. **事实源与版本库强一致同步**：
      - 更新唯一事实源 [checkpoint.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoint.md) 快照，准备执行 Git 规范提交并推送远程。
+
