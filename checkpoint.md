@@ -234,11 +234,11 @@ flowchart LR
 
 ### Checkpoint 2026-11-11 #51
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：纯可见光地对空关键文献架构映射、前沿多分支探索与单主线收敛原则确立、离线验证闭环
+- **类型**：纯可见光地对空关键文献架构映射、候选设计储备与单主线收敛原则确立、离线验证闭环
 - **核心内容**：
-  1. **元规划方案体系化扩充与多分支原则确立**：
-     - 在 [待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md) 中确立“多分支探索与单主线收敛”核心方法论：规划库中布局候选实验探索分支（如损失函数选型、特征增强等），最终学位论文主模型仅收录在实测中表现最优的单条核心主线，候选分支统一作为消融与对比实验支撑，杜绝拼凑冗余；
-     - 严格排查并纯化前沿成果的传感器模态，锁定地对空长焦纯可见光（RGB）物理域，系统映射 DUT Anti-UAV 基石论文、2025 地对空纯视觉反无人机综述、Dist-Tracker 协方差距离度量、HEDD 小波增强网络、Ground-Visual-Edge 边缘测高系统、PTZ-Latency-Study 云台延迟实证与 RL-PTZ-Track 强化学习伺服等关键成果；
+  1. **元规划方案体系化扩充与储备/单主线原则确立**：
+     - 在 [待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md) 中确立“候选设计全面储备、论文仅收录最优单主线”原则：将前沿有价值的设计全部整备就绪作为工程可选路线池（按需尝试，不强求全做），最终学位论文仅呈现验证选拔出的唯一最优路线，未采用的候选设计绝不写入论文，从源头杜绝篇幅膨胀与内容杂烩；
+     - 严格排查并纯化前沿成果传感器模态，锁定地对空长焦纯可见光（RGB）物理域，系统映射 DUT Anti-UAV 基石论文、2025 地对空纯视觉反无人机综述、Dist-Tracker 协方差距离度量、HEDD 小波增强网络、Ground-Visual-Edge 边缘测高系统、PTZ-Latency-Study 云台延迟实证与 RL-PTZ-Track 强化学习伺服等关键成果；
   2. **工具链对齐长焦可见光基准与目录规范化**：
      - 离线验证与评测工具源码（[tools/test_detector.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_detector.cpp)、[tools/test_amft.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_amft.cpp)、[scripts/generate_report_media.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/generate_report_media.py)）统一挂接 `datasets/Anti-UAV/tracking/` 地对空长焦可见光序列与逐帧 Ground Truth 标注；
      - 重新构建 `build/release/test_detector.exe` 与 `build/release/test_amft.exe`，执行 `run_test.ps1 models/yolo11n_uav_ft.onnx` 实现 5/5 全景体检 100% 通过（RTX 5070 DirectML 纯推理 2.54ms，220.99 FPS，IoU 88.2%，中心误差 2.81px，零内存泄漏）；
