@@ -23,21 +23,13 @@
 
 ---
 
-### 1.2 核心二号库：CASIA Anti-UAV300 官方航迹集（地对空长焦连续视频微调）
-* **学术定位**：清华大学与中科院自动化所（CASIA）联合打造的 CVPR 官方反无人机挑战赛基准，提供地对空长焦实拍连续视频序列，用于方案 04B 第三阶段领域微调；
-* **数据体量**：全量压缩包约 **30 GB**；
-* **模态区分与获取途径（严禁模态混淆）**：
-  1. **CASIA 官方 Anti-UAV300（RGB 可见光真彩航迹，必须使用本库）**：
-     - **学术出处**：CVPR 2020 / TPAMI 2021《Anti-UAV: A Large-Scale Benchmark for Vision-based UAV Tracking》；
-     - **模态规格**：真彩色可见光（RGB 1080p/720p），与项目本地已就绪的 DUT Anti-UAV 20 组真机跟踪验证序列及 RGB PTZ 云台机芯物理域完全一致；
-     - **百度网盘链接**：`https://pan.baidu.com/s/1dJR0VKyLyiXBNB_qfa2ZrA`（提取码：`sagx`）；
-     - **Google Drive 备用源**：`https://drive.google.com/file/d/1NPYaop35ocVTYWHOYQQHn8YHsM9jmLGr/view`；
-  2. **Anti-UAV410 / 3rd Anti-UAV（纯热红外 TIR 基准，红外赛道专属，禁止用于可见光微调）**：
-     - **学术出处**：IEEE TPAMI 2023《Anti-UAV410: A Thermal Infrared Benchmark for Tracking Drones in the Wild》与 CVPR 2023 第三届挑战赛；
-     - **模态规格**：纯单模态长波热红外（Thermal Infrared，标注全为 `IR_label.json`），仅适用于热成像硬件与红外跟踪赛道；
-     - **下载源（仅作红外赛道存档）**：魔搭社区 `ly261666/3rd_Anti-UAV`、百度网盘（提取码：`wfds`）；
-  3. **官方挑战赛主页**：
-     - GitHub 主页：[https://anti-uav.github.io/](https://anti-uav.github.io/)
+### 1.2 核心二号库：CASIA Anti-UAV300（地对空长焦连续视频微调）
+* **定位**：CVPR / IEEE TPAMI 2021 反无人机挑战赛连续视频序列，用于方案 04B 第三阶段地对空领域微调；
+* **数据体量**：压缩包约 30 GB（真彩色可见光序列，RGB 1080p/720p）；
+* **下载途径**：
+  - 百度网盘：`https://pan.baidu.com/s/1dJR0VKyLyiXBNB_qfa2ZrA`（提取码：`sagx`）
+  - Google Drive：`https://drive.google.com/file/d/1NPYaop35ocVTYWHOYQQHn8YHsM9jmLGr/view`
+  - 官方主页：[https://anti-uav.github.io/](https://anti-uav.github.io/)
 
 ---
 
@@ -86,5 +78,5 @@ D:\Datasets_SOT\
 
 1. **GOT-10k 校验**：解压完成后，确认 `train/` 目录下子文件夹数量为 `9335`；
 2. **COCO 2017 校验**：解压完成后，确认 `train2017/` 目录下图片数量为 `118287`；
-3. **Anti-UAV 校验**：确认包含连续视频帧目录及每段视频对应的 `*_gt.txt` 或 `groundtruth.txt` 标注文件。
+3. **CASIA Anti-UAV300 校验**：确认解压后包含对应的视频与标注文件。
 

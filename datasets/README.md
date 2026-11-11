@@ -22,8 +22,8 @@
 
 ```text
 datasets/
-├── README.md               # 本规范文档（术语与数据集事实源）
-├── Anti-UAV/               # 【DUT Anti-UAV】大连理工纯可见光检测与跟踪基准库
+├── README.md               # 本文档
+├── Anti-UAV/               # DUT Anti-UAV 纯可见光检测与跟踪基准库
 │   ├── detection/          # 无人机静态目标检测集 (XML/YOLO 标注，目标标签为 <name>UAV</name>)
 │   │   ├── train/          # 训练集图像与标注 (5,200 张)
 │   │   └── val/            # 验证集 (2,600 张高清图像 + 2,600 份标准标注)
