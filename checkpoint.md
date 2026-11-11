@@ -41,7 +41,7 @@ flowchart LR
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
 | **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 已交付 5 款 ONNX)；目标跟踪：LightTrack 原版基准模型交付 + 传统滤波 (DSST)；协同大脑：AMFT 状态机** | 遵循 Tracer Bullet 极简贯通原则：方案 04 锁定 LightTrack 原版（LightTrackM 官方预训练权重，AUC 52.24%，跟丢率 14.16%）作为基线交付模型，导出纯静态 ONNX 并跑通 C++ 链路；方案 05 将微调 YOLO 与 LightTrack 原版部署至 RK3588 边缘端进行量化与闭环实测；方案 06 承接后续硕士课题自研创新探索（Rep-Backbone 骨干、三阶段深度重训、尺度回归修复、损失函数消融与论文大表）。 |
-| **最新进展** | 🟢 **全套方案与课题文档深度纯净化，彻底清除全部主观修饰词与历史过渡痕迹；严格对齐 AGENTS.md 准则；归档检查点 #55，建立检查点 #56** | 全面检视并纯净化待执行方案 00~06、数据集指南及课题 3 篇核心论证文档，剔除所有说服性词汇、感叹号与历史修订过渡词，转为纯技术规格与实施契约。 |
+| **最新进展** | 🟢 **编制《Qt上位机嵌入LightTrack跟踪算法任务书.md》，固化纯客观工程现状、目的与六大交接任务；归档检查点 #56，建立检查点 #57** | 任务书严格遵循 AGENTS.md 准则，零主观噪音与评述，清晰规范当前 C++ 架构、DirectML 环境、张量接口定义与待编制执行方案规范。 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
 | **GPU 推理基准** | 🟢 **224.5~373.4 FPS / 2.1~4.45ms (SOT 跟踪)；77.2~86.6 FPS / 2.7~5.8ms (YOLO 检测)** | NVIDIA RTX 5070 Laptop GPU (CUDA 13.0 加速)：LightTrack 原版纯推理时延 2.1ms (0.58 GFLOPs)，满足 <=5ms 机电伺服硬实时要求 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
@@ -230,24 +230,16 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #55）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_55.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_55.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #56）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_56.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_56.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-11 #56
+### Checkpoint 2026-11-11 #57
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：全套方案与课题文档深度纯净化，彻底清除全部主观修饰词与历史过渡痕迹，严格对齐 AGENTS.md 准则
+- **类型**：编制《Qt上位机嵌入LightTrack跟踪算法任务书.md》，固化纯客观工程现状、目的与六大交接任务
 - **核心内容**：
-  1. **待执行方案体系全面纯净化（00~06 + 数据集指南）**：
-     - `00_方案总览与执行推进管理规范.md`：规范边缘部署目标硬件定义与数据集约束，彻底移除历史修订表；
-     - `01_Windows平台深度学习目标检测与跟踪集成实操方案.md`：剔除口语化修饰与感叹号，转为客观技术规格说明；
-     - `02_基于自适应多特征融合(AMFT)的光电云台检测-跟踪协同实操方案.md`：客观陈述多特征融合把关机制、四态闭环与动态阈值；
-     - `03_YOLO多模型(v8n_11n_11s)性能横评与动态切换实操方案.md`：规范 2×2 消融实验设计与数据集使用规范；
-     - `04_轻量单目标跟踪基准模型交付与工程链路跑通方案.md`：以 LightTrackM 官方成熟模型作为交付标准，明确张量规格与 C++ 接口；
-     - `05_光电跟踪系统RK3588边缘端量化与工程移植实操方案.md`：对齐静态 ONNX 模型命名与客观验收基准；
-     - `06_后续创新规划.md`：明确作为后续学术创新与消融实验的工程储备库；
-     - `SOT重训数据集下载与准备指南.md`：规范本地目录层级与校验规范。
-  2. **课题文档全面纯净化**：
-     - `课题/反无人机云台视觉跟踪与抗遮挡重检测课题规划指南.md`：去除全部情绪化修饰词、感叹号与自嗨表述，客观陈述各章节规划与三线大表；
-     - `课题/可见光单目标跟踪算法选型与对比基线清单.md`：去除“选型铁律”、“无可辩驳”等词汇，转为同算力对称性与场景专用性学术准则；
-     - `课题/轻量级跟踪基线实验分析与Rep-LightBackbone立项论证.md`：去除“最具学术含金量”、“全库最低”等词汇，客观陈述能效分析与四级备选技术方案。
-  3. **事实源与版本库强一致同步**：
-     - 归档检查点 #55 至 `checkpoints/archive/checkpoint_archive_55.md`，更新唯一事实源 [checkpoint.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoint.md)，执行 Git 规范提交并推送远程仓库。
+  1. **编制交接任务书**：
+     - 生成 [待执行方案/Qt上位机嵌入LightTrack跟踪算法任务书.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/Qt上位机嵌入LightTrack跟踪算法任务书.md)；
+     - 严格约束内容边界，仅客观阐述【系统现状与工程基准】、【工程目的】与【交接任务】，杜绝主观评述与过渡性词汇；
+     - 详尽交代当前软件多线程模型（UI / Worker / 控制）、MinGW 依赖库（OpenCV 4.10.0、ONNX Runtime DirectML）、LightTrack 双分支纯静态 ONNX 张量规格与真值数据集路径；
+     - 明确规定后续会话需产出的 6 项核心执行方案模块与验收指标矩阵。
+  2. **事实源与版本库强一致同步**：
+     - 归档检查点 #56 至 `checkpoints/archive/checkpoint_archive_56.md`，更新唯一事实源 [checkpoint.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoint.md)，执行 Git 规范提交并推送远程仓库。
