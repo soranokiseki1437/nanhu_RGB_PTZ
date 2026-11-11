@@ -92,7 +92,7 @@ flowchart LR
 | **配置管理** | `configmanager.h/.cpp` | 🟢 完备 | P7 全局加锁保护；P8 移除明文密码、`aboutToQuit` 统一存盘 |
 | **镜头控制** | `lensmanager.h/.cpp` | 🟢 完备 | P6 一键聚焦等待自动/手动模式切换成功后再执行（1s 超时兜底） |
 | **日志系统** | `logmanager.h/.cpp` `logging_categories.*` | 🟢 完备 | B2/T4 移除全局宏一刀切，采用 QLoggingCategory 分类动态管理；跟踪 per-frame 节流输出 |
-| **离线工具** | `tools/` `testdata/` | 🟢 完备 | `offline_runner` 与 `compare_csv.py` 支持 22 组数据逐帧与 reference 对拍验证 |
+| **离线工具** | `tools/` `scripts/` | 🟢 完备 | `run_test.ps1` 与 `test_detector` / `test_amft` 基于 Anti-UAV 地对空长焦可见光序列与逐帧 Ground Truth 完备闭环 |
 
 ---
 
@@ -234,12 +234,13 @@ flowchart LR
 
 ### Checkpoint 2026-11-11 #51
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：前沿小模型与地对空反无人机关键文献纳入临时规划、离线与验收工具可见光路径对齐
+- **类型**：前沿小模型与地对空反无人机关键文献纳入规划、离线工具链对齐长焦可见光基准
 - **核心内容**：
   1. **元规划方案体系化扩充**：
      - 在 [待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md) 中完整收录并架构映射 6 篇关键学术成果（DUT Anti-UAV 基石论文、2025 地对空纯视觉反无人机综述、HEDD 小波增强网络、Ground-Visual-Edge 边缘测高系统、PTZ-Latency-Study 云台延迟实证、RL-PTZ-Track 强化学习伺服），系统梳理其技术特征、数学机制与工程映射价值；
-  2. **工具链对齐纯可见光基准**：
-     - 更新 [tools/test_amft.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_amft.cpp) 与 [scripts/generate_report_media.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/generate_report_media.py)，直接挂接本地已就绪的 DUT Anti-UAV `video01`（24,784 帧地对空长焦连续序列之一）及对应 Ground Truth 标注；
+  2. **工具链对齐长焦可见光基准与目录规范化**：
+     - 离线验证与评测工具源码（[tools/test_detector.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_detector.cpp)、[tools/test_amft.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_amft.cpp)、[scripts/generate_report_media.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/generate_report_media.py)）统一挂接 `datasets/Anti-UAV/tracking/` 地对空长焦可见光序列与逐帧 Ground Truth 标注；
+     - 重新构建 `build/release/test_detector.exe` 与 `build/release/test_amft.exe`，执行 `run_test.ps1 models/yolo11n_uav_ft.onnx` 实现 5/5 全景体检 100% 通过（RTX 5070 DirectML 纯推理 2.54ms，220.99 FPS，IoU 88.2%，中心误差 2.81px，零内存泄漏）；
   3. **检查点归档与轻量化保持**：
      - 将 Checkpoint #50 完整沉淀归档至 [checkpoints/archive/checkpoint_archive_50.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_50.md)，维持根目录 `checkpoint.md` 单点最新；
   4. **版本库阶段同步**：

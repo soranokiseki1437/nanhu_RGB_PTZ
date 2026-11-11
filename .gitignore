@@ -44,8 +44,6 @@ sdk/univisionsdk-0.3.2/
 # ===== Node 依赖 =====
 node_modules/
 
-# ===== 离线对拍数据：图片序列不入库（gt/frames 等小文件保留） =====
-testdata/**/imgs/
 
 # ===== 系统杂项 =====
 Thumbs.db
