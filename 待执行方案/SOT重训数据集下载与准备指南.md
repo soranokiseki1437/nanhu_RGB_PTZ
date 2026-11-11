@@ -24,12 +24,19 @@
 ---
 
 ### 1.2 核心二号库：CASIA Anti-UAV300（地对空长焦连续视频微调）
-* **定位**：CVPR / IEEE TPAMI 2021 反无人机挑战赛连续视频序列，用于方案 06-A 阶段三地对空领域微调；
-* **数据体量**：压缩包约 30 GB（真彩色可见光序列，RGB 1080p/720p）；
+* **定位**：CVPR / IEEE TPAMI / IEEE T-MM 反无人机基准连续视频序列，用于方案 06-A 阶段三地对空领域微调；
+* **数据体量**：压缩包约 30 GB（300 对双模态序列，真彩色可见光序列 RGB 1080p/720p + 红外序列）；
 * **下载途径**：
-  - 百度网盘：`https://pan.baidu.com/s/1dJR0VKyLyiXBNB_qfa2ZrA`（提取码：`sagx`）
-  - Google Drive：`https://drive.google.com/file/d/1NPYaop35ocVTYWHOYQQHn8YHsM9jmLGr/view`
-  - 官方主页：[https://anti-uav.github.io/](https://anti-uav.github.io/)
+  1. **中科院自动化所（CASIA / UCAS-VG）官方全量百度网盘**：
+     - 链接：`https://pan.baidu.com/s/1A1-ynecLWfkEetRsPnh6rw`（提取码：`u4ca`）
+     - 说明：包含全量视频序列与逐帧 JSON 边界框真值标注；
+  2. **Kaggle 全量开源镜像（海外/高校高速通道）**：
+     - 主页：`https://www.kaggle.com/datasets/mahdimoalla/anti-uav-dataset-300`
+     - 说明：包含 300 段完整序列，支持直接下载或 `kaggle datasets download`；
+  3. **官方 Google Drive 全量大包**：
+     - 链接：`https://drive.google.com/file/d/1NPYaop35ocVTYWHOYQQHn8YHsM9jmLGr/view?usp=sharing`
+  4. **挑战赛打榜子集（用户此前截图的 test-dev）**：
+     - 链接：`https://pan.baidu.com/s/1dJR0VKyLyiXBNB_qfa2ZrA`（提取码：`sagx`，仅包含 `test-dev.tar` 1.97 GB，无训练真值，不用于训练）。
 
 ---
 
