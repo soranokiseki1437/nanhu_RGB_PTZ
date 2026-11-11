@@ -2,10 +2,10 @@
 
 > **方案编号**：01  
 > **归属工程**：[RGB_PTZ_Integrated](file:///d:/PyProjects/RGB_PTZ_Integrated)  
-> **当前宿主环境**：Windows 11 (MinGW 13.1 64-bit / Qt 6.x, C++17)  
-> **加速硬件**：**NVIDIA GeForce RTX 5070 Laptop GPU**（优先通过 ONNX Runtime DirectML 开启 GPU 硬件加速，单帧 3~5ms；同时支持无显卡环境自动回退 CPU）  
-> **未来硬件考量**：前瞻性解耦设计，严格遵守模型尺寸与纯 C++ 算法约束，确保与未来 Linux ARM64 (RK3588 6 TOPS NPU) 部署完全兼容且零冲突。  
-> **核心目标**：在当前安全稳定运行的架构（FFmpeg 解码、DSST 跟踪、Pelco-D 伺服闭环）基础之上，平滑接入轻量级深度学习目标检测模型（YOLOv8n / YOLO11s 静态尺寸）与纯 C++ ByteTrack 多目标跟踪算法，构建“双模式可切换、低延迟、零阻塞”的工程化感知伺服管道。
+> **宿主环境**：Windows 11 (MinGW 13.1 64-bit / Qt 6.x, C++17)  
+> **加速硬件**：NVIDIA GeForce RTX 5070 Laptop GPU（通过 ONNX Runtime DirectML 实现 GPU 硬件加速，单帧 3~5ms；支持 CPU 自动回退）  
+> **部署架构对齐**：采用静态输入尺寸与标准 C++ 算法设计，接口对齐 Linux ARM64 (RK3588 6 TOPS NPU) 部署环境。  
+> **核心目标**：在现有系统架构（FFmpeg 解码、DSST 跟踪、Pelco-D 伺服闭环）基础上，接入轻量级深度学习目标检测模型（YOLOv8n / YOLO11s 静态尺寸）与纯 C++ ByteTrack 多目标跟踪算法，构建双模式协同感知与伺服链路。
 
 ---
 
@@ -90,25 +90,25 @@
 
 ## 二、 编译依赖与跨平台解耦设计
 
-为了保证**当前 Windows (MinGW 13.1 + RTX 5070) 极致性能接入**，同时确保**未来移植到 Linux ARM64 (RK3588) 完全不矛盾、零重构**，底层依赖作如下规划：
+底层依赖规划如下：
 
 ### 2.1 依赖库选型：ONNX Runtime (DirectML / C-API)
-* **现状分析**：当前工程的 OpenCV 仅编译了 `core` 和 `imgproc` 模块（无 `opencv_dnn`）。如果使用 OpenCV DNN 需重新耗时编译整个 OpenCV。
-* **推荐解法**：直接引入微软官方的 **ONNX Runtime (C API) + DirectML 执行提供者**。
-  - **GPU 极速加速**：通过 DirectML（DirectX 12）调用宿主机的 **NVIDIA GeForce RTX 5070** 显卡进行硬件加速，完全免去配置复杂的 CUDA Toolkit 与 cuDNN 版本匹配地狱！
-  - **MinGW 100% 兼容**：ONNX Runtime 导出纯 C 接口（`onnxruntime_c_api.h`），在 MinGW 下可以直接动态链接，完美避开 MSVC 与 MinGW 的 C++ ABI 符号不兼容陷阱。
-  - **优雅降级兜底**：在 C 接口中设置 DirectML 优先：
+* **工程现状**：当前工程 OpenCV 编译了 `core` 和 `imgproc` 模块（未编译 `opencv_dnn`）。
+* **技术选型**：直接引入微软官方 **ONNX Runtime (C API) + DirectML 执行提供者**。
+  - **GPU 加速**：通过 DirectML（DirectX 12）调用宿主机 NVIDIA GeForce RTX 5070 进行硬件加速，无需配置独立 CUDA Toolkit 与 cuDNN 环境；
+  - **MinGW 兼容**：ONNX Runtime 导出纯 C 接口（`onnxruntime_c_api.h`），在 MinGW 下直接动态链接，避免 MSVC 与 MinGW 的 C++ ABI 不兼容问题；
+  - **平滑降级**：在 C 接口中设置 DirectML 优先：
     ```cpp
     // 优先开启 DirectML (GPU 硬件加速，设备号 0)
     OrtStatus* status = OrtSessionOptionsAppendExecutionProvider_DML(sessionOptions, 0);
     if (status != nullptr) {
-        // 若 GPU 不可用，则自动平滑回退为 CPU 多线程推理
+        // 若 GPU 不可用，则自动回退为 CPU 多线程推理
         OrtSessionOptionsAppendExecutionProvider_CPU(sessionOptions, 1);
     }
     ```
-* **面向 RK3588 的无冲突前瞻性**：
+* **面向 RK3588 的跨平台接口抽象**：
   - 算法业务层统一面向纯虚基类 [IDetector.h](file:///d:/PyProjects/RGB_PTZ_Integrated/IDetector.h) 编程；
-  - Windows 端实现 [OnnxDetector](file:///d:/PyProjects/RGB_PTZ_Integrated/onnxdetector.h)；未来在 RK3588 上只需新增 `RknnDetector`（使用 `librknnrt.so` 调用 NPU），业务层和跟踪层代码**一行不改**。
+  - Windows 端实现 [OnnxDetector](file:///d:/PyProjects/RGB_PTZ_Integrated/onnxdetector.h)；RK3588 端实现 `RknnDetector`（使用 `librknnrt.so` 调用 NPU），业务层与跟踪层接口保持一致。
 
 ### 2.2 构建体系配置（`RGB_PTZ_Integrated.pro`）
 
@@ -127,7 +127,7 @@ win32 {
 }
 
 unix:!macx {
-    # 预留：未来 RK3588 / Linux ARM64 平台接入 (与当前规划完全不冲突)
+    # 预留：RK3588 / Linux ARM64 平台接入
     DEFINES += USE_RKNN
     INCLUDEPATH += /usr/include/rknn
     LIBS += -lrknnrt
@@ -136,7 +136,7 @@ unix:!macx {
     SOURCES += rknndetector.cpp
 }
 
-# 跨平台完全共用部分（纯 C++ 算法，无任何硬件平台依赖）
+# 跨平台纯 C++ 算法模块
 HEADERS += \
     IDetector.h \
     yolopostprocessor.h \
@@ -207,7 +207,7 @@ public:
 
 ### 3.2 独立跨平台纯 C++ 后处理 `YoloPostProcessor`
 
-将模型输出张量的解码与 NMS 逻辑完全从推理引擎中抽离为独立的工具类。无论是 Windows ONNX Runtime 还是未来 RK3588 NPU，只要模型导出结构一致（输出格式 $[1, 84, 8400]$），该后处理模块**100% 跨平台复用**。
+将模型输出张量的解码与 NMS 逻辑完全从推理引擎中抽离为独立的工具类。无论是 Windows ONNX Runtime 还是 RK3588 NPU，只要模型输出结构一致（格式 $[1, 84, 8400]$），该后处理模块均可直接跨平台复用。
 
 ```cpp
 class YoloPostProcessor {
@@ -228,11 +228,11 @@ public:
 
 ### 3.3 纯 C++ ByteTrack 多目标跟踪算法
 
-传统单目标跟踪（DSST）一旦被建筑物、树木短暂遮挡极易彻底跟丢。引入纯 C++ 实现的 **ByteTrack**：
-1. **零第三方硬件依赖**：仅使用 C++ 标准库与 OpenCV core（矩阵运算），在 Windows MinGW 和 ARM64 上均可极速运行（单帧关联耗时 $< 1\text{ ms}$）。
+传统单目标跟踪（DSST）在目标遭遇遮挡时易产生跟踪漂移。引入纯 C++ 实现的 **ByteTrack**：
+1. **无硬件加速库依赖**：仅使用 C++ 标准库与 OpenCV core（矩阵运算），在 Windows MinGW 和 ARM64 上均可运行（单帧关联耗时 $< 1\text{ ms}$）。
 2. **双阶段数据关联（Two-stage Association）**：
    - 第一阶段：高分检测框与存续航迹进行空间 IoU 匹配；
-   - 第二阶段：低分检测框与未匹配航迹二次关联，有效保障遮挡与模糊时的轨迹连续性。
+   - 第二阶段：低分检测框与未匹配航迹二次关联，保障遮挡与模糊时的轨迹连续性。
 3. **输出数据结构**：
    ```cpp
    struct TrackTarget {
@@ -253,7 +253,7 @@ public:
 ByteTrack 输出多目标列表 `std::vector<TrackTarget>`，而云台伺服（`TrackingController`）一次只能跟踪一个主控目标。通过目标选择策略完成桥接：
 
 1. **手动锁定模式**：用户在 UI 画面上点击任意检测框，拾取其 `trackId` 并锁定；
-2. **自动锁定模式**：按预设优先级规则（如无人机置信度最高、距离画面中心最近或几何尺度符合）自动选定主目标；
+2. **自动锁定模式**：按预设优先级规则（如无人机置信度最高、距离画面中心最近或几何尺度符合）选定主目标；
 3. **转换为标准 `TrackResult` 并发送**：
    ```cpp
    // 将主锁定目标的航迹状态封装为现有 TrackingController 兼容的 TrackResult
@@ -267,7 +267,7 @@ ByteTrack 输出多目标列表 `std::vector<TrackTarget>`，而云台伺服（`
    result.kfVy = lockedTarget.kfVy;
    result.occluded = (lockedTarget.lostFrames > 0);
 
-   // 触发信号，现有 TrackingController::trackingResult 槽函数直接响应！
+   // 触发信号，TrackingController::trackingResult 槽函数直接响应
    emit mainTargetTracked(result);
    ```
 

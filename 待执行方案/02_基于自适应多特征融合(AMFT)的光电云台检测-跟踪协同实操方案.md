@@ -14,7 +14,7 @@
 在光电云台跟踪任务中，跟踪器与大模型检测器采用分工协同架构：
 1. **局部高频主循环**：[DsstCore](file:///d:/PyProjects/RGB_PTZ_Integrated/dsstcore.cpp) 满帧率（30/60 FPS）极速跟踪，单帧耗时 $< 2\text{ ms}$，计算资源开销极低；
 2. **全局大模型零频待机**：[OnnxDetector](file:///d:/PyProjects/RGB_PTZ_Integrated/onnxdetector.cpp) 常态处于挂起状态（0 FPS / 0% GPU占用）；
-3. **多特征融合精准把关**：由 [AMFTEvaluator](file:///d:/PyProjects/RGB_PTZ_Integrated/amftevaluator.cpp) 评估器担任协同判决仲裁，当且仅当多维评估确认“航迹真正不可靠”时，才单次唤醒 1 帧全局扫描，找回后下一帧强制切回局部跟踪。
+3. **多特征融合把关**：由 [AMFTEvaluator](file:///d:/PyProjects/RGB_PTZ_Integrated/amftevaluator.cpp) 评估器担任协同判决仲裁，当多维评估综合得分低于动态阈值时，单次唤醒 1 帧全局扫描，找回后下一帧切回局部跟踪。
 
 ---
 
@@ -45,13 +45,13 @@
                                                 │
                                    ┌────────────┴────────────┐
                                    ▼                         ▼
-                           [ R_t ≥ τ_t 跟踪可靠 ]     [ R_t < τ_t 跟踪异常! ]
+                           [ R_t ≥ τ_t 跟踪可靠 ]     [ R_t < τ_t 跟踪异常 ]
                                    │                         │
                                    ▼                         ▼
                            【维持局部跟踪模式】       【单次唤醒 OnnxDetector 全局扫描】
                            • YOLO 保持休眠 (0 FPS)    • 全图 640x640 检索目标 (3.06ms)
-                           • 极速输出脱靶量驱动电机   • 命中: 立即重置 DsstCore 模板
-                                                      • 铁律: 下一帧强制切回局部跟踪！
+                           • 输出脱靶量驱动电机       • 命中: 重置 DsstCore 模板
+                                                      • 规则: 下一帧切回局部跟踪
 ```
 
 ### 2.1 针对本工程的参数映射表：
@@ -91,7 +91,7 @@
 - [x] **02-1.3 接入 IDetector 接口**：`ObjectTracker` 引入 `std::shared_ptr<IDetector>`，在 $R_t < \tau_t$ 时单次调用 `detect()`。
 - [x] **02-1.4 模板自适应重置与强制回归**：检测返回高置信度目标后，自动执行 DsstCore 模板热更新，且下一帧严格强制切回局部跟踪（0 FPS 休眠）。
 - [x] **02-1.5 变焦尺度动态校准**：联动 [LensManager](file:///d:/PyProjects/RGB_PTZ_Integrated/lensmanager.cpp) 变焦完成信号触发单次尺度纠偏校准。
-- [x] **02-1.6 外场离线数据集验证**：在 `datasets/Anti-UAV/tracking/` 上完成 4 大维度闭环验收实跑（通过 PASS，平均误差 2.22px，稳态 0 误唤醒）。
+- [x] **02-1.6 外场离线数据集验证**：在 `datasets/Anti-UAV/tracking/` 上完成 4 大维度闭环验收实跑（验收测试通过，平均误差 2.22px，稳态无异常唤醒）。
 
 ---
 

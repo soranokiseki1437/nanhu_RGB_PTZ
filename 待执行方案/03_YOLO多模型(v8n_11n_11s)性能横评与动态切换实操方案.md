@@ -21,8 +21,7 @@
                      - 核心职责：全图视野搜索 (Search)、多目标候选识别、操作员交互“点击锁定 (Click-to-Lock)”、
                                 以及跟踪阶段失锁时的“单次按需重捕获 (Re-detection On-Demand)”
                      - 运行频度：常态 0 FPS 挂起待机；索敌/失锁时单次唤醒运行 1 帧
-                     - ★ 数据集铁律：必须且只能使用【目标检测数据集 (Object Detection Dataset)】训练与评估！
-                                     严禁使用单目标连续跟踪切片混淆检测训练！
+                     - 数据集规范：使用目标检测数据集（Object Detection Dataset）训练与评估，避免使用跟踪切片混淆检测训练
                                           │
                                           ▼ 传递锁定目标精确中心与尺度 (TrackResult)
                     【阶段二：目标跟踪阶段 (Target Tracking Phase)】
@@ -38,7 +37,7 @@
 3. **点击锁定前置输入（Click-to-Lock Input）**：操作员在界面单击任意检测框，检测器将该目标坐标交接给跟踪器作为初始化模板；
 4. **失锁单次按需重捕（Re-detection On-Demand）**：当跟踪器因树木遮挡、高速机动丢锁后，由 [AMFTEvaluator](file:///d:/PyProjects/RGB_PTZ_Integrated/amftevaluator.cpp) 协同状态机单次异步唤醒检测器进行 1 帧全局扫描，找回目标后下一帧立即回归跟踪阶段。
 
-### 1.2 数据集使用的绝对法则
+### 1.2 数据集使用规范
 * **YOLO 只能使用目标检测数据集（Object Detection Dataset）**：
   - 数据集样本必须是全景大图视野，包含完整地空背景（蓝天、积云、建筑物、树丛等）；
   - 标注格式必须为多目标边界框（如 Pascal VOC XML 或 YOLO 归一化 TXT），且包含丰富的负样本与小目标；
@@ -88,8 +87,8 @@
  7,800 张 VOC XML 标注         v8n/v8s/11n/11s 同构微调         DUT Anti-UAV + Drone-vs-Bird      标准化算子导出
        │                             │                                 │                               │
        ▼                             ▼                                 ▼                               ▼
- scripts/convert_voc_to_yolo.py  产生 4 款真正的微调模型           yolo11s_anti_uav_robust.pt        models/yolo11s_uav.onnx
- 生成 anti_uav.yaml             支撑真正的学术 2x2 消融            强光/飞鸟环境下抗虚警大幅提升       DirectML GPU 毫秒级闭环
+ scripts/convert_voc_to_yolo.py  输出 4 款微调模型                 yolo11s_anti_uav_robust.pt        models/yolo11s_uav.onnx
+ 生成 anti_uav.yaml             完成 2x2 消融横评                 飞鸟环境下抗虚警率评估            DirectML GPU 毫秒级闭环
 ```
 
 ### 3.1 阶段 1：数据集格式标准化转换与标签清洗
@@ -102,7 +101,7 @@
   4. 生成工程标准化描述文件 `datasets/anti_uav.yaml`。
 
 ### 3.2 阶段 2：四款候选模型在 Anti-UAV 上的同构领域微调（四模型依次顺序训练规划）
-为了在毕业论文中进行**具备百分之百学术说服力的真实 2×2 消融横评**，必须在相同的软硬件底座与超参协议下，对四款模型开展自动化、全闭环的依次顺序重训：
+为系统评估架构演进与尺度敏感度，在统一的实验协议与超参数配置下，对四款模型执行标准化微调与 2×2 消融实验：
 * **运行环境底座**：
   - 解释器：`D:\miniconda3\envs\anti_uav_yolo\python.exe`（Python 3.11.18）
   - 硬件算力：NVIDIA GeForce RTX 5070 Laptop GPU（Blackwell `sm_120` 原生内核加速）
@@ -142,10 +141,10 @@
 
 | 实验编号 | 消融自变量与对照组 | 核心考察目标 | ★ 对应的测试数据集 | 关键评价指标 | 推进状态与规划 |
 | :---: | :--- | :--- | :--- | :--- | :---: |
-| **消融 1** | **代际架构演进**<br>微调后 YOLOv8<br>vs 微调后 YOLO11 | 验证在无人机专属权重下，C3k2 + C2PSA 空间注意力对微弱高频特征与抗杂波的真实增益 | **DUT Anti-UAV 验证集**<br>(2,600 帧全量实测) | • mAP@50 (%)<br>• mAP@50:95 (%)<br>• 极弱小目标召回率 | ⏳ **规划执行中**<br>(4 款模型同构重训后测试) |
+| **消融 1** | **代际架构演进**<br>微调后 YOLOv8<br>vs 微调后 YOLO11 | 验证在无人机专属权重下，C3k2 + C2PSA 空间注意力对微弱高频特征与抗杂波的影响 | **DUT Anti-UAV 验证集**<br>(2,600 帧全量实测) | • mAP@50 (%)<br>• mAP@50:95 (%)<br>• 极弱小目标召回率 | ⏳ **规划执行中**<br>(4 款模型同构重训后测试) |
 | **消融 2** | **模型参数尺度**<br>Nano 级 vs Small 级 | 衡量模型参数翻倍在长焦微弱目标感知上的边际增益与伺服时延的权衡 | **DUT Anti-UAV 验证集**<br>(2,600 帧全量实测) | • GPU 纯推理耗时 (ms)<br>• 端到端总时延 (ms)<br>• 系统帧率 (FPS) | ⏳ **规划执行中**<br>(同构微调后测定) |
-| **消融 3** | **领域训练策略增益**<br>通用预训练权重<br>vs DUT 单源微调<br>vs 多源联合训练 | 验证解决类别域漂移（Domain Gap）与小目标特征适配的飞跃幅度 | **DUT Anti-UAV 验证集** | • mAP@50 (%)<br>• 强光逆光召回率<br>• 弱小目标检测精度 | ⏳ **规划执行中**<br>(验证从 19.7% 跨越到 90%+) |
-| **消融 4** | **抗虚警校验增益**<br>单级 YOLO (τ=0.2)<br>vs YOLO + VaL_CNN | 评估条件式二级校验网络在低门限下对刺眼云层与飞鸟杂波的过滤能力 | **Drone-vs-Bird 挑战赛测试集**<br>(密集多目标，专攻飞鸟负样本) | • 每帧虚警数 (FP/frame)<br>• 真实目标召回率<br>• 综合 F1 分数 | ⏳ **规划执行中**<br>(验证虚警降低 2.6 倍) |
+| **消融 3** | **领域训练策略增益**<br>通用预训练权重<br>vs DUT 单源微调<br>vs 多源联合训练 | 量化解决类别域漂移（Domain Gap）与小目标特征适配的指标变化 | **DUT Anti-UAV 验证集** | • mAP@50 (%)<br>• 强光逆光召回率<br>• 弱小目标检测精度 | ⏳ **规划执行中**<br>(量化预训练与微调模型的指标差异) |
+| **消融 4** | **抗虚警校验增益**<br>单级 YOLO (τ=0.2)<br>vs YOLO + VaL_CNN | 评估条件式二级校验网络在低门限下对刺眼云层与飞鸟杂波的过滤能力 | **Drone-vs-Bird 挑战赛测试集**<br>(密集多目标，专攻飞鸟负样本) | • 每帧虚警数 (FP/frame)<br>• 真实目标召回率<br>• 综合 F1 分数 | ⏳ **规划执行中**<br>(量化二级校验对误检的抑制率) |
 | **消融 5** | **目标尺度敏感度消融**<br>极弱小 (<32px)<br>中小 (32~64px)<br>中大 (>64px) | 验证网络对长焦镜头目标由远及近距离变化的尺度鲁棒性 | **DUT Anti-UAV 验证集**<br>(按像素面积三级切分) | • $AP_{tiny}$ (%)<br>• $AP_{small}$ (%)<br>• $AP_{med}$ (%) | ⏳ **伴随训练评估** |
 
 ---
@@ -194,9 +193,9 @@ bool OnnxDetector::loadModel(const QString& modelPath, const DetectorConfig& con
 - [x] **2. DUT Anti-UAV 7,800 张检测样本 VOC ➔ YOLO 格式批量转换与环境验证**：
   - 编写并运行 [scripts/convert_anti_uav_voc_to_yolo.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/convert_anti_uav_voc_to_yolo.py) 与 [scripts/fix_dataset_dirs.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/fix_dataset_dirs.py)；
   - 完成 7,800 份 XML 标注到标准 YOLO `.txt` 的批量转换与单类别 (`0: UAV`) 归一化；
-  - 重构物理目录结构（`train/images` 与 `val/images` 原生落盘，`img` 保持兼容软链接），生成 [datasets/anti_uav.yaml](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/anti_uav.yaml)，经官方数据引擎全量扫描 100% 无损通过；
+  - 重构物理目录结构（`train/images` 与 `val/images` 原生落盘，`img` 保持兼容软链接），生成 [datasets/anti_uav.yaml](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/anti_uav.yaml)，验证集加载校验通过；
   - 部署 [D:\miniconda3](file:///d:/miniconda3) 专属环境 `anti_uav_yolo`（Python 3.11 + PyTorch 2.14.1 + CUDA 13.0），完全打通 RTX 5070 Blackwell `sm_120` 硬件级加速。
-- [ ] **3. 启动四款候选模型受控同构微调流水线（依次顺序执行，新对话首要任务）**：
+- [ ] **3. 启动四款候选模型受控同构微调流水线（依次顺序执行）**：
   - 启动命令：`& "D:\miniconda3\envs\anti_uav_yolo\python.exe" scripts/train_uav_detector.py --model all --epochs 80 --batch 16`；
   - 依次顺序微调：`yolo11n.pt` (~8 min) ➔ `yolo11s.pt` (~12 min) ➔ `yolov8n.pt` (~8 min) ➔ `yolov8s.pt` (~12 min)，预计总耗时约 40 分钟；
   - 统一受控超参：80 Epochs，Batch Size = 16，SGD lr0=0.01，Mosaic=1.0，Copy-Paste=0.3，MixUp=0.15，输入 $640\times 640$；

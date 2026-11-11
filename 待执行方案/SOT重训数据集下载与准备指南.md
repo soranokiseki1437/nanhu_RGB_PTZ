@@ -9,14 +9,14 @@
 
 ## 一、 核心数据集下载链接与镜像索引
 
-### 1.1 核心一号库：中科院 GOT-10k（通用单目标跟踪黄金基准大库）
-* **学术定位**：单目标跟踪领域权威全视频基准（9,335 段视频，140 万帧手工精标注），用于训练 MFFN 细节融合层、DAC-Head 匹配层与边界框尺度几何标尺；
+### 1.1 核心一号库：中科院 GOT-10k（通用单目标跟踪基准数据集）
+* **学术定位**：单目标跟踪领域权威全视频基准（9,335 段视频，140 万帧手工标注），用于训练 MFFN 细节融合层、DAC-Head 匹配层与边界框尺度几何标尺；
 * **数据体量**：压缩包约 **66 GB**（拆分为多个分卷，解压后约 68 GB）；
 * **下载途径**：
-  1. **中科院自动化所（CASIA）官方直连（国内极速源，首选推荐）**：
+  1. **中科院自动化所（CASIA）官方直连**：
      - 官网主页：[http://got-10k.aitestunion.com/](http://got-10k.aitestunion.com/)
      - 下载专属页：[http://got-10k.aitestunion.com/downloads](http://got-10k.aitestunion.com/downloads)
-     - 说明：使用邮箱注册学术账号登录，直接多线程满速下载 `train_data.zip` 分卷；
+     - 说明：使用邮箱注册学术账号登录，下载 `train_data.zip` 分卷；
   2. **NanoTrack 作者官方国内百度网盘镜像**：
      - 数据集链接：`https://pan.baidu.com/s/10crE2uKR182fA93XRB3jyg`（提取码：`5ebm`）
      - 预裁剪与标注辅助包：`https://pan.baidu.com/s/1yzXnRUqjreSeojEQOmluQg`（提取码：`un47`）
@@ -24,7 +24,7 @@
 ---
 
 ### 1.2 核心二号库：CASIA Anti-UAV300（地对空长焦连续视频微调）
-* **定位**：CVPR / IEEE TPAMI 2021 反无人机挑战赛连续视频序列，用于方案 04B 第三阶段地对空领域微调；
+* **定位**：CVPR / IEEE TPAMI 2021 反无人机挑战赛连续视频序列，用于方案 06-A 阶段三地对空领域微调；
 * **数据体量**：压缩包约 30 GB（真彩色可见光序列，RGB 1080p/720p）；
 * **下载途径**：
   - 百度网盘：`https://pan.baidu.com/s/1dJR0VKyLyiXBNB_qfa2ZrA`（提取码：`sagx`）
