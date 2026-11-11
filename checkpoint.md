@@ -234,13 +234,15 @@ flowchart LR
 
 ### Checkpoint 2026-11-11 #51
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：纯可见光地对空关键文献架构映射、候选设计储备与单主线收敛原则确立、离线验证闭环
+- **类型**：纯可见光地对空前沿文献下载与分类归档、方案与课题文件全面对齐单一重参数化骨干及候选池机制
 - **核心内容**：
-  1. **元规划方案体系化扩充与储备/单主线原则确立**：
-     - 在 [待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md) 中确立“候选设计全面储备、论文仅收录最优单主线”原则：将前沿有价值的设计全部整备就绪作为工程可选路线池（按需尝试，不强求全做），最终学位论文仅呈现验证选拔出的唯一最优路线，未采用的候选设计绝不写入论文，从源头杜绝篇幅膨胀与内容杂烩；
-     - 严格排查并纯化前沿成果传感器模态，锁定地对空长焦纯可见光（RGB）物理域，系统映射 DUT Anti-UAV 基石论文、2025 地对空纯视觉反无人机综述、Dist-Tracker 协方差距离度量、HEDD 小波增强网络、Ground-Visual-Edge 边缘测高系统、PTZ-Latency-Study 云台延迟实证与 RL-PTZ-Track 强化学习伺服等关键成果；
-  2. **工具链对齐长焦可见光基准与目录规范化**：
-     - 离线验证与评测工具源码（[tools/test_detector.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_detector.cpp)、[tools/test_amft.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_amft.cpp)、[scripts/generate_report_media.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/generate_report_media.py)）统一挂接 `datasets/Anti-UAV/tracking/` 地对空长焦可见光序列与逐帧 Ground Truth 标注；
-     - 重新构建 `build/release/test_detector.exe` 与 `build/release/test_amft.exe`，执行 `run_test.ps1 models/yolo11n_uav_ft.onnx` 实现 5/5 全景体检 100% 通过（RTX 5070 DirectML 纯推理 2.54ms，220.99 FPS，IoU 88.2%，中心误差 2.81px，零内存泄漏）；
+  1. **方案与课题规划文件全面修订与对齐**：
+     - 在 [待执行方案/06_后续创新规划.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/06_后续创新规划.md) 扩充方案 11（追加 Dist-Tracker 协方差对齐 Wasserstein 损失为候选 5）、方案 07/08（追加 HEDD 边缘高频锐化与时延方程备料），明确候选池仅为工程实验储备，最终论文仅呈现验证有效的设计；
+     - 在 [待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md) 明确模块化损失插件接口；
+     - 在 [课题/反无人机云台视觉跟踪与抗遮挡重检测课题规划指南.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/反无人机云台视觉跟踪与抗遮挡重检测课题规划指南.md) 补齐 5 篇前沿纯可见光关键文献，统一骨干网络为唯一的结构重参数化轻量骨干（Rep-LightBackbone）；
+     - 在 [课题/可见光单目标跟踪算法选型与对比基线清单.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/可见光单目标跟踪算法选型与对比基线清单.md)、[课题/论文碎片材料/反无人机视觉目标检测与跟踪数据集综述与选型论证.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/论文碎片材料/反无人机视觉目标检测与跟踪数据集综述与选型论证.md)、[课题/论文碎片材料/反无人机目标检测前沿文献引用与对比.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/论文碎片材料/反无人机目标检测前沿文献引用与对比.md) 与 [待执行方案/SOT重训数据集下载与准备指南.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/SOT重训数据集下载与准备指南.md) 完成前沿基准全面同步；
+  2. **参考文献库分类重组与论文下载**：
+     - 将 [reference/papers/](file:///d:/PyProjects/RGB_PTZ_Integrated/reference/papers/) 重构成 5 大主题子目录（01_综述与数据基准、02_经典与重型跟踪基准、03_轻量结构与重参数化SOT、04_反无人机专属模型与小目标损失、05_光电云台机电伺服与协同闭环）；
+     - 成功下载并归档 `DUT_AntiUAV_TITS2022.pdf`、`Dist-Tracker_CVPRW2025.pdf`、`UAV-DETR_2026.pdf`、`LRDDv3_ICRA2026.pdf`、`SkyEV_2026.pdf` 等全文本体，编写规范索引指南 [reference/papers/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/reference/papers/README.md)；
   3. **版本库阶段同步**：
      - 执行 Git 语义化提交并推送至远程仓库（`git push origin main`）。

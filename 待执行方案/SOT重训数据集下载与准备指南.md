@@ -80,3 +80,13 @@ D:\Datasets_SOT\
 2. **COCO 2017 校验**：解压完成后，确认 `train2017/` 目录下图片数量为 `118287`；
 3. **CASIA Anti-UAV300 校验**：确认解压后包含对应的视频与标注文件。
 
+---
+
+## 四、 前沿可选扩展数据源规范（LRDDv3 4K可见光子集）
+
+* **数据集名称**：LRDDv3 (*High-Resolution Long-Range Drone Detection Dataset*, IEEE ICRA 2026 / arXiv:2605.25942)
+* **数据集定位**：可选的超远距离弱小目标泛化与极限测距扩展测试集（按需下载验证，不阻塞主航道）
+* **官方开源地址**：`https://github.com/iMAPLE-Lab/LRDD`
+* **建议本地存放路径**：`D:\Datasets_SOT\LRDDv3\`
+* **使用准则**：仅抽取其 102,532 张 4K 分辨率纯可见光（RGB）静态图像子集，用于超远距离微小尺度（$\le 50\text{ px}$）极限召回与泛化验证。
+

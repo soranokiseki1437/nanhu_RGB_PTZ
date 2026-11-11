@@ -92,6 +92,9 @@ $$\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{cls}} + \lambda_{\text{giou}} 
 单帧目标定位得分采用联合乘积排序：
 $$\text{Score}(x, y) = \sqrt{\text{Cls}(x, y) \times \text{Centerness}(x, y)}$$
 
+### 3.4 模块化损失接口与候选扩展机制
+训练代码（`scripts/train_sot.py`）中的 `SOTLoss` 设计为插件化解耦接口，预留挂载方案 11 候选损失（如结合协方差对齐的 Wasserstein 损失 Cov-NWD）的能力，便于在实验阶段横向对拍哪组损失对提升微小目标 AUC 最有效；实测证实有效的组合正式沉淀为主线并写入论文正文。
+
 ---
 
 ## 四、 训练流程与数据组织
