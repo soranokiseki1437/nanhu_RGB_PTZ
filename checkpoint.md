@@ -41,7 +41,7 @@ flowchart LR
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
 | **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO)；目标跟踪：自研轻量深度网络 (LightUAV-SOT 方案 04B 重训规划，RepVGG-A0 + MFFN + DAC-Head + GIoU/Centerness) + 传统滤波 (DSST)** | 目标检测阶段已交付 5 款部署级 ONNX；目标跟踪阶段按照战略决策全面锁定纯算法科研与真机航迹数据集创新验证，方案 04B 确立三阶训练路线：骨干 RepVGG-A0 加载 ImageNet-1k 官方权重（本地已就绪）、中科院 GOT-10k 50 轮通用尺度与时序预训练、CASIA Anti-UAV300 100 段全量连续航迹 30 轮地对空领域微调，最终在本地 DUT Anti-UAV 20 组真机长焦跟踪序列（24,784 帧）上执行盲测闭环。 |
-| **最新进展** | 🟢 **规范全系统数据集学术出处与指代术语；明确本地 DUT Anti-UAV 与外部 CASIA Anti-UAV 权责边界；方案 04B 与下载指南术语全面对齐纯化** | 严格区分并核准大连理工「DUT Anti-UAV」（本地已就绪，含 10,000 张静态检测集与 20 段连续跟踪序列）与中科院/清华「CASIA Anti-UAV300」（拟扩充外部 100 段全量航迹）的学术边界；重构 `datasets/README.md`、`待执行方案/04B_...` 与《SOT重训数据集下载与准备指南》，彻底拔除术语混淆；执行 Git 提交与远程同步。 |
+| **最新进展** | 🟢 **方案 04B 重训规程与数据集架构就绪；明确本地 DUT Anti-UAV 与外部 CASIA Anti-UAV300/GOT-10k 分工；完成阶段性版本库提交与推送** | 确认本地已就绪 DUT Anti-UAV（10,000 张检测图与 20 段跟踪序列）作为验证盲测基准；明确外部中科院 GOT-10k 与 CASIA Anti-UAV300 作为台式机重训输入；完成方案 04B、下载指南及数据集架构文档规范。 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
 | **GPU 推理基准** | 🟢 **224.5~373.4 FPS / 2.68~4.45ms (SOT 跟踪)；77.2~86.6 FPS / 2.7~5.8ms (YOLO 检测)** | NVIDIA RTX 5070 Laptop GPU (CUDA 13.0 加速)：自研 SOT 跟踪纯推理时延 2.68~4.45ms，完全满足 <=5ms 极致机电伺服硬实时要求 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
@@ -234,13 +234,12 @@ flowchart LR
 
 ### Checkpoint 2026-11-11 #49
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：数据集权威出处与术语体系全景规范、本地与外部数据权责彻底纯化、方案规范文件语义对齐与版本库同步
+- **类型**：数据集与方案规范描述核准、阶段性版本库同步
 - **核心内容**：
-  1. **全景规范数据集学术出处与指代术语体系**：
-     - **本地已就绪资产（`datasets/Anti-UAV/`）**：明确界定为**大连理工大学「DUT Anti-UAV」**纯可见光基准库（包含 10,000 张静态地空图像中的 5,200 Train / 2,600 Val，以及 20 段连续跟踪序列 `video01`~`video20`，共 24,784 帧），已全量服务于方案 03 的 YOLO 微调与方案 04 的基线盲测；
-     - **外部拟扩增训练资产**：严格界定为中科院自动化所/清华大学**「CASIA Anti-UAV300」**（100 段全量地空真彩长航迹，用于阶段三天空背景微调）与中科院自动化所**「GOT-10k」**（9,335 段通用视频，用于阶段二尺度与时序预训练）；
-  2. **核心文档与方案规范全面纯化修正**：
-     - 重构并覆盖 [datasets/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/README.md)，彻底剥离历史混合记录，建立权威术语对照大表；
-     - 同步校准 [待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md) 与 [待执行方案/SOT重训数据集下载与准备指南.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/SOT重训数据集下载与准备指南.md)，统一全工程术语；
-  3. **唯一事实源与版本库同步**：
-     - 归档 Checkpoint #48，刷新根目录 [checkpoint.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoint.md)，执行 Git 提交与远程推送（`git push origin main`）。
+  1. **数据集架构与任务映射核准**：
+     - 本地已就绪资产（`datasets/Anti-UAV/`）确认属于大连理工大学 DUT Anti-UAV 纯可见光基准（包含 10,000 张静态检测图像及 20 段连续跟踪序列 `video01`~`video20`，共 24,784 帧），用于方案 03 的 YOLO 微调与方案 04 的基线盲测；
+     - 外部重训扩增资产确认包含 CASIA Anti-UAV300（100 段全量地空真彩航迹）与中科院 GOT-10k（9,335 段通用视频）；
+  2. **工程文档描述纯化**：
+     - 更新 [datasets/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/README.md)、[待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md) 与 [待执行方案/SOT重训数据集下载与准备指南.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/SOT重训数据集下载与准备指南.md) 中关于数据集出处的描述；
+  3. **版本库同步**：
+     - 刷新根目录 [checkpoint.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoint.md)，执行 Git 提交与远程推送。
