@@ -230,16 +230,18 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #48）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)、[checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md)、[checkpoints/archive/checkpoint_archive_36.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_36.md)、[checkpoints/archive/checkpoint_archive_37.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_37.md)、[checkpoints/archive/checkpoint_archive_38.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_38.md)、[checkpoints/archive/checkpoint_archive_39.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_39.md)、[checkpoints/archive/checkpoint_archive_40.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_40.md)、[checkpoints/archive/checkpoint_archive_41.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_41.md)、[checkpoints/archive/checkpoint_archive_42.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_42.md)、[checkpoints/archive/checkpoint_archive_43.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_43.md)、[checkpoints/archive/checkpoint_archive_44.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_44.md)、[checkpoints/archive/checkpoint_archive_45.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_45.md)、[checkpoints/archive/checkpoint_archive_46.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_46.md)、[checkpoints/archive/checkpoint_archive_47.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_47.md) 与 [checkpoints/archive/checkpoint_archive_48.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_48.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #49）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_49.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_49.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-11 #49
+### Checkpoint 2026-11-11 #50
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：数据集与方案规范描述核准、阶段性版本库同步
+- **类型**：红外数据归拢至外部数据集库、纯可见光架构纯化、前沿小模型与数据集纳入元规划就绪
 - **核心内容**：
-  1. **数据集架构与任务映射核准**：
-     - 本地已就绪资产（`datasets/Anti-UAV/`）确认属于大连理工大学 DUT Anti-UAV 纯可见光基准（包含 10,000 张静态检测图像及 20 段连续跟踪序列 `video01`~`video20`，共 24,784 帧），用于方案 03 的 YOLO 微调与方案 04 的基线盲测；
-     - 外部重训扩增资产确认包含 CASIA Anti-UAV300（100 段全量地空真彩航迹）与中科院 GOT-10k（9,335 段通用视频）；
-  2. **工程文档描述纯化**：
-     - 更新 [datasets/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/README.md)、[待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md) 与 [待执行方案/SOT重训数据集下载与准备指南.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/SOT重训数据集下载与准备指南.md) 中关于数据集出处的描述；
-  3. **版本库同步**：
-     - 刷新根目录 [checkpoint.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoint.md)，执行 Git 提交与远程推送。
+  1. **纯可见光规划纯化**：
+     - 清理规划文档与选型清单中非可见光内容，明确工程与课题完全锁定于长焦可见光（RGB）对空小目标机电伺服闭环；
+  2. **红外数据集物理迁移与目录重联**：
+     - 将原工程及下载目录中的红外数据（IRSTD_22、IRSTD-1k、NUDT-SIRST）统筹物理移动至 D:\PyProjects\数据集\ 统一存放；
+     - 更新 testdata\sequences 的 Windows Junction 软链接，指向 D:\PyProjects\数据集\IRSTD_22，保障底层离线评测工具平滑兼容；
+  3. **前沿小模型与数据集纳入元规划就位**：
+     - 编写元规划方案 [待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md)，系统规划 2025–2026 年最新前沿小模型（FocusTrack, Dist-Tracker, HEDD, SiamGR）与可见光数据集（SkyEV, LRDDv3）在现有课题基线清单与待执行方案（方案 04B/06/08/11）中的渐进式演进路径；
+  4. **版本库阶段同步**：
+     - 阶段性工作闭环，执行 Git 规范化语义提交并推送至远程仓库（git push origin main）。
