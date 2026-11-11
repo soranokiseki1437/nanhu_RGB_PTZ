@@ -19,10 +19,11 @@
 #include "../onnxdetector.h"
 #include "../imagematconvert.h"
 
-// 读取 Ground Truth 标注列表
+// 读取 Ground Truth 标注列表 (1-indexed 对齐：gts[1] 对应第 1 帧 00001.jpg)
 static std::vector<cv::Rect> loadGroundTruth(const std::string& gtPath)
 {
     std::vector<cv::Rect> gts;
+    gts.emplace_back(0, 0, 0, 0); // 占位 0 索引
     std::ifstream file(gtPath);
     if (!file.is_open()) return gts;
 
@@ -37,6 +38,13 @@ static std::vector<cv::Rect> loadGroundTruth(const std::string& gtPath)
         }
     }
     return gts;
+}
+
+static std::string getFramePath(const std::string& seqDir, int idx)
+{
+    char buf[256];
+    snprintf(buf, sizeof(buf), "%s/%05d.jpg", seqDir.c_str(), idx);
+    return std::string(buf);
 }
 
 int main(int argc, char* argv[])

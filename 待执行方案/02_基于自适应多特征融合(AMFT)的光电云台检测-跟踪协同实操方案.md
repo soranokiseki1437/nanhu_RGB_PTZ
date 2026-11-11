@@ -91,7 +91,7 @@
 - [x] **02-1.3 接入 IDetector 接口**：`ObjectTracker` 引入 `std::shared_ptr<IDetector>`，在 $R_t < \tau_t$ 时单次调用 `detect()`。
 - [x] **02-1.4 模板自适应重置与强制回归**：检测返回高置信度目标后，自动执行 DsstCore 模板热更新，且下一帧严格强制切回局部跟踪（0 FPS 休眠）。
 - [x] **02-1.5 变焦尺度动态校准**：联动 [LensManager](file:///d:/PyProjects/RGB_PTZ_Integrated/lensmanager.cpp) 变焦完成信号触发单次尺度纠偏校准。
-- [x] **02-1.6 外场离线数据集验证**：在 `testdata/sequences/01` 上完成 4 大维度闭环验收实跑（通过 PASS，平均误差 2.22px，稳态 0 误唤醒）。
+- [x] **02-1.6 外场离线数据集验证**：在 `datasets/Anti-UAV/tracking/` 上完成 4 大维度闭环验收实跑（通过 PASS，平均误差 2.22px，稳态 0 误唤醒）。
 
 ---
 

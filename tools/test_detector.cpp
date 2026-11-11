@@ -3,6 +3,7 @@
 #include <QFileInfo>
 #include <QFile>
 #include <QTextStream>
+#include <QRegularExpression>
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -32,7 +33,7 @@ static size_t getCurrentProcessMemoryKB()
     return 0;
 }
 
-// 读取 1_gt.txt 的首帧标注
+// 读取首帧标注
 static bool readFirstGroundTruth(const QString& gtPath, QRectF& gtBox)
 {
     QFile file(gtPath);
@@ -42,7 +43,7 @@ static bool readFirstGroundTruth(const QString& gtPath, QRectF& gtBox)
     QTextStream in(&file);
     if (!in.atEnd()) {
         QString line = in.readLine().trimmed();
-        QStringList parts = line.split(',');
+        QStringList parts = line.split(QRegularExpression("[,\\s]+"), Qt::SkipEmptyParts);
         if (parts.size() >= 4) {
             float x = parts[0].toFloat();
             float y = parts[1].toFloat();
@@ -74,14 +75,14 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    // 准备测试图像（从本地对拍数据集 01 序列中读取真实第一帧）
+    // 准备测试图像（从本地可见光对空数据集 video01 序列中读取真实第一帧）
     cv::Mat realFrame;
-    std::string imgPath = "testdata/sequences/01/imgs/0000.bmp";
+    std::string imgPath = "datasets/Anti-UAV/tracking/Anti-UAV-Tracking-V0/video01/00001.jpg";
     realFrame = cv::imread(imgPath);
     bool hasRealFrame = !realFrame.empty();
 
     QRectF gtBox;
-    bool hasGt = readFirstGroundTruth("testdata/sequences/01/1_gt.txt", gtBox);
+    bool hasGt = readFirstGroundTruth("datasets/Anti-UAV/tracking/Anti-UAV-Tracking-V0GT/video01_gt.txt", gtBox);
 
     if (hasRealFrame) {
         std::cout << ">> 读取对拍实测图像成功: " << imgPath

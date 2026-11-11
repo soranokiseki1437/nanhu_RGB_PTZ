@@ -63,8 +63,7 @@ RGB_PTZ_Integrated/
 ├── datatypes.h                     # TrackResult / DetectionBox / PTZData 等公共结构体
 ├── IDetector.h                     # 目标检测器面向对象统一纯虚抽象接口
 ├── models/                         # ★ 4 款标准可见光静态 ONNX 模型库 (v8n/s, 11n/s)
-├── datasets/                       # ★ 全高清 1080P/4K 可见光数据集库 (VisDrone/UAV123/Real_CCD)
-├── testdata/                       # 历史 256x256 灰度算法数值对拍序列 (01~22)
+├── datasets/                       # ★ 对空可见光数据集库 (DUT Anti-UAV)
 ├── tools/                          # 阶段全景质量体检与闭环验收工具链源码
 │   ├── test_detector.cpp           # 检测引擎速度、精度、内存长稳等 5 项体检工具
 │   ├── test_amft.cpp               # AMFT 检测-跟踪协同 4 大维度闭环验收工具
