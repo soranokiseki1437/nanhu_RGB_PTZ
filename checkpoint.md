@@ -40,12 +40,12 @@ flowchart LR
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
-| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO)；目标跟踪：自研轻量深度网络 (LightUAV-SOT 方案 04B 重训规划，RepVGG-A0 + MFFN + DAC-Head + GIoU/Centerness) + 传统滤波 (DSST)** | 目标检测阶段已交付 5 款部署级 ONNX；目标跟踪阶段按照战略决策全面锁定纯算法科研与真机航迹数据集创新验证，方案 04B 确立三阶训练路线：骨干 RepVGG-A0 加载 ImageNet-1k 官方权重（本地已就绪）、中科院 GOT-10k 50 轮通用尺度与时序预训练、Anti-UAV 100 段全量连续航迹 30 轮地对空领域微调，最终在 20 组真机航迹（24,804 帧）上执行盲测闭环。 |
-| **最新进展** | 🟢 **AGENTS.md 增补科研准则；方案 04B 实操规程重构；输出数据集下载指南；确立三阶重训技术路线** | 严格遵循对齐顶会真实工程标准的科研准则；方案 04B 确立 RepVGG-A0 骨干预训练初始化、通用跟踪数据预训练与地对空航迹领域微调三阶重训路线；输出《SOT重训数据集下载与准备指南》明确 GOT-10k 与 Anti-UAV 官方航迹下载规程与本地目录结构。 |
+| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO)；目标跟踪：自研轻量深度网络 (LightUAV-SOT 方案 04B 重训规划，RepVGG-A0 + MFFN + DAC-Head + GIoU/Centerness) + 传统滤波 (DSST)** | 目标检测阶段已交付 5 款部署级 ONNX；目标跟踪阶段按照战略决策全面锁定纯算法科研与真机航迹数据集创新验证，方案 04B 确立三阶训练路线：骨干 RepVGG-A0 加载 ImageNet-1k 官方权重（本地已就绪）、中科院 GOT-10k 50 轮通用尺度与时序预训练、CASIA Anti-UAV300 100 段全量连续航迹 30 轮地对空领域微调，最终在本地 DUT Anti-UAV 20 组真机长焦跟踪序列（24,784 帧）上执行盲测闭环。 |
+| **最新进展** | 🟢 **规范全系统数据集学术出处与指代术语；明确本地 DUT Anti-UAV 与外部 CASIA Anti-UAV 权责边界；方案 04B 与下载指南术语全面对齐纯化** | 严格区分并核准大连理工「DUT Anti-UAV」（本地已就绪，含 10,000 张静态检测集与 20 段连续跟踪序列）与中科院/清华「CASIA Anti-UAV300」（拟扩充外部 100 段全量航迹）的学术边界；重构 `datasets/README.md`、`待执行方案/04B_...` 与《SOT重训数据集下载与准备指南》，彻底拔除术语混淆；执行 Git 提交与远程同步。 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
 | **GPU 推理基准** | 🟢 **224.5~373.4 FPS / 2.68~4.45ms (SOT 跟踪)；77.2~86.6 FPS / 2.7~5.8ms (YOLO 检测)** | NVIDIA RTX 5070 Laptop GPU (CUDA 13.0 加速)：自研 SOT 跟踪纯推理时延 2.68~4.45ms，完全满足 <=5ms 极致机电伺服硬实时要求 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
-| **待执行核心任务** | 🟡 **数据集下载准备（中科院 GOT-10k 66GB 与 Anti-UAV 官方 100 段全量航迹）；在 RTX 4080 Super 台式机按三阶段流水线启动重训** | 在 RTX 4080 Super 主机上执行重训规程，代码适配与损失改造挂起待数据就绪后启动，目标实现 AUC 从 22.99% 跃升至 ≥58.0% 并保持 DP@20 ≥75.0% |
+| **待执行核心任务** | 🟡 **数据集下载准备（中科院 GOT-10k 66GB 与 CASIA Anti-UAV300 官方 100 段全量航迹）；在 RTX 4080 Super 台式机按三阶段流水线启动重训** | 在 RTX 4080 Super 主机上执行重训规程，代码适配与损失改造挂起待数据就绪后启动，目标实现 AUC 从 22.99% 跃升至 ≥58.0% 并保持 DP@20 ≥75.0% |
 | **Git 工作区状态** | 🟢 **良好** | 生产代码、SOT 架构设计、评测脚本、标准化地对空数据集、方案 04B、数据集下载指南与历史检查点均完整归档就位 |
 
 ---
@@ -213,11 +213,11 @@ flowchart LR
 - [ ] **03-6 VaL_CNN 抗虚警二级校验**：放宽初筛低门限（0.2）同时抑制背景虚警（待补充数据集测试）。
 
 ### 阶段五：基于轻量深度网络的可见光单目标跟踪（方案 04，当前推进 P0）
-- [x] **04-1.1 跟踪评测流水线搭建**：编写 `scripts/eval_sot.py`，加载 [datasets/Anti-UAV/tracking/](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/Anti-UAV/tracking/) 序列与 Ground Truth（已闭环）。
+- [x] **04-1.1 跟踪评测流水线搭建**：编写 `scripts/eval_sot.py`，加载本地已就绪的 DUT Anti-UAV 20 组真机长焦跟踪序列（`Anti-UAV-Tracking-V0`）与逐帧 Ground Truth（已闭环）。
 - [x] **04-1.2 传统与开源基线横评**：统一拉取自研 [DsstCore](file:///d:/PyProjects/RGB_PTZ_Integrated/dsstcore.h)、SiamCAR、LightTrack 进行 Success/Precision/FPS 对比分析（已闭环）。
 - [x] **04-2.1 自研轻量 SOT 网络搭建**：在 `models/sot/` 构建包含 Rep-Backbone、MFFN 多尺度细节融合与 DAC-Head 动态匹配头的自研架构（已闭环）。
 - [x] **04-2.2 样本对生成与两阶段训练**：编写样本对切片与空天时序增强管线，基于 RTX 5070 GPU 端到端 100 轮全量两阶段训练收敛（已闭环）。
-- [x] **04-3.1 学术消融与曲线绘制**：完成 4 组模块消融对比，在 20 组真机航迹（24,784 帧）全量评测达标 (DP@20 75.32%，FPS 224.5)，生成学术三线表与 300-DPI Pareto 能效前沿图（已闭环）。
+- [x] **04-3.1 学术消融与曲线绘制**：完成 4 组模块消融对比，在本地 DUT Anti-UAV 20 组真机跟踪序列（24,784 帧）全量评测达标 (DP@20 75.32%，FPS 224.5)，生成学术三线表与 300-DPI Pareto 能效前沿图（已闭环）。
 - [ ] **04-4.1 纯静态 ONNX 解耦与 DirectML 部署**：导出 `sot_template.onnx` 与 `sot_search.onnx`，实现 C++ `OnnxSotTracker` 并闭环伺服。
 
 ### 阶段六：光电跟踪系统 RK3588 边缘端量化与工程移植实操方案（方案 05，终极规划）
@@ -232,16 +232,15 @@ flowchart LR
 
 > **归档指引**：历史检查点（#01 ~ #48）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md)、[checkpoints/archive/checkpoint_archive_31_33.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_31_33.md)、[checkpoints/archive/checkpoint_archive_34.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_34.md)、[checkpoints/archive/checkpoint_archive_35.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_35.md)、[checkpoints/archive/checkpoint_archive_36.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_36.md)、[checkpoints/archive/checkpoint_archive_37.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_37.md)、[checkpoints/archive/checkpoint_archive_38.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_38.md)、[checkpoints/archive/checkpoint_archive_39.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_39.md)、[checkpoints/archive/checkpoint_archive_40.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_40.md)、[checkpoints/archive/checkpoint_archive_41.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_41.md)、[checkpoints/archive/checkpoint_archive_42.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_42.md)、[checkpoints/archive/checkpoint_archive_43.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_43.md)、[checkpoints/archive/checkpoint_archive_44.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_44.md)、[checkpoints/archive/checkpoint_archive_45.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_45.md)、[checkpoints/archive/checkpoint_archive_46.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_46.md)、[checkpoints/archive/checkpoint_archive_47.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_47.md) 与 [checkpoints/archive/checkpoint_archive_48.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_48.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-10 #49
+### Checkpoint 2026-11-11 #49
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：方案 04B 重训规程规范化、数据集下载指南输出、AGENTS.md 科研准则落地
+- **类型**：数据集权威出处与术语体系全景规范、本地与外部数据权责彻底纯化、方案规范文件语义对齐与版本库同步
 - **核心内容**：
-  1. **科研准则落地（AGENTS.md）**：
-     - 在 `AGENTS.md` 写入科研严谨性准则，明确模型训练不设时间预算上限，依照客观科学规律充分训练，深入学习顶会真实工程范式；
-  2. **方案 04B 实操规程重构与参数固化**：
-     - 重构 `待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md`，确立 RepVGG-A0 骨干预训练初始化、中科院 GOT-10k 通用跟踪预训练（50 轮）与 Anti-UAV 地对空航迹领域微调（30 轮）三阶路线；
-     - 固化网络结构参数（RepVGG-A0 浅层 Stage 0 48 通道 @ Stride 4、深层 Stage 1 96 通道 @ Stride 8、MFFN 融合维度 96）、坐标回归指数映射、GIoU 损失（$\lambda=2.0$）与 Centerness 质量分支（$\lambda=1.0$）；
-  3. **数据下载指南沉淀（`待执行方案/SOT重训数据集下载与准备指南.md`）**：
-     - 输出官方与国内镜像下载索引（中科院 CASIA 官方 / 百度网盘 / ModelScope 镜像），规范 RTX 4080 Super 台式机本地目录组织（`D:\Datasets_SOT\`）；
-  4. **工作区事实源同步与轻量归档**：
-     - 归档 Checkpoint #48 至 `checkpoints/archive/checkpoint_archive_48.md`，保持工作区事实源简洁客观。
+  1. **全景规范数据集学术出处与指代术语体系**：
+     - **本地已就绪资产（`datasets/Anti-UAV/`）**：明确界定为**大连理工大学「DUT Anti-UAV」**纯可见光基准库（包含 10,000 张静态地空图像中的 5,200 Train / 2,600 Val，以及 20 段连续跟踪序列 `video01`~`video20`，共 24,784 帧），已全量服务于方案 03 的 YOLO 微调与方案 04 的基线盲测；
+     - **外部拟扩增训练资产**：严格界定为中科院自动化所/清华大学**「CASIA Anti-UAV300」**（100 段全量地空真彩长航迹，用于阶段三天空背景微调）与中科院自动化所**「GOT-10k」**（9,335 段通用视频，用于阶段二尺度与时序预训练）；
+  2. **核心文档与方案规范全面纯化修正**：
+     - 重构并覆盖 [datasets/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/README.md)，彻底剥离历史混合记录，建立权威术语对照大表；
+     - 同步校准 [待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04B_基于预训练骨干初始化与尺度回归修复的SOT重训方案.md) 与 [待执行方案/SOT重训数据集下载与准备指南.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/SOT重训数据集下载与准备指南.md)，统一全工程术语；
+  3. **唯一事实源与版本库同步**：
+     - 归档 Checkpoint #48，刷新根目录 [checkpoint.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoint.md)，执行 Git 提交与远程推送（`git push origin main`）。

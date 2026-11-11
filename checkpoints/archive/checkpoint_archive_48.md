@@ -14,3 +14,4 @@
   4. **规范执行与版本库同步**：
      - 归档 Checkpoint #47 至 `checkpoints/archive/checkpoint_archive_47.md`；
      - 维持唯一事实源轻量化，遵循严禁保留修订痕迹与客观科研铁律。
+

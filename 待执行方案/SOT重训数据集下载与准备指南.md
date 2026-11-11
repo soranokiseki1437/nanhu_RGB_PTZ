@@ -23,19 +23,20 @@
 
 ---
 
-### 1.2 核心二号库：Anti-UAV 官方全量航迹集（地对空长焦连续视频微调）
-* **学术定位**：清华大学与中科院自动化所联合打造的 CVPR 官方反无人机挑战赛基准，地对空长焦实拍连续视频序列，用于第三层特定域微调；
-* **数据体量**：压缩包约 **15 ~ 30 GB**；
-* **下载途径**：
-  1. **阿里 ModelScope（魔搭社区）官方国内极速镜像（免翻墙满速，首选推荐）**：
-     - 社区直达链接：[https://modelscope.cn/datasets/ly261666/3rd_Anti-UAV/files](https://modelscope.cn/datasets/ly261666/3rd_Anti-UAV/files)
-     - 说明：提供第 3 届 Anti-UAV 挑战赛全量数据包，包含完整的 100+ 段连续长视频帧；
-  2. **CASIA 官方 Anti-UAV300（RGB+IR 双光 300 段全量航迹，约 30 GB）**：
-     - 百度网盘链接：`https://pan.baidu.com/s/1dJR0VKyLyiXBNB_qfa2ZrA`（提取码：`sagx`）
-     - Google Drive 备用源：`https://drive.google.com/file/d/1NPYaop35ocVTYWHOYQQHn8YHsM9jmLGr/view`
-  3. **CASIA 官方 Anti-UAV410（纯红外 410 段航迹，备用）**：
-     - 百度网盘链接：`https://pan.baidu.com/s/1PbINXhxc-722NWoO8P2AdQ`（提取码：`wfds`）
-  4. **官方挑战赛主页**：
+### 1.2 核心二号库：CASIA Anti-UAV300 官方航迹集（地对空长焦连续视频微调）
+* **学术定位**：清华大学与中科院自动化所（CASIA）联合打造的 CVPR 官方反无人机挑战赛基准，提供地对空长焦实拍连续视频序列，用于方案 04B 第三阶段领域微调；
+* **数据体量**：全量压缩包约 **30 GB**；
+* **模态区分与获取途径（严禁模态混淆）**：
+  1. **CASIA 官方 Anti-UAV300（RGB 可见光真彩航迹，必须使用本库）**：
+     - **学术出处**：CVPR 2020 / TPAMI 2021《Anti-UAV: A Large-Scale Benchmark for Vision-based UAV Tracking》；
+     - **模态规格**：真彩色可见光（RGB 1080p/720p），与项目本地已就绪的 DUT Anti-UAV 20 组真机跟踪验证序列及 RGB PTZ 云台机芯物理域完全一致；
+     - **百度网盘链接**：`https://pan.baidu.com/s/1dJR0VKyLyiXBNB_qfa2ZrA`（提取码：`sagx`）；
+     - **Google Drive 备用源**：`https://drive.google.com/file/d/1NPYaop35ocVTYWHOYQQHn8YHsM9jmLGr/view`；
+  2. **Anti-UAV410 / 3rd Anti-UAV（纯热红外 TIR 基准，红外赛道专属，禁止用于可见光微调）**：
+     - **学术出处**：IEEE TPAMI 2023《Anti-UAV410: A Thermal Infrared Benchmark for Tracking Drones in the Wild》与 CVPR 2023 第三届挑战赛；
+     - **模态规格**：纯单模态长波热红外（Thermal Infrared，标注全为 `IR_label.json`），仅适用于热成像硬件与红外跟踪赛道；
+     - **下载源（仅作红外赛道存档）**：魔搭社区 `ly261666/3rd_Anti-UAV`、百度网盘（提取码：`wfds`）；
+  3. **官方挑战赛主页**：
      - GitHub 主页：[https://anti-uav.github.io/](https://anti-uav.github.io/)
 
 ---
@@ -66,9 +67,13 @@ D:\Datasets_SOT\
 │   │   └── ...
 │   └── val\                        # 官方验证集目录 (包含 GOT-10k_Val_000001 ...)
 │
-├── Anti-UAV-Full\                  # 官方全量地对空长焦连续视频航迹
-│   ├── train\                      # 官方 100 段全量连续训练长视频序列
-│   └── val\                        # 20 组标准验证序列
+├── CASIA-Anti-UAV300\             # CASIA 官方 Anti-UAV300 全量地对空连续长视频航迹
+│   ├── train\                      # 官方 100 段全量连续长视频序列 (visible.mp4 + visible.json)
+│   └── ...
+│
+└── DUT-Anti-UAV-Val\               # 本地已就绪的 DUT Anti-UAV 20 组真机跟踪验证序列
+    ├── Anti-UAV-Tracking-V0\       # video01 ~ video20 图像帧 (24,784 帧)
+    └── Anti-UAV-Tracking-V0GT\     # video01_gt.txt ~ video20_gt.txt 逐帧真值标注
 │
 └── COCO2017\                       # MS-COCO 2017 静态数据集
     ├── train2017\                  # 11.8 万张图片
