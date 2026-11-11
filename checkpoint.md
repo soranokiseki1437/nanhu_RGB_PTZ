@@ -243,6 +243,6 @@ flowchart LR
      - 在 [课题/可见光单目标跟踪算法选型与对比基线清单.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/可见光单目标跟踪算法选型与对比基线清单.md)、[课题/论文碎片材料/反无人机视觉目标检测与跟踪数据集综述与选型论证.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/论文碎片材料/反无人机视觉目标检测与跟踪数据集综述与选型论证.md)、[课题/论文碎片材料/反无人机目标检测前沿文献引用与对比.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/论文碎片材料/反无人机目标检测前沿文献引用与对比.md) 与 [待执行方案/SOT重训数据集下载与准备指南.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/SOT重训数据集下载与准备指南.md) 完成前沿基准全面同步；
   2. **参考文献库分类重组与论文下载**：
      - 将 [reference/papers/](file:///d:/PyProjects/RGB_PTZ_Integrated/reference/papers/) 重构成 5 大主题子目录（01_综述与数据基准、02_经典与重型跟踪基准、03_轻量结构与重参数化SOT、04_反无人机专属模型与小目标损失、05_光电云台机电伺服与协同闭环）；
-     - 成功下载并归档 `DUT_AntiUAV_TITS2022.pdf`、`Dist-Tracker_CVPRW2025.pdf`、`UAV-DETR_2026.pdf`、`LRDDv3_ICRA2026.pdf`、`SkyEV_2026.pdf` 等全文本体，编写规范索引指南 [reference/papers/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/reference/papers/README.md)；
+     - 成功归档 `DUT_AntiUAV_TITS2022.pdf`、`GroundToAir_Review_Drones2025.pdf`、`Dist-Tracker_CVPRW2025.pdf`、`UAV-DETR_2026.pdf`、`LRDDv3_ICRA2026.pdf`、`SkyEV_2026.pdf` 与 `RL_PTZ_Track_Drones2024.pdf` 等全文本体，编写规范索引指南 [reference/papers/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/reference/papers/README.md)；
   3. **版本库阶段同步**：
      - 执行 Git 语义化提交并推送至远程仓库（`git push origin main`）。
