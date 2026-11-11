@@ -47,14 +47,15 @@ def main():
     
     # 1. 加载标注真值 (Ground Truth)
     gt_boxes = []
-    with open("testdata/sequences/01/1_gt.txt", "r") as f:
+    gt_path = "datasets/Anti-UAV/tracking/Anti-UAV-Tracking-V0GT/video01_gt.txt"
+    with open(gt_path, "r") as f:
         for line in f:
             line = line.strip()
             if line:
-                parts = [float(p) for p in line.split(",")]
+                parts = [float(p) for p in line.replace(",", " ").split()]
                 gt_boxes.append(parts)
                 
-    imgs = sorted(glob.glob("testdata/sequences/01/imgs/*.bmp"))
+    imgs = sorted(glob.glob("datasets/Anti-UAV/tracking/Anti-UAV-Tracking-V0/video01/*.jpg"))
     print(f"图像总帧数: {len(imgs)}, 标注真值数: {len(gt_boxes)}")
     
     # 输出目录：导出材料/YYYYMMDD

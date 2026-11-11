@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
     std::cout << "========================================================================" << std::endl;
 
     // 1. 初始化检测器
-    std::string modelPath = "models/yolov8n.onnx";
+    std::string modelPath = (argc > 1) ? argv[1] : "models/yolo11n_uav_ft.onnx";
     auto detector = std::make_shared<OnnxDetector>();
     DetectorConfig cfg;
     cfg.useGpu = true;
@@ -66,18 +66,18 @@ int main(int argc, char* argv[])
     }
     std::cout << ">> AI 目标检测引擎加载成功: " << modelPath << " (DirectML RTX 5070)" << std::endl;
 
-    // 2. 加载序列 01
-    std::string seqDir = "testdata/sequences/01";
-    std::string gtPath = seqDir + "/1_gt.txt";
+    // 2. 加载可见光对空序列 video01
+    std::string seqDir = "datasets/Anti-UAV/tracking/Anti-UAV-Tracking-V0/video01";
+    std::string gtPath = "datasets/Anti-UAV/tracking/Anti-UAV-Tracking-V0GT/video01_gt.txt";
     auto gts = loadGroundTruth(gtPath);
-    if (gts.empty()) {
+    if (gts.size() <= 1) {
         std::cerr << ">> [错误] Ground Truth 文件读取失败: " << gtPath << std::endl;
         return 1;
     }
-    std::cout << ">> 成功载入对拍序列标注: " << gts.size() << " 帧" << std::endl;
+    std::cout << ">> 成功载入对拍序列标注: " << gts.size() - 1 << " 帧" << std::endl;
 
     // 3. 读取首帧并初始化 ObjectTracker
-    std::string firstImgPath = seqDir + "/imgs/0000.bmp";
+    std::string firstImgPath = getFramePath(seqDir, 1);
     cv::Mat firstMat = cv::imread(firstImgPath);
     if (firstMat.empty()) {
         std::cerr << ">> [错误] 首帧图像读取失败: " << firstImgPath << std::endl;
@@ -88,7 +88,7 @@ int main(int argc, char* argv[])
     tracker.setDetector(detector);
 
     QImage firstQImg = MatToQImage(firstMat);
-    QRectF initRoi(gts[0].x, gts[0].y, gts[0].width, gts[0].height);
+    QRectF initRoi(gts[1].x, gts[1].y, gts[1].width, gts[1].height);
     if (!tracker.init(firstQImg, initRoi)) {
         std::cerr << ">> [错误] ObjectTracker 初始化失败！" << std::endl;
         return 1;
@@ -110,9 +110,8 @@ int main(int argc, char* argv[])
 
     auto tStart = std::chrono::high_resolution_clock::now();
     for (int i = 1; i <= steadyFrames; ++i) {
-        char buf[64];
-        snprintf(buf, sizeof(buf), "%s/imgs/%04d.bmp", seqDir.c_str(), i);
-        cv::Mat frameMat = cv::imread(buf);
+        std::string framePath = getFramePath(seqDir, i);
+        cv::Mat frameMat = cv::imread(framePath);
         if (frameMat.empty()) break;
 
         QImage qImg = MatToQImage(frameMat);
@@ -156,7 +155,7 @@ int main(int argc, char* argv[])
     std::cout << "------------------------------------------------------------------------" << std::endl;
 
     // 读取第 61 帧并施加 1 帧瞬时过曝/强噪
-    cv::Mat flashMat = cv::imread(seqDir + "/imgs/0061.bmp");
+    cv::Mat flashMat = cv::imread(getFramePath(seqDir, 61));
     cv::rectangle(flashMat, cv::Rect(gts[61].x - 5, gts[61].y - 5, gts[61].width + 10, gts[61].height + 10),
                   cv::Scalar(255, 255, 255), -1); // 强烈反光干扰
 
@@ -169,7 +168,7 @@ int main(int argc, char* argv[])
     std::cout << ">> 跟踪器状态                : " << (flashRes.state == AMFTTrackingState::TRACK_NORMAL ? "NORMAL (未误触发检测)" : "TRIGGERED") << std::endl;
 
     // 紧接着传入正常第 62 帧
-    cv::Mat normalMat = cv::imread(seqDir + "/imgs/0062.bmp");
+    cv::Mat normalMat = cv::imread(getFramePath(seqDir, 62));
     TrackResult normalRes = tracker.update(MatToQImage(normalMat));
 
     bool pass2 = (normalRes.valid && normalRes.state == AMFTTrackingState::TRACK_NORMAL);
@@ -186,9 +185,7 @@ int main(int argc, char* argv[])
     std::cout << ">> 注入人为严重遮挡 (4 帧纯黑遮挡目标)..." << std::endl;
     bool enteredOcclusion = false;
     for (int k = 63; k <= 66; ++k) {
-        char buf[64];
-        snprintf(buf, sizeof(buf), "%s/imgs/%04d.bmp", seqDir.c_str(), k);
-        cv::Mat occlMat = cv::imread(buf);
+        cv::Mat occlMat = cv::imread(getFramePath(seqDir, k));
         // 把目标涂黑模拟遮挡
         cv::rectangle(occlMat, cv::Rect(gts[k].x - 10, gts[k].y - 10, gts[k].width + 20, gts[k].height + 20),
                       cv::Scalar(0, 0, 0), -1);
@@ -202,7 +199,7 @@ int main(int argc, char* argv[])
 
     // 第 67 帧目标重新露出：送入真实画面，验证 YOLO 单次精准召回
     std::cout << ">> 目标重新露出 (第 67 帧真实画面)..." << std::endl;
-    cv::Mat reMat = cv::imread(seqDir + "/imgs/0067.bmp");
+    cv::Mat reMat = cv::imread(getFramePath(seqDir, 67));
     TrackResult reRes = tracker.update(MatToQImage(reMat));
 
     std::cout << ">> 重捕时刻目标位置          : (" << reRes.bbox.center().x() << ", " << reRes.bbox.center().y() << ")" << std::endl;
@@ -210,7 +207,7 @@ int main(int argc, char* argv[])
     std::cout << ">> 状态机状态                : " << (reRes.state == AMFTTrackingState::TRACK_REACQUIRED ? "REACQUIRED (重捕成功)" : "OTHER") << std::endl;
 
     // 验证核心铁律：下一帧（第 68 帧）必须强制切回 TRACK_NORMAL，继续 0 FPS 休眠！
-    cv::Mat nextMat = cv::imread(seqDir + "/imgs/0068.bmp");
+    cv::Mat nextMat = cv::imread(getFramePath(seqDir, 68));
     TrackResult nextRes = tracker.update(MatToQImage(nextMat));
     bool rulePassed = (nextRes.state == AMFTTrackingState::TRACK_NORMAL);
     std::cout << ">> 【核心铁律验证】下一帧是否强制切回 TRACK_NORMAL: "
@@ -231,9 +228,7 @@ int main(int argc, char* argv[])
     float sumErr = 0.0f;
 
     for (int i = 69; i < totalEvaluated; ++i) {
-        char buf[64];
-        snprintf(buf, sizeof(buf), "%s/imgs/%04d.bmp", seqDir.c_str(), i);
-        cv::Mat frameMat = cv::imread(buf);
+        cv::Mat frameMat = cv::imread(getFramePath(seqDir, i));
         if (frameMat.empty()) break;
 
         TrackResult res = tracker.update(MatToQImage(frameMat));

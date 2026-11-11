@@ -41,7 +41,7 @@ flowchart LR
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
 | **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO)；目标跟踪：自研轻量深度网络 (LightUAV-SOT 方案 04B 重训规划，RepVGG-A0 + MFFN + DAC-Head + GIoU/Centerness) + 传统滤波 (DSST)** | 目标检测阶段已交付 5 款部署级 ONNX；目标跟踪阶段按照战略决策全面锁定纯算法科研与真机航迹数据集创新验证，方案 04B 确立三阶训练路线：骨干 RepVGG-A0 加载 ImageNet-1k 官方权重（本地已就绪）、中科院 GOT-10k 50 轮通用尺度与时序预训练、CASIA Anti-UAV300 100 段全量连续航迹 30 轮地对空领域微调，最终在本地 DUT Anti-UAV 20 组真机长焦跟踪序列（24,784 帧）上执行盲测闭环。 |
-| **最新进展** | 🟢 **方案 04B 重训规程与数据集架构就绪；明确本地 DUT Anti-UAV 与外部 CASIA Anti-UAV300/GOT-10k 分工；完成阶段性版本库提交与推送** | 确认本地已就绪 DUT Anti-UAV（10,000 张检测图与 20 段跟踪序列）作为验证盲测基准；明确外部中科院 GOT-10k 与 CASIA Anti-UAV300 作为台式机重训输入；完成方案 04B、下载指南及数据集架构文档规范。 |
+| **最新进展** | 🟢 **前沿小模型与地空反无人机关键文献纳入临时规划；离线与验收工具可见光路径对齐；完成阶段性版本库提交与推送** | 在临时演进方案中系统收录并架构映射 6 篇关键学术成果与前沿模型机制；完成离线与验收工具纯可见光数据挂接；完成检查点 #50 归档。 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
 | **GPU 推理基准** | 🟢 **224.5~373.4 FPS / 2.68~4.45ms (SOT 跟踪)；77.2~86.6 FPS / 2.7~5.8ms (YOLO 检测)** | NVIDIA RTX 5070 Laptop GPU (CUDA 13.0 加速)：自研 SOT 跟踪纯推理时延 2.68~4.45ms，完全满足 <=5ms 极致机电伺服硬实时要求 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
@@ -230,18 +230,17 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #49）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_49.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_49.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #50）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_50.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_50.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-11 #50
+### Checkpoint 2026-11-11 #51
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：红外数据归拢至外部数据集库、纯可见光架构纯化、前沿小模型与数据集纳入元规划就绪
+- **类型**：前沿小模型与地对空反无人机关键文献纳入临时规划、离线与验收工具可见光路径对齐
 - **核心内容**：
-  1. **纯可见光规划纯化**：
-     - 清理规划文档与选型清单中非可见光内容，明确工程与课题完全锁定于长焦可见光（RGB）对空小目标机电伺服闭环；
-  2. **红外数据集物理迁移与目录重联**：
-     - 将原工程及下载目录中的红外数据（IRSTD_22、IRSTD-1k、NUDT-SIRST）统筹物理移动至 D:\PyProjects\数据集\ 统一存放；
-     - 更新 testdata\sequences 的 Windows Junction 软链接，指向 D:\PyProjects\数据集\IRSTD_22，保障底层离线评测工具平滑兼容；
-  3. **前沿小模型与数据集纳入元规划就位**：
-     - 编写元规划方案 [待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md)，系统规划 2025–2026 年最新前沿小模型（FocusTrack, Dist-Tracker, HEDD, SiamGR）与可见光数据集（SkyEV, LRDDv3）在现有课题基线清单与待执行方案（方案 04B/06/08/11）中的渐进式演进路径；
+  1. **元规划方案体系化扩充**：
+     - 在 [待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/临时_前沿小模型与数据集纳入课题演进规划方案.md) 中完整收录并架构映射 6 篇关键学术成果（DUT Anti-UAV 基石论文、2025 地对空纯视觉反无人机综述、HEDD 小波增强网络、Ground-Visual-Edge 边缘测高系统、PTZ-Latency-Study 云台延迟实证、RL-PTZ-Track 强化学习伺服），系统梳理其技术特征、数学机制与工程映射价值；
+  2. **工具链对齐纯可见光基准**：
+     - 更新 [tools/test_amft.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_amft.cpp) 与 [scripts/generate_report_media.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/generate_report_media.py)，直接挂接本地已就绪的 DUT Anti-UAV `video01`（24,784 帧地对空长焦连续序列之一）及对应 Ground Truth 标注；
+  3. **检查点归档与轻量化保持**：
+     - 将 Checkpoint #50 完整沉淀归档至 [checkpoints/archive/checkpoint_archive_50.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_50.md)，维持根目录 `checkpoint.md` 单点最新；
   4. **版本库阶段同步**：
-     - 阶段性工作闭环，执行 Git 规范化语义提交并推送至远程仓库（git push origin main）。
+     - 执行 Git 语义化提交并推送至远程仓库（`git push origin main`）。
