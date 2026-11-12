@@ -100,6 +100,7 @@ void TrackingController::setTarget(const QImage& frame, const QRectF& targetRect
     m_trackerThread = new QThread(this);
     m_tracker = new ObjectTracker(nullptr);
     m_tracker->setInfraredMode(m_infraredMode);  // 模式须在 init 前设置
+    m_tracker->setRedetectionEnabled(m_redetectionEnabled);
     if (m_detector) {
         m_tracker->setDetector(m_detector);
     }
@@ -163,7 +164,7 @@ void TrackingController::onTrackerInitDone(bool ok, const QString& modelInfo)
 
 void TrackingController::processFrame(const QImage& frame)
 {
-    if (m_state != Tracking || !m_tracker) {
+    if ((m_state != Tracking && m_state != Lost) || !m_tracker) {
         return;
     }
 
@@ -391,5 +392,13 @@ void TrackingController::onTrackingRecovered()
         m_state = Tracking;
         emit stateChanged(m_state);
         emit statusMessage("目标已恢复");
+    }
+}
+
+void TrackingController::setRedetectionEnabled(bool enabled)
+{
+    m_redetectionEnabled = enabled;
+    if (m_tracker) {
+        m_tracker->setRedetectionEnabled(enabled);
     }
 }

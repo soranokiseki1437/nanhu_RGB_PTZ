@@ -244,5 +244,10 @@ flowchart LR
      - 在 [mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui#L928) 的“多目标检测”组中增加专用 [btnMotTrackStop](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui#L930)（退出跟踪）控件；
      - 在 [MainWindow](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp) 中建立槽函数关联与生命周期状态机驱动：锁定目标并触发闭环伺服时使能该按钮，点击退出时彻底重置检测与云台伺服；
      - 在 [MainWindow::on_btnAutoDetect_clicked](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp#L1670) 增加前置状态保护，重新触发巡检时自动停止既有跟踪与 PTZ 机电伺服。
-  3. **事实源与版本库强一致同步**：
+  3. **单目标框选模式（SOT）回归原生纯净滤波，彻底杜绝 YOLO 误重置**：
+     - 在 [ObjectTracker](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.h) 与 [TrackingController](file:///d:/PyProjects/RGB_PTZ_Integrated/trackingcontroller.h) 引入 `setRedetectionEnabled` 模式开关，框选跟踪时强制关闭全局重检测；
+     - 框选模式全面回归经典稳定处理：依据 30 帧平稳 PSR 均值基线判定（连续 5 帧低于 0.75×基线才进入遮挡，杜绝短期波动误判）；
+     - 遮挡期间执行纯卡尔曼滤波（KF Coasting）平滑外推，冻结相关滤波学习；局部恢复基于既有 DSST 模板执行九宫格探测（`reDetect`），严禁调用 YOLO 篡改或替换用户初始模板；
+     - 修复 `TrackingController::processFrame` 在 `Lost` 状态下丢弃帧导致无法恢复的缺陷，允许持续向跟踪器投递视频帧。
+  4. **事实源与版本库强一致同步**：
      - 归档检查点 #57 至 `checkpoints/archive/checkpoint_archive_57.md`，更新唯一事实源 [checkpoint.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoint.md)，MinGW 完整编译验证无误。

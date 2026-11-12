@@ -1200,6 +1200,7 @@ void MainWindow::on_btnTrackStart_clicked()
     qDebug() << "[TrackStart] frame size:" << m_lastFrame.width() << "x" << m_lastFrame.height();
 
     // 从 UI 控件读取参数
+    m_trackingController->setRedetectionEnabled(false); // 框选模式彻底禁用 YOLO 误重置
     m_trackingController->setDeadZonePixels(ui->spinTrackDeadZone->value());
     m_trackingController->setMaxSpeed(ui->spinTrackMaxSpeed->value());
     m_trackingController->setProportionalGain(ui->spinTrackKp->value() / 100.0f);
@@ -1633,9 +1634,12 @@ void MainWindow::on_radioModeManual_toggled(bool checked)
             ui->btnAutoDetect->setChecked(false);
             on_btnAutoDetect_clicked(false);
         }
+        if (m_trackingController) {
+            m_trackingController->setRedetectionEnabled(false);
+        }
         ui->groupSotControls->setEnabled(true);
         ui->groupMotControls->setEnabled(false);
-        ui->textLog->append("[模式] 切换至手动框选模式");
+        ui->textLog->append("[模式] 切换至手动框选模式 (纯净 SOT，无 YOLO 劫持)");
         updateTrackingUIState();
     }
 }

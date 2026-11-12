@@ -90,9 +90,12 @@ public slots:
     // 变焦联动：触发跟踪器尺度校准
     void triggerScaleCalibration();
 
-    // 深度学习检测器配置
+    // 深度学习检测器配置与重检测控制
     void setDetector(const std::shared_ptr<IDetector>& detector) { m_detector = detector; }
     std::shared_ptr<IDetector> detector() const { return m_detector; }
+
+    void setRedetectionEnabled(bool enabled);
+    bool isRedetectionEnabled() const { return m_redetectionEnabled; }
 
 signals:
     // 跟踪结果信号
@@ -123,6 +126,7 @@ private:
     std::shared_ptr<IDetector> m_detector;
 
     bool m_infraredMode = false;  // 跟踪源模式：false=可见光，true=红外
+    bool m_redetectionEnabled = false;  // 重检测控制：false=纯SOT(无YOLO劫持)，true=允许AI协同重捕
 
     TrackingState m_state;
     TrackResult m_lastResult;

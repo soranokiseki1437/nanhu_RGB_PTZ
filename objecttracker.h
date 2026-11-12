@@ -87,6 +87,10 @@ public:
     void setDetector(const std::shared_ptr<IDetector>& detector) { m_detector = detector; }
     std::shared_ptr<IDetector> detector() const { return m_detector; }
 
+    // 跟踪模式与重检测开关（单目标框选模式下默认禁用，杜绝 YOLO 误重置）
+    void setRedetectionEnabled(bool enabled) { m_redetectionEnabled = enabled; }
+    bool isRedetectionEnabled() const { return m_redetectionEnabled; }
+
     // 状态与评分获取
     AMFTTrackingState trackingState() const { return m_trackingState; }
     AMFTScore lastAMFTScore() const { return m_lastScore; }
@@ -143,6 +147,16 @@ private:
     AMFTScore m_lastScore;
     int m_lostCount = 0;
     bool m_needScaleCalibration = false;
+    bool m_redetectionEnabled = false;
+
+    // === 旧版纯 SOT 稳态基线相关 ===
+    bool m_inOcclusion = false;
+    float m_psrBaseline = 0.0f;
+    bool m_baselineLocked = false;
+    std::deque<float> m_psrHistory;
+
+    // 旧版九宫格局部模板重捕（仅基于已学习的 DSST 原生模板）
+    bool reDetect(const cv::Mat& image);
 
     // === 内部方法 ===
     // 计算PSR（吃内核响应图，半径5圆形峰值抑制）

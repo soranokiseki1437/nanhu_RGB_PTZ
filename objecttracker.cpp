@@ -179,7 +179,8 @@ void ObjectTracker::kfPredict()
 
     m_kf.x = A * m_kf.x;
     const bool inLoss = (m_trackingState == AMFTTrackingState::TRACK_OCCLUDED ||
-                         m_trackingState == AMFTTrackingState::TRACK_LOST);
+                         m_trackingState == AMFTTrackingState::TRACK_LOST ||
+                         m_inOcclusion);
     const cv::Matx44f& activeQ = inLoss ? m_kfQLost : m_kfQ;
     m_kf.P = A * m_kf.P * A.t() + activeQ;
 }
@@ -406,6 +407,72 @@ void ObjectTracker::initSlot(const QImage& frame, const QRectF& targetRect)
     emit initDone(ok, ok ? modelSize() : QString());
 }
 
+// ========================
+// 遮挡局部重检测 (旧版纯 SOT 九宫格检测：基于当前已学 DSST 模板，不调用 YOLO)
+// ========================
+bool ObjectTracker::reDetect(const cv::Mat& image)
+{
+    const cv::Size modelSz = m_core.modelSize();
+    const float scale = m_core.currentScale();
+
+    const float kfX = m_kf.x[0];
+    const float kfY = m_kf.x[1];
+
+    // 9 个候选点：KF 预测中心 + 8 个方向偏移
+    const float stepX = modelSz.width * scale * 0.5f;
+    const float stepY = modelSz.height * scale * 0.5f;
+
+    const std::vector<cv::Point2f> candidates = {
+        cv::Point2f(kfX, kfY),
+        cv::Point2f(kfX - stepX, kfY),
+        cv::Point2f(kfX + stepX, kfY),
+        cv::Point2f(kfX, kfY - stepY),
+        cv::Point2f(kfX, kfY + stepY),
+        cv::Point2f(kfX - stepX, kfY - stepY),
+        cv::Point2f(kfX + stepX, kfY - stepY),
+        cv::Point2f(kfX - stepX, kfY + stepY),
+        cv::Point2f(kfX + stepX, kfY + stepY)
+    };
+
+    float bestPsr = 0.0f;
+    float bestPosX = kfX;
+    float bestPosY = kfY;
+
+    for (const auto& center : candidates) {
+        if (center.x < 0 || center.x >= image.cols ||
+            center.y < 0 || center.y >= image.rows) continue;
+
+        cv::Mat resp;
+        const cv::Rect r = m_core.detectOnly(image, center, &resp);
+        if (r.width <= 0 || resp.empty()) continue;
+
+        const float psr = computePSR(resp);
+        if (psr > bestPsr) {
+            cv::Point maxLoc;
+            cv::minMaxLoc(resp, nullptr, nullptr, nullptr, &maxLoc);
+            bestPsr = psr;
+            bestPosX = center.x + scale * (-modelSz.width / 2.0f + maxLoc.x);
+            bestPosY = center.y + scale * (-modelSz.height / 2.0f + maxLoc.y);
+        }
+    }
+
+    const float recoverThr = 0.8f * m_psrBaseline;
+    if (bestPsr <= recoverThr) return false;
+
+    // 验证与 KF 预测的距离（防止远距离虚警）
+    const float dist = std::sqrt((bestPosX - kfX) * (bestPosX - kfX)
+                               + (bestPosY - kfY) * (bestPosY - kfY));
+    const float maxDist = std::max(modelSz.width, modelSz.height) * scale * 2.0f;
+    if (dist > maxDist) return false;
+
+    // 成功重检测：更新位置并恢复
+    m_posX = bestPosX;
+    m_posY = bestPosY;
+    m_core.setLearningFrozen(false);
+    kfUpdate(m_posX, m_posY);
+    return true;
+}
+
 TrackResult ObjectTracker::update(const QImage& frame)
 {
     QElapsedTimer timer;
@@ -431,7 +498,129 @@ TrackResult ObjectTracker::update(const QImage& frame)
     const float kfPredX = m_kf.x[0];
     const float kfPredY = m_kf.x[1];
 
-    // === 2. 状态机分流 ===
+    // === 2. 纯单目标框选模式分流 (回归旧版稳定处理，绝不触发 YOLO 劫持) ===
+    if (!m_redetectionEnabled) {
+        result.occluded = m_inOcclusion;
+        result.recovered = false;
+
+        if (m_inOcclusion) {
+            // 遮挡期间：冻结学习，纯 KF 航位推算，并尝试九宫格相关滤波局部重捕
+            if (m_lostCount >= 10) {
+                if (reDetect(image)) {
+                    m_inOcclusion = false;
+                    m_trackingState = AMFTTrackingState::TRACK_NORMAL;
+                    m_lostCount = 0;
+                    result.recovered = true;
+                    result.occluded = false;
+                    emit trackingRecovered();
+                    emit trackingStateChanged(m_trackingState);
+                    qCDebug(trackerLog) << "[Tracker-SOT] 九宫格原模板重检测成功，恢复跟踪 pos=("
+                                        << m_posX << "," << m_posY << ")";
+                } else {
+                    m_posX = kfPredX;
+                    m_posY = kfPredY;
+                    m_lostCount++;
+                }
+            } else {
+                m_posX = kfPredX;
+                m_posY = kfPredY;
+                m_lostCount++;
+            }
+        } else {
+            // 正常跟踪主循环：内核检测 + 尺度估计 + 模板更新
+            cv::Mat response;
+            const cv::Rect bbox = m_core.update(image, &response);
+            const bool detValid = (bbox.width > 0 && bbox.height > 0);
+            const float psr = detValid ? computePSR(response) : 0.0f;
+            result.confidence = psr;
+            result.psr = psr;
+
+            float detX = m_posX;
+            float detY = m_posY;
+            if (detValid) {
+                const cv::Point2f p = m_core.position();
+                detX = (std::isnan(p.x) || std::isinf(p.x)) ? m_posX : p.x;
+                detY = (std::isnan(p.y) || std::isinf(p.y)) ? m_posY : p.y;
+                m_currentScale = m_core.currentScale();
+            }
+
+            // 依据 PSR 基线平稳判断（杜绝因 AMFT 短期敏感波动而频繁判丢）
+            const bool lowPsr = !detValid || (m_baselineLocked && psr < 0.75f * m_psrBaseline);
+
+            if (lowPsr) {
+                m_lostCount++;
+            } else {
+                m_lostCount = 0;
+            }
+
+            if (m_lostCount >= 5) {
+                // 连续 5 帧低 PSR 确认进入遮挡/脱靶，冻结学习，转入纯 KF 航位推算
+                m_inOcclusion = true;
+                m_trackingState = AMFTTrackingState::TRACK_OCCLUDED;
+                m_lostCount = 1;
+                m_posX = kfPredX;
+                m_posY = kfPredY;
+                result.occluded = true;
+                m_core.setLearningFrozen(true);
+                emit trackingLost();
+                emit trackingStateChanged(m_trackingState);
+                qCDebug(trackerLog) << "[Tracker-SOT] 连续 5 帧 PSR 低于基线，进入遮挡保持态";
+            } else if (m_lostCount > 0) {
+                // PSR 下降瞬态：使用当前检测位置但不更新 KF 协方差
+                if (detValid) {
+                    m_posX = detX;
+                    m_posY = detY;
+                } else {
+                    m_posX = kfPredX;
+                    m_posY = kfPredY;
+                }
+            } else {
+                // 正常稳定跟踪：更新卡尔曼滤波
+                m_posX = detX;
+                m_posY = detY;
+                kfUpdate(m_posX, m_posY);
+
+                // 收集前 30 帧平稳 PSR 基线
+                if (!m_baselineLocked) {
+                    m_psrHistory.push_back(psr);
+                    if (static_cast<int>(m_psrHistory.size()) >= 30) {
+                        float sum = 0.0f;
+                        for (float v : m_psrHistory) sum += v;
+                        m_psrBaseline = sum / m_psrHistory.size();
+                        m_baselineLocked = true;
+                        m_psrHistory.clear();
+                        qCDebug(trackerLog) << "[Tracker-SOT] PSR 基线锁定完成: " << m_psrBaseline;
+                    }
+                }
+            }
+
+            if (logThisFrame) {
+                qCDebug(trackerLog) << "[Tracker-SOT] frame=" << m_frameCount
+                                    << " psr=" << psr << " valid=" << detValid
+                                    << " pos=(" << m_posX << "," << m_posY << ")"
+                                    << " scale=" << m_currentScale
+                                    << " baseline=" << m_psrBaseline
+                                    << (m_baselineLocked ? "(locked)" : "");
+            }
+        }
+
+        // 构建 SOT 跟踪输出框并返回
+        const float currentW = m_targetW * m_currentScale;
+        const float currentH = m_targetH * m_currentScale;
+        result.bbox = QRectF(m_posX - currentW / 2.0f, m_posY - currentH / 2.0f, currentW, currentH);
+        result.valid = true;
+        result.fps = 1000.0f / std::max(1LL, timer.elapsed());
+        result.state = m_trackingState;
+
+        result.kfX  = m_kf.x[0];
+        result.kfY  = m_kf.x[1];
+        result.kfVx = m_kf.x[2];
+        result.kfVy = m_kf.x[3];
+
+        return result;
+    }
+
+    // === 2. 状态机分流 (仅在 m_redetectionEnabled 时生效) ===
     if (m_trackingState == AMFTTrackingState::TRACK_OCCLUDED || m_trackingState == AMFTTrackingState::TRACK_LOST) {
         // --- 遮挡或丢失状态 ---
         m_core.setLearningFrozen(true);
