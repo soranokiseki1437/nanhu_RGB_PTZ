@@ -82,10 +82,6 @@ public slots:
     void pauseTracking();
     void resumeTracking();
 
-    // 跟踪源模式（可见光/红外）。内核要求 init 前设置特征通道数，
-    // 故在下次 setTarget 时生效
-    void setInfraredMode(bool ir);
-    bool isInfraredMode() const { return m_infraredMode; }
 
     // 变焦联动：触发跟踪器尺度校准
     void triggerScaleCalibration();
@@ -125,7 +121,6 @@ private:
     QThread* m_trackerThread;
     std::shared_ptr<IDetector> m_detector;
 
-    bool m_infraredMode = false;  // 跟踪源模式：false=可见光，true=红外
     bool m_redetectionEnabled = false;  // 重检测控制：false=纯SOT(无YOLO劫持)，true=允许AI协同重捕
 
     TrackingState m_state;

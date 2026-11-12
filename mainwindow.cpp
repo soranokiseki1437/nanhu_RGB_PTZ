@@ -346,11 +346,6 @@ void MainWindow::initTrackingModule()
 
     // 注：btnTrackSelect, btnTrackStart, btnTrackStop 已由 setupUi() 的 connectSlotsByName 自动挂载
 
-    // 跟踪源模式选择（可见光/红外），下次框选生效
-    connect(ui->cmbTrackSource, &QComboBox::currentIndexChanged, this, [this](int index){
-        m_trackingController->setInfraredMode(index == 1);
-    });
-
     // 初始化工作模式：默认进入手动框选模式
     ui->radioModeManual->setChecked(true);
     ui->groupSotControls->setEnabled(true);

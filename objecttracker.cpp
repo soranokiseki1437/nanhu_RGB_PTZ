@@ -98,8 +98,6 @@ bool ObjectTracker::init(const QImage& frame, const QRectF& targetRect)
         return false;
     }
 
-    // 内核初始化（红外模式须在 init 前设置）
-    m_core.setInfraredMode(m_infraredMode);
     const cv::Rect roi(static_cast<int>(left), static_cast<int>(top),
                        static_cast<int>(clippedW), static_cast<int>(clippedH));
     if (!m_core.init(image, roi)) {
@@ -119,8 +117,7 @@ bool ObjectTracker::init(const QImage& frame, const QRectF& targetRect)
     m_initialized = true;
     m_trackingState = AMFTTrackingState::TRACK_NORMAL;
     qCDebug(trackerLog) << "[ObjectTracker] 初始化成功, 模型尺寸:" << modelSize()
-             << "目标:(" << m_posX << "," << m_posY << ") " << m_targetW << "x" << m_targetH
-             << " 红外模式:" << m_infraredMode;
+             << "目标:(" << m_posX << "," << m_posY << ") " << m_targetW << "x" << m_targetH;
     return true;
 }
 

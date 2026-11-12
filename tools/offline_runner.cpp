@@ -1,18 +1,14 @@
-// 离线对拍驱动：把同一段图像序列喂给 reference 原版 / 移植版 DSST，逐帧输出目标框 CSV
+// 离线跟踪评测驱动：逐帧输出目标框 CSV
 //
-// 编译（reference 版）：
-//   g++ -std=c++17 -O2 -DUSE_REFERENCE -I<opencv>/include tools/offline_runner.cpp reference/dsst_tracker.cpp \
-//       -o tools/runner_ref.exe -L<opencv>/x64/mingw/lib -lopencv_core4100 -lopencv_imgproc4100 -lopencv_imgcodecs4100
-// 编译（移植版）：
+// 编译：
 //   g++ -std=c++17 -O2 -I<opencv>/include tools/offline_runner.cpp dsstcore.cpp \
-//       -o tools/runner_port.exe -L<opencv>/x64/mingw/lib -lopencv_core4100 -lopencv_imgproc4100 -lopencv_imgcodecs4100
+//       -o tools/runner.exe -L<opencv>/x64/mingw/lib -lopencv_core4100 -lopencv_imgproc4100 -lopencv_imgcodecs4100
 //
-// 用法：offline_runner <序列目录> <初始框文件|-> <输出CSV> [ir]
+// 用法：offline_runner <序列目录> <初始框文件|-> <输出CSV>
 //   初始框来源优先级：
 //     1) 显式传入的 initial_box.txt（"x y w h"，也兼容 "x,y,w,h"）
 //     2) 传 "-" 或文件无效时：自动在序列目录同级找 <序号>_gt.txt，取其第一行
 //     3) 都没有则退化为画面中心 64x64
-//   末尾加 ir 参数则按红外模式运行（GST 特征），默认可见光模式。
 //   第 0 帧直接使用初始框，从第 1 帧开始调用 update()。
 
 #include <opencv2/opencv.hpp>
@@ -25,24 +21,7 @@
 #include <string>
 #include <vector>
 
-#ifdef USE_REFERENCE
-#include "dsst_tracker.h"
-using Tracker = DSSTTracker;
-static void setMode(Tracker& t, bool ir) { t.set_infrared_mode(ir); }
-static bool initTracker(Tracker& t, const cv::Mat& img, const cv::Rect& r)
-{
-    t.init(img, r);
-    return t.is_initialized;
-}
-#else
 #include "dsstcore.h"
-using Tracker = DsstCore;
-static void setMode(Tracker& t, bool ir) { t.setInfraredMode(ir); }
-static bool initTracker(Tracker& t, const cv::Mat& img, const cv::Rect& r)
-{
-    return t.init(img, r);
-}
-#endif
 
 // 读取 "x y w h" 或 "x,y,w,h"，跳过空行与 # 注释
 static bool readBox(const std::string& path, int& x, int& y, int& w, int& h)
@@ -114,14 +93,13 @@ static std::string findGtFile(const std::string& seqDir)
 int main(int argc, char** argv)
 {
     if (argc < 4) {
-        std::fprintf(stderr, "用法: %s <序列目录> <初始框文件|-> <输出CSV> [ir]\n", argv[0]);
+        std::fprintf(stderr, "用法: %s <序列目录> <初始框文件|-> <输出CSV>\n", argv[0]);
         return 1;
     }
 
     const std::string dir = argv[1];
     const std::string boxFile = argv[2];
     const std::string csvPath = argv[3];
-    const bool infrared = (argc >= 5 && std::string(argv[4]) == "ir");
 
     // 帧目录：若给定目录下有 imgs/ 子目录则自动进入（数据集约定）
     std::string frameDir = dir;
@@ -179,9 +157,8 @@ int main(int argc, char** argv)
         std::fprintf(stderr, "[warn] 无有效初始框，使用默认框 x=%d y=%d w=%d h=%d\n", bx, by, bw, bh);
     }
 
-    Tracker tracker;
-    setMode(tracker, infrared);
-    if (!initTracker(tracker, first, cv::Rect(bx, by, bw, bh))) {
+    DsstCore tracker;
+    if (!tracker.init(first, cv::Rect(bx, by, bw, bh))) {
         std::fprintf(stderr, "跟踪器初始化失败\n");
         return 3;
     }
@@ -205,8 +182,7 @@ int main(int argc, char** argv)
         csv << i << ',' << last.x << ',' << last.y << ',' << last.width << ',' << last.height << '\n';
     }
 
-    std::printf("完成: %zu 帧 -> %s (mode=%s, 分辨率 %dx%d)\n",
-                files.size(), csvPath.c_str(), infrared ? "infrared" : "visible",
-                first.cols, first.rows);
+    std::printf("完成: %zu 帧 -> %s (分辨率 %dx%d)\n",
+                files.size(), csvPath.c_str(), first.cols, first.rows);
     return 0;
 }

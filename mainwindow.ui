@@ -1273,27 +1273,6 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="2">
-           <widget class="QLabel" name="labelSource">
-            <property name="text">
-             <string>图像通道:</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="3">
-           <widget class="QComboBox" name="cmbTrackSource">
-            <item>
-             <property name="text">
-              <string>可见光</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>红外</string>
-             </property>
-            </item>
-           </widget>
-          </item>
           <item row="2" column="0">
            <widget class="QLabel" name="labelKp">
             <property name="text">

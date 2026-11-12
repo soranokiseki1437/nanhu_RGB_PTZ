@@ -1,116 +1,6 @@
 #include "dsstcore.h"
 
 // =====================================================================================
-// 私有：红外 GST 特征（reference gst_process 原样迁移）
-// 仅去掉 printf 与自由函数包装，sigma/filterSize/boundaryWidth/运算顺序/CV_64F 链全部保留。
-// 注意：F1/h 的归一化只统计左上 filterSize×filterSize 子块，这是 reference 的既有行为，勿"修正"。
-// =====================================================================================
-cv::Mat DsstCore::gstProcess(const cv::Mat& img) const
-{
-    const float sigma1 = 0.3f;
-    const float sigma2 = 0.3f;
-    const int boundaryWidth = 5;
-    const int filterSize = 5;
-
-    cv::Mat gray;
-    if (img.channels() == 3) {
-        cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
-    } else {
-        gray = img;
-    }
-    gray.convertTo(gray, CV_64F);
-
-    int mdpt = (int)std::ceil(filterSize / 2.0);
-    int actual_filter_size = 2 * mdpt + 1;
-
-    cv::Mat F1_real(actual_filter_size, actual_filter_size, CV_64F);
-    cv::Mat F1_imag(actual_filter_size, actual_filter_size, CV_64F);
-    for (int y = -mdpt; y <= mdpt; y++) {
-        for (int x = -mdpt; x <= mdpt; x++) {
-            double r_sq = x * x + y * y;
-            double exp_val = std::exp(-r_sq / (2.0 * sigma1 * sigma1));
-            double coeff = std::pow(-1.0 / (sigma1 * sigma1), 1.0) / (2.0 * CV_PI * sigma1 * sigma1);
-            F1_real.at<double>(y + mdpt, x + mdpt) = coeff * x * exp_val;
-            F1_imag.at<double>(y + mdpt, x + mdpt) = coeff * y * exp_val;
-        }
-    }
-
-    double sum_F1 = 0;
-    for (int i = 0; i < filterSize; i++) {
-        for (int j = 0; j < filterSize; j++) {
-            sum_F1 += std::sqrt(F1_real.at<double>(i, j) * F1_real.at<double>(i, j) +
-                                F1_imag.at<double>(i, j) * F1_imag.at<double>(i, j));
-        }
-    }
-    F1_real = F1_real / sum_F1;
-    F1_imag = F1_imag / sum_F1;
-
-    cv::Mat f1_real, f1_imag;
-    cv::filter2D(gray, f1_real, CV_64F, F1_real, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
-    cv::filter2D(gray, f1_imag, CV_64F, F1_imag, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
-
-    cv::Mat Z = (f1_real.mul(f1_real) + f1_imag.mul(f1_imag)) / 255.0;
-
-    cv::Mat h_real(actual_filter_size, actual_filter_size, CV_64F);
-    cv::Mat h_imag(actual_filter_size, actual_filter_size, CV_64F);
-    for (int y = -mdpt; y <= mdpt; y++) {
-        for (int x = -mdpt; x <= mdpt; x++) {
-            double r_sq = x * x + y * y;
-            double exp_val = std::exp(-r_sq / (2.0 * sigma2 * sigma2));
-            double coeff = std::pow(-1.0 / (sigma2 * sigma2), 2.0) / (2.0 * CV_PI * sigma2 * sigma2);
-            double x_minus_iy_real = x * x - y * y;
-            double x_minus_iy_imag = -2.0 * x * y;
-            h_real.at<double>(y + mdpt, x + mdpt) = coeff * x_minus_iy_real * exp_val;
-            h_imag.at<double>(y + mdpt, x + mdpt) = coeff * x_minus_iy_imag * exp_val;
-        }
-    }
-
-    double sum_h = 0;
-    for (int i = 0; i < filterSize; i++) {
-        for (int j = 0; j < filterSize; j++) {
-            sum_h += std::sqrt(h_real.at<double>(i, j) * h_real.at<double>(i, j) +
-                               h_imag.at<double>(i, j) * h_imag.at<double>(i, j));
-        }
-    }
-    h_real = h_real / sum_h;
-    h_imag = h_imag / sum_h;
-
-    cv::Mat I20_real, I20_imag;
-    cv::filter2D(Z, I20_real, CV_64F, h_real, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
-    cv::filter2D(Z, I20_imag, CV_64F, h_imag, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
-
-    cv::Mat abs_Z = cv::abs(Z);
-    cv::Mat abs_h = cv::abs(h_real) + cv::abs(h_imag);
-    cv::Mat I10;
-    cv::filter2D(abs_Z, I10, CV_64F, abs_h, cv::Point(-1, -1), 0, cv::BORDER_REFLECT);
-
-    cv::Mat Ct(I20_real.size(), CV_64F);
-    for (int i = 0; i < I20_real.rows; i++) {
-        for (int j = 0; j < I20_real.cols; j++) {
-            double theta = 0.5 * std::atan2(I20_imag.at<double>(i, j), I20_real.at<double>(i, j));
-            double coscs = std::cos(theta);
-            double abs_I20 = std::sqrt(I20_real.at<double>(i, j) * I20_real.at<double>(i, j) +
-                                       I20_imag.at<double>(i, j) * I20_imag.at<double>(i, j));
-            Ct.at<double>(i, j) = abs_I20 * I10.at<double>(i, j) * (1.0 + coscs);
-        }
-    }
-
-    cv::Mat revised_Ct = cv::Mat::zeros(Ct.size(), CV_64F);
-    if (Ct.rows > 2 * boundaryWidth && Ct.cols > 2 * boundaryWidth) {
-        Ct(cv::Rect(boundaryWidth, boundaryWidth,
-                    Ct.cols - 2 * boundaryWidth, Ct.rows - 2 * boundaryWidth)).copyTo(
-            revised_Ct(cv::Rect(boundaryWidth, boundaryWidth,
-                                Ct.cols - 2 * boundaryWidth, Ct.rows - 2 * boundaryWidth)));
-    } else {
-        revised_Ct = Ct.clone();
-    }
-
-    revised_Ct.convertTo(revised_Ct, CV_32F);
-
-    return revised_Ct;
-}
-
-// =====================================================================================
 // 私有：参考实现中的小工具
 // =====================================================================================
 cv::Mat DsstCore::hann1d(int n)
@@ -179,47 +69,38 @@ cv::Mat DsstCore::getSubwindow(const cv::Mat& im, cv::Point2f pos, cv::Size sz, 
 }
 
 // =====================================================================================
-// 私有：特征图（reference get_feature_map；红外 1 通道 GST / 可见光 灰度+梯度 3 通道）
+// 私有：特征图（灰度+梯度 3 通道）
 // =====================================================================================
 std::vector<cv::Mat> DsstCore::getFeatureMap(const cv::Mat& patch) const
 {
     std::vector<cv::Mat> features;
     if (patch.empty()) return features;
 
-    if (m_infrared) {
-        cv::Mat gst_features = gstProcess(patch);
-        if (gst_features.empty()) return features;
-        cv::Scalar mean_val, stddev;
-        cv::meanStdDev(gst_features, mean_val, stddev);
-        gst_features = (gst_features - mean_val[0]) / (stddev[0] + 1e-10f);
-        features.push_back(gst_features);
+    cv::Mat gray;
+    if (patch.channels() == 3) {
+        cv::cvtColor(patch, gray, cv::COLOR_BGR2GRAY);
     } else {
-        cv::Mat gray;
-        if (patch.channels() == 3) {
-            cv::cvtColor(patch, gray, cv::COLOR_BGR2GRAY);
-        } else {
-            gray = patch;
-        }
-        gray.convertTo(gray, CV_32F);
-
-        cv::Mat norm_gray = gray.clone();
-        cv::Scalar mean_val, stddev;
-        cv::meanStdDev(norm_gray, mean_val, stddev);
-        norm_gray = (norm_gray - mean_val[0]) / (stddev[0] + 1e-10f);
-        features.push_back(norm_gray);
-
-        cv::Mat grad_x;
-        cv::Sobel(gray, grad_x, CV_32F, 1, 0, 3);
-        cv::meanStdDev(grad_x, mean_val, stddev);
-        grad_x = (grad_x - mean_val[0]) / (stddev[0] + 1e-10f);
-        features.push_back(grad_x);
-
-        cv::Mat grad_y;
-        cv::Sobel(gray, grad_y, CV_32F, 0, 1, 3);
-        cv::meanStdDev(grad_y, mean_val, stddev);
-        grad_y = (grad_y - mean_val[0]) / (stddev[0] + 1e-10f);
-        features.push_back(grad_y);
+        gray = patch;
     }
+    gray.convertTo(gray, CV_32F);
+
+    cv::Mat norm_gray = gray.clone();
+    cv::Scalar mean_val, stddev;
+    cv::meanStdDev(norm_gray, mean_val, stddev);
+    norm_gray = (norm_gray - mean_val[0]) / (stddev[0] + 1e-10f);
+    features.push_back(norm_gray);
+
+    cv::Mat grad_x;
+    cv::Sobel(gray, grad_x, CV_32F, 1, 0, 3);
+    cv::meanStdDev(grad_x, mean_val, stddev);
+    grad_x = (grad_x - mean_val[0]) / (stddev[0] + 1e-10f);
+    features.push_back(grad_x);
+
+    cv::Mat grad_y;
+    cv::Sobel(gray, grad_y, CV_32F, 0, 1, 3);
+    cv::meanStdDev(grad_y, mean_val, stddev);
+    grad_y = (grad_y - mean_val[0]) / (stddev[0] + 1e-10f);
+    features.push_back(grad_y);
 
     return features;
 }
@@ -278,16 +159,12 @@ cv::Mat DsstCore::getScaleSample(const cv::Mat& im, cv::Point2f pos, const std::
             cv::resize(im_patch, resized, m_scaleModelSz);
 
             cv::Mat gray;
-            if (m_infrared) {
-                gray = gstProcess(resized);
+            if (resized.channels() == 3) {
+                cv::cvtColor(resized, gray, cv::COLOR_BGR2GRAY);
             } else {
-                if (resized.channels() == 3) {
-                    cv::cvtColor(resized, gray, cv::COLOR_BGR2GRAY);
-                } else {
-                    gray = resized;
-                }
-                gray.convertTo(gray, CV_32F);
+                gray = resized;
             }
+            gray.convertTo(gray, CV_32F);
 
             cv::Scalar mean_val, stddev;
             cv::meanStdDev(gray, mean_val, stddev);
@@ -403,16 +280,6 @@ cv::Rect DsstCore::makeRect(const cv::Mat& image, cv::Point2f pos, float scale) 
 // =====================================================================================
 // 公开接口
 // =====================================================================================
-void DsstCore::setInfraredMode(bool ir)
-{
-    m_infrared = ir;
-    m_numFeatures = m_infrared ? 1 : 3;
-}
-
-bool DsstCore::isInfraredMode() const
-{
-    return m_infrared;
-}
 
 bool DsstCore::init(const cv::Mat& image, const cv::Rect& bbox)
 {

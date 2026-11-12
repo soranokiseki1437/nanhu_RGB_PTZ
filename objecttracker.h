@@ -79,9 +79,6 @@ public:
     // 是否正在跟踪
     bool isTracking() const { return m_initialized; }
 
-    // 红外模式（须在 init 前设置：改变内核特征通道数）
-    void setInfraredMode(bool ir) { m_infraredMode = ir; }
-    bool isInfraredMode() const { return m_infraredMode; }
 
     // 接入/获取深度学习检测器
     void setDetector(const std::shared_ptr<IDetector>& detector) { m_detector = detector; }
@@ -118,7 +115,6 @@ public slots:
 private:
     // === DsstCore 内核 + 模式 ===
     DsstCore m_core;
-    bool m_infraredMode = false;
 
     // === 外壳状态 ===
     bool m_initialized = false;

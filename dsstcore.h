@@ -21,8 +21,6 @@
 class DsstCore
 {
 public:
-    void setInfraredMode(bool ir);      // 需在 init() 之前调用（会改变特征通道数）
-    bool isInfraredMode() const;
 
     bool init(const cv::Mat& image, const cv::Rect& bbox);
 
@@ -57,7 +55,6 @@ private:
     float m_scaleStep = 1.05f;
     float m_scaleModelMaxArea = 512.0f;
 
-    bool  m_infrared = false;                        // reference 默认 true(红外)；上位机默认可见光
     int   m_numFeatures = 3;
     int   m_frameCount = 0;
     bool  m_learningFrozen = false;
@@ -87,7 +84,6 @@ private:
     bool m_initialized = false;
 
     // ==== 内部实现（方法名与 reference 私有方法一一对应）====
-    cv::Mat gstProcess(const cv::Mat& img) const;                            // reference gst_process 原样迁移
     std::vector<cv::Mat> getFeatureMap(const cv::Mat& patch) const;          // reference get_feature_map
     cv::Mat getSubwindow(const cv::Mat& im, cv::Point2f pos, cv::Size sz, float scale) const;
     std::vector<cv::Mat> getTranslationSample(const cv::Mat& im, cv::Point2f pos, float scale) const;

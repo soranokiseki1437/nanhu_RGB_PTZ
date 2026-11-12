@@ -99,7 +99,6 @@ void TrackingController::setTarget(const QImage& frame, const QRectF& targetRect
     // C9：创建 tracker + 线程后投递异步初始化（init 含核响应运算，移出 UI 线程）
     m_trackerThread = new QThread(this);
     m_tracker = new ObjectTracker(nullptr);
-    m_tracker->setInfraredMode(m_infraredMode);  // 模式须在 init 前设置
     m_tracker->setRedetectionEnabled(m_redetectionEnabled);
     if (m_detector) {
         m_tracker->setDetector(m_detector);
@@ -353,13 +352,6 @@ void TrackingController::pauseTracking()
     }
 }
 
-void TrackingController::setInfraredMode(bool ir)
-{
-    if (m_infraredMode == ir) return;
-    m_infraredMode = ir;
-    qDebug() << "[TrackCtrl] 跟踪源模式切换为" << (ir ? "红外" : "可见光")
-             << "（下次框选生效）";
-}
 
 void TrackingController::triggerScaleCalibration()
 {

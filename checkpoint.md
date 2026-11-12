@@ -82,13 +82,13 @@ flowchart LR
 
 | 模块 | 关键文件 | 状态 | 关键改进与现状 |
 | :--- | :--- | :---: | :--- |
-| **算法内核** | `dsstcore.h/.cpp` | 🟢 完备 | 从 reference 纯 C++ 移植，去除 Qt 依赖；修复 R1/R4/R6；支持红外/可见光特征切换；支持尺度隔帧 |
+| **算法内核** | `dsstcore.h/.cpp` | 🟢 完备 | C++ 相关滤波跟踪内核，去除 Qt 依赖；修复 R1/R4/R6；基于灰度与梯度 3 通道特征抽取；支持尺度隔帧 |
 | **跟踪外壳** | `objecttracker.h/.cpp` | 🟢 完备 | 彻底剥离 `fftutils` 手写 FFT；全流程改为 DsstCore；PSR 改用 Mat 半径5圆形抑制；异步 initSlot 解决主线程卡顿 |
-| **伺服控制** | `trackingcontroller.h/.cpp` | 🟢 完备 | KF 速度前馈 + PID 反馈；红外模式接口下发；死区与输出限幅 |
+| **伺服控制** | `trackingcontroller.h/.cpp` | 🟢 完备 | KF 速度前馈 + PID 反馈；跟踪状态机控制；死区与输出限幅 |
 | **云台通信** | `ptzcontroller.h/.cpp` | 🟢 完备 | P1 软限位保护；P2 stop() 3次防丢包；P4 串口写返回值校验与 flush；速度随角度信号上报 (C1) |
 | **视频解码** | `DecodeThread.h/.cpp` `videodecoder.h/.cpp` | 🟢 完备 | V1 packet 生命周期与 EAGAIN 处理；V7 分辨率自适应重建；C6 `ThreadSafeQueue::reset` 解决复活空转 |
 | **设备网络** | `devicemanager.h/.cpp` | 🟢 完备 | C4 `m_isRecording` 原子布尔化；C5 SDK 异常回调异步投递登出；C7 异步开流避免 UI 卡死 |
-| **界面交互** | `mainwindow.h/.cpp/.ui` | 🟢 完备 | C8 绘制缓存（QPixmap 写时复制）；跟踪数据跨线程信号直传；红外/可见光源下拉选择绑定 |
+| **界面交互** | `mainwindow.h/.cpp/.ui` | 🟢 完备 | C8 绘制缓存（QPixmap 写时复制）；跟踪数据跨线程信号直传；目标检测与跟踪控制绑定 |
 | **配置管理** | `configmanager.h/.cpp` | 🟢 完备 | P7 全局加锁保护；P8 移除明文密码、`aboutToQuit` 统一存盘 |
 | **镜头控制** | `lensmanager.h/.cpp` | 🟢 完备 | P6 一键聚焦等待自动/手动模式切换成功后再执行（1s 超时兜底） |
 | **日志系统** | `logmanager.h/.cpp` `logging_categories.*` | 🟢 完备 | B2/T4 移除全局宏一刀切，采用 QLoggingCategory 分类动态管理；跟踪 per-frame 节流输出 |
@@ -121,7 +121,7 @@ flowchart LR
 | **T5** | P2 | computeResponse 每帧无谓实数→复数转换 | ✅ **已闭环** | 随旧 FFT 体系删除（Commit `d4b4973`） |
 | **T6** | P1 | elementDivide 分母语义模糊易发散 | ✅ **已闭环** | 随旧 FFT 体系删除，DsstCore 采用稳健相关滤波分母正则化 |
 | **T7** | P2 | computeFHOG 三维嵌套 vector 缓存不友好 | ✅ **已闭环** | DsstCore 使用 OpenCV 连续内存特征抽取 |
-| **T8** | P3 | TrackResult 缺少红外/可见光模式字段 | ✅ **已闭环** | ObjectTracker/UI/Controller 全链路增加红外模式切换（Commit `d4b4973`） |
+| **T8** | P3 | TrackResult 结构规范化与状态机全链路对齐 | ✅ **已闭环** | 统一跟踪状态机与 TrackResult 结构定义（Commit `d4b4973`） |
 | **T9** | P2 | reDetect 九宫格耗时×9 | ✅ **已闭环** | 改调 DsstCore::detectOnly，不更新模型、耗时降低 |
 | **B1** | P0 | 工程未配置 OpenCV 阻碍移植 | ✅ **已闭环** | .pro 配置 MinGW 编译版 opencv_core/imgproc（Commit `aa3aaba`） |
 | **B2** | P2 | Release 下一刀切关闭 qDebug | ✅ **已闭环** | 改为运行时 QLoggingCategory 分类动态控制（Commit `aa3aaba`） |
@@ -230,24 +230,21 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #57）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_57.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_57.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #58）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_58.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_58.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-12 #58
+### Checkpoint 2026-11-12 #59
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：Qt 上位机多级 Shadow Build 模型检索鲁棒化与多目标检测跟踪退出交互闭环
+- **类型**：全系统可见光架构规范化与旧版参考文件清理
 - **核心内容**：
-  1. **多级目录模型检索与筛选优化**：
-     - 在 [MainWindow::resolveModelPath](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp#L1510) 与 [MainWindow::refreshModelList](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp#L1535) 中增加 `../../models` 与 `../../../models` 等多级父路径搜索，彻底兼容 Qt Creator 深度 Shadow Build 目录结构；
-     - 在 [MainWindow::refreshModelList](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp#L1555) 增加 SOT 双分支权重（`sot_*.onnx`）排除过滤，确保 `comboAiModel` 仅列出 YOLO 检测模型；
-     - 同步增强 [ObjectTracker](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp#L258) 与 [TrackingController](file:///d:/PyProjects/RGB_PTZ_Integrated/trackingcontroller.cpp#L31) 默认检测模型的候选路径探测深度。
-  2. **多目标检测模式“退出跟踪”控制交互闭环**：
-     - 在 [mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui#L928) 的“多目标检测”组中增加专用 [btnMotTrackStop](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui#L930)（退出跟踪）控件；
-     - 在 [MainWindow](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp) 中建立槽函数关联与生命周期状态机驱动：锁定目标并触发闭环伺服时使能该按钮，点击退出时彻底重置检测与云台伺服；
-     - 在 [MainWindow::on_btnAutoDetect_clicked](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp#L1670) 增加前置状态保护，重新触发巡检时自动停止既有跟踪与 PTZ 机电伺服。
-  3. **单目标框选模式（SOT）回归原生纯净滤波，彻底杜绝 YOLO 误重置**：
-     - 在 [ObjectTracker](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.h) 与 [TrackingController](file:///d:/PyProjects/RGB_PTZ_Integrated/trackingcontroller.h) 引入 `setRedetectionEnabled` 模式开关，框选跟踪时强制关闭全局重检测；
-     - 框选模式全面回归经典稳定处理：依据 30 帧平稳 PSR 均值基线判定（连续 5 帧低于 0.75×基线才进入遮挡，杜绝短期波动误判）；
-     - 遮挡期间执行纯卡尔曼滤波（KF Coasting）平滑外推，冻结相关滤波学习；局部恢复基于既有 DSST 模板执行九宫格探测（`reDetect`），严禁调用 YOLO 篡改或替换用户初始模板；
-     - 修复 `TrackingController::processFrame` 在 `Lost` 状态下丢弃帧导致无法恢复的缺陷，允许持续向跟踪器投递视频帧。
-  4. **事实源与版本库强一致同步**：
-     - 归档检查点 #57 至 `checkpoints/archive/checkpoint_archive_57.md`，更新唯一事实源 [checkpoint.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoint.md)，MinGW 完整编译验证无误。
+  1. **旧版参考文件清理**：
+     - 物理删除 `reference/dsst_tracker.cpp`、`reference/dsst_tracker.h`、`reference/main_zt.cpp` 与 `reference/tracker_config.txt`。
+  2. **界面交互精简**：
+     - 在 [mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui) 与 [MainWindow](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp) 中清理冗余通道选择控件与关联槽函数。
+  3. **跟踪控制与外壳接口精简**：
+     - 在 [TrackingController](file:///d:/PyProjects/RGB_PTZ_Integrated/trackingcontroller.h) 与 [ObjectTracker](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.h) 中收敛控制接口与冗余状态变量。
+  4. **跟踪内核特征抽取标准化**：
+     - 在 [DsstCore](file:///d:/PyProjects/RGB_PTZ_Integrated/dsstcore.h) 与 [dsstcore.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/dsstcore.cpp) 中，`getFeatureMap` 与 `getScaleSample` 统一采用 3 通道灰度与 Sobel 梯度特征提取算子。
+  5. **离线工具链对齐**：
+     - 在 [tools/offline_runner.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/offline_runner.cpp) 中移除历史宏分支与参数解析，统一调用 `DsstCore` 接口。
+  6. **编译与验证**：
+     - MinGW 64-bit Release 全量编译通过，运行测试通过。
