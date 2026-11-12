@@ -699,6 +699,15 @@ bool DeviceManager::startRecord(const QString& filePath)
         m_recordThread = new RecordThread(this);
         connect(m_recordThread, &RecordThread::errorOccurred, this, &DeviceManager::onRecordError);
         connect(m_recordThread, &RecordThread::recordFinished, this, &DeviceManager::onRecordFinished);
+    } else if (m_recordThread->isRunning()) {
+        // 若上一轮录像线程仍在收尾退出，先等待其完全结束再复用
+        m_recordThread->stopRecord();
+        locker.unlock();
+        m_recordThread->wait();
+        locker.relock();
+        if (m_isRecording) {
+            return false;
+        }
     }
 
     // 录像侧的解码器同样按相机实际编码类型初始化

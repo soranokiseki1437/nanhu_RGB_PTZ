@@ -65,13 +65,37 @@ void LensWorker::executeSetFocusMode(bool isManual, uint64_t userID)
         emit focusModeSetResult(false, isManual);
         return;
     }
+
+    qInfo() << "[LensWorker] 读取聚焦配置: scene=" << static_cast<int>(cameraParam.scene)
+            << "focus.mode=" << static_cast<int>(cameraParam.fullParam.extra.focus.mode)
+            << "initialize=" << static_cast<int>(cameraParam.fullParam.extra.focus.initialize)
+            << "sensitivity=" << static_cast<int>(cameraParam.fullParam.extra.focus.sensitivity)
+            << "minFocusLength=" << static_cast<int>(cameraParam.fullParam.extra.focus.minFocusLength)
+            << "ratioLimit=" << cameraParam.fullParam.extra.focus.ratioLimit
+            << "ratioShow=" << static_cast<int>(cameraParam.fullParam.extra.focus.ratioShow)
+            << "alg=" << static_cast<int>(cameraParam.fullParam.extra.focus.alg);
+
+    // 若当前为定时场景(scene==1)，union 处于 timingParam 布局而非 fullParam，需显式按场景0重读
+    if (cameraParam.scene == 1) {
+        memset(&cameraParam, 0, sizeof(cameraParam));
+        cameraParam.scene = 0;
+        getResult = UNIV_DEV_GetConfig(userID, UNIV_CFG_CAMERA, &cameraParam, sizeof(cameraParam));
+        if (getResult != SUCCESS) {
+            qWarning() << "[LensWorker] 重读场景0相机配置失败，错误码:" << getResult;
+            emit focusModeSetResult(false, isManual);
+            return;
+        }
+    }
     
-    // 修改聚焦模式
+    // 修改聚焦模式，并强制清零 initialize 防止 SetConfig 误触发镜头初始化单向跑焦
     uint8_t newMode = isManual ? 1 : 0; // 1 = ManualFocus, 0 = AutoFocus
     cameraParam.fullParam.extra.focus.mode = newMode;
+    cameraParam.fullParam.extra.focus.initialize = 0;
     
-    // 【关键修复】重置 scene 为合法的默认值，不能写回 -1！
-    cameraParam.scene = 0;
+    // 保留有效 scene 值（<=4），非法时回退 0，避免写回 -1
+    if (cameraParam.scene > 4) {
+        cameraParam.scene = 0;
+    }
     
     // 写回设备
     int32_t setResult = UNIV_DEV_SetConfig(userID, UNIV_CFG_CAMERA, &cameraParam, sizeof(cameraParam));
@@ -108,14 +132,29 @@ void LensWorker::executeSetIrisMode(bool isManual, uint64_t userID)
         return;
     }
     
+    // 若当前为定时场景(scene==1)，union 处于 timingParam 布局而非 fullParam，需显式按场景0重读
+    if (cameraParam.scene == 1) {
+        memset(&cameraParam, 0, sizeof(cameraParam));
+        cameraParam.scene = 0;
+        getResult = UNIV_DEV_GetConfig(userID, UNIV_CFG_CAMERA, &cameraParam, sizeof(cameraParam));
+        if (getResult != SUCCESS) {
+            qWarning() << "[LensWorker] 重读场景0相机配置失败，错误码:" << getResult;
+            emit irisModeSetResult(false, isManual);
+            return;
+        }
+    }
+
     // 修改曝光模式
     // mode: 0=自动, 1=手动, 2=光圈优先, 3=快门优先
     // 如果是手动模式，我们用 2=光圈优先（用户调光圈，相机自动调快门和增益）
     // 如果是自动模式，我们用 0=自动
     cameraParam.fullParam.basic.exposure.mode = isManual ? 2 : 0;
+    cameraParam.fullParam.extra.focus.initialize = 0;
     
-    // 重置 scene 为合法值
-    cameraParam.scene = 0;
+    // 保留有效 scene 值（<=4），非法时回退 0
+    if (cameraParam.scene > 4) {
+        cameraParam.scene = 0;
+    }
     
     // 写回设备
     int32_t setResult = UNIV_DEV_SetConfig(userID, UNIV_CFG_CAMERA, &cameraParam, sizeof(cameraParam));
@@ -342,17 +381,22 @@ void LensManager::onFocusModeSetResult(bool success, bool isManual)
 {
     if (success) {
         QMutexLocker locker(&m_mutex);
+        const FocusMode prevMode = m_focusMode;
         m_focusMode = isManual ? ManualFocus : AutoFocus;
         locker.unlock();
         emit focusModeChanged(isManual);
         qDebug() << "[LensManager] 聚焦模式更新成功:" << (isManual ? "手动" : "自动");
 
-        // P6：onePushFocus 等待模式切换成功后再下发一键聚焦命令
+        // P6：onePushFocus 等待模式切换成功后再下发一键聚焦命令；
+        // 从手动切回自动时同样触发一次辅助聚焦，避免停留在已失焦位置
         if (m_waitingModeSwitchFor == static_cast<int>(FOCUS_ONEPUSH)) {
             m_waitingModeSwitchFor = -1;
             m_modeSwitchTimer->stop();
             emit commandQueued(FOCUS_ONEPUSH, 50, 0);
             qDebug() << "[LensManager] 模式切换完成，下发一键聚焦";
+        } else if (prevMode == ManualFocus && !isManual) {
+            emit commandQueued(FOCUS_ONEPUSH, 50, 0);
+            qDebug() << "[LensManager] 已从手动切回自动，触发一次辅助聚焦恢复清晰度";
         }
     } else {
         // P6：切换失败同样终止挂起状态（错误已提示，无需等超时）

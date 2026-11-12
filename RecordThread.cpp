@@ -81,6 +81,9 @@ void RecordThread::cleanup()
     m_videoStream = nullptr;
     m_initialized = false;
     m_headerWritten = false;
+    m_inputW = -1;
+    m_inputH = -1;
+    m_inputFmt = -1;
 }
 
 bool RecordThread::initEncoder(int width, int height)
@@ -159,10 +162,15 @@ bool RecordThread::initEncoder(int width, int height)
 
 bool RecordThread::initRecord(const QString& filePath, int frameRate)
 {
+    cleanup();
+
     m_filePath = filePath;
     m_frameRate = frameRate > 0 ? frameRate : 25;
     m_pts = 0;
-    m_dataQueue.clear();
+    m_encoderFailCount = 0;
+    m_writeFailCount = 0;
+    m_headerWritten = false;
+    m_dataQueue.reset();
 
     QFileInfo fileInfo(filePath);
     QString dirPath = fileInfo.absolutePath();
@@ -382,6 +390,10 @@ void RecordThread::run()
             av_interleaved_write_frame(m_formatContext, m_packet);
             av_packet_unref(m_packet);
         }
+    }
+
+    if (!encoderReady) {
+        qWarning() << "[RecordThread] 未收到有效视频解码帧，未生成录像文件:" << m_filePath;
     }
 
     cleanup();
