@@ -4,6 +4,9 @@
 #include <QObject>
 #include <QTimer>
 #include <QThread>
+#include <QFile>
+#include <QTextStream>
+#include <QDateTime>
 #include <atomic>
 #include <memory>
 #include "objecttracker.h"
@@ -150,6 +153,15 @@ private:
 
     // 计算PTZ控制量
     void computePTZControl(const TrackResult& result);
+
+    // 飞行数据黑匣子自动记录
+    QFile m_flightFile;
+    QTextStream m_flightStream;
+    int m_flightFrameCounter = 0;
+    QString m_flightFilePath;
+    void startFlightRecord();
+    void recordFlightFrame(const TrackResult& result, int speedX, int speedY, int deltaX, int deltaY);
+    void stopFlightRecord();
 };
 
 #endif // TRACKINGCONTROLLER_H

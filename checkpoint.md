@@ -230,21 +230,21 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #58）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_58.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_58.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #59）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_59.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_59.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-12 #59
+### Checkpoint 2026-11-12 #60
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：全系统可见光架构规范化与旧版参考文件清理
+- **类型**：跟踪飞行黑匣子数据自动落盘、分类日志默认开启与多目标重检测判据精细化
 - **核心内容**：
-  1. **旧版参考文件清理**：
-     - 物理删除 `reference/dsst_tracker.cpp`、`reference/dsst_tracker.h`、`reference/main_zt.cpp` 与 `reference/tracker_config.txt`。
-  2. **界面交互精简**：
-     - 在 [mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui) 与 [MainWindow](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp) 中清理冗余通道选择控件与关联槽函数。
-  3. **跟踪控制与外壳接口精简**：
-     - 在 [TrackingController](file:///d:/PyProjects/RGB_PTZ_Integrated/trackingcontroller.h) 与 [ObjectTracker](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.h) 中收敛控制接口与冗余状态变量。
-  4. **跟踪内核特征抽取标准化**：
-     - 在 [DsstCore](file:///d:/PyProjects/RGB_PTZ_Integrated/dsstcore.h) 与 [dsstcore.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/dsstcore.cpp) 中，`getFeatureMap` 与 `getScaleSample` 统一采用 3 通道灰度与 Sobel 梯度特征提取算子。
-  5. **离线工具链对齐**：
-     - 在 [tools/offline_runner.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/offline_runner.cpp) 中移除历史宏分支与参数解析，统一调用 `DsstCore` 接口。
-  6. **编译与验证**：
-     - MinGW 64-bit Release 全量编译通过，运行测试通过。
+  1. **跟踪与控制排障日志默认落盘**：
+     - 在 [main.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/main.cpp) 中调整默认日志过滤规则，默认启用 `tracker.debug` 与 `ptz.debug`，静音高频流媒体数据包，排障日志默认自动写入 `日志/` 目录。
+  2. **跟踪飞行黑匣子数据自动保存 (Flight Recorder)**：
+     - 在 [TrackingController](file:///d:/PyProjects/RGB_PTZ_Integrated/trackingcontroller.cpp) 中建立自动黑匣子机制，每次跟踪启动时自动创建 `日志/track_YYYYMMDD_HHmmss.csv`；
+     - 逐帧记录时间戳、跟踪模式、状态机状态、目标框、卡尔曼预测、脱靶量、云台下发速度、PSR、AMFT 综合得分与阈值；停止跟踪时自动存盘并在状态栏提示路径。
+  3. **多目标模式状态机联动规范化**：
+     - 在 [MainWindow::on_radioModeAuto_toggled](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp) 与点击画面目标启动跟踪处，显式调用 `setRedetectionEnabled(true)`，保证多目标模式正常使能 AI 协同重检测链路。
+  4. **AMFT 遮挡判定与重检测候选筛选调优**：
+     - 在 [ObjectTracker](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp) 中将微失锁遮挡判定由 2 帧调整为 4 帧，抑制瞬态高频光照与形变波动误判；
+     - 优化 `tryDetectAndRecover` 候选框筛选公式，引入二次距离衰减惩罚并约束物理搜索半径，增加候选目标置信度与打分调试输出，防止多目标同屏时误锁他靶。
+  5. **构建与测试**：
+     - MinGW 64-bit Release 全量构建通过（0 错误 0 告警），`run_test.ps1` 验收通过。

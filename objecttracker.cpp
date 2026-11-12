@@ -302,14 +302,15 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
     const float targetDiag = std::sqrt(currentW * currentW + currentH * currentH);
 
     // 根据目标尺寸与运动速度估计合理的最大搜索半径
-    float maxRadius = std::max(targetDiag * 3.5f, speed * std::min(m_lostCount, 15) * 1.5f + 60.0f);
-    maxRadius = std::min(maxRadius, static_cast<float>(std::max(image.cols, image.rows)) * 0.8f);
+    float maxRadius = std::max(targetDiag * 2.0f, speed * std::min(m_lostCount, 15) * 1.2f + 50.0f);
+    maxRadius = std::min(maxRadius, static_cast<float>(std::max(image.cols, image.rows)) * 0.35f);
 
     float bestCandidateScore = 0.0f;
     DetectionBox bestBox;
     bool found = false;
 
-    for (const auto& det : detections) {
+    for (size_t i = 0; i < detections.size(); ++i) {
+        const auto& det = detections[i];
         if (det.confidence < 0.25f) continue;
 
         float cx = static_cast<float>(det.rect.x() + det.rect.width() * 0.5f);
@@ -321,11 +322,17 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
         float detArea = static_cast<float>(det.rect.width() * det.rect.height());
         float origArea = std::max(1.0f, currentW * currentH);
         float areaRatio = detArea / origArea;
-        if (areaRatio < 0.15f || areaRatio > 6.0f) continue;
+        if (areaRatio < 0.20f || areaRatio > 5.0f) continue;
 
-        float distPenalty = 1.0f - 0.5f * (dist / maxRadius);
+        float distNorm = dist / maxRadius;
+        float distPenalty = std::max(0.0f, 1.0f - distNorm * distNorm);
         float areaPenalty = std::min(areaRatio, 1.0f / areaRatio);
         float candidateScore = det.confidence * distPenalty * areaPenalty;
+
+        qCDebug(trackerLog) << "[ReDetect] 候选#" << i << QString::fromStdString(det.className)
+                            << "pos=(" << cx << "," << cy << ") conf=" << det.confidence
+                            << "dist=" << dist << "maxR=" << maxRadius
+                            << "score=" << candidateScore;
 
         if (candidateScore > bestCandidateScore) {
             bestCandidateScore = candidateScore;
@@ -334,9 +341,15 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
         }
     }
 
-    if (!found || bestCandidateScore < 0.18f) {
+    if (!found || bestCandidateScore < 0.20f) {
+        qCDebug(trackerLog) << "[ReDetect] 未找到合格候选目标 (最高分=" << bestCandidateScore << ", 门限=0.20)";
         return false;
     }
+
+    qCDebug(trackerLog) << "[ReDetect] 最佳匹配锁定成功: pos=("
+                        << (bestBox.rect.x() + bestBox.rect.width() * 0.5f) << ","
+                        << (bestBox.rect.y() + bestBox.rect.height() * 0.5f)
+                        << ") score=" << bestCandidateScore;
 
     // 命中目标：以全新高精检测框重置 DsstCore 模板
     cv::Rect newRoi(static_cast<int>(std::round(bestBox.rect.x())),
@@ -714,8 +727,8 @@ TrackResult ObjectTracker::update(const QImage& frame)
                                 << ", mot=" << m_lastScore.sMot
                                 << ", bg=" << m_lastScore.sBg << ")";
 
-            if (m_lostCount >= 2) {
-                // 确认进入遮挡/微失锁态
+            if (m_lostCount >= 4) {
+                // 确认进入遮挡/微失锁态 (连续 4 帧低于阈值，约 130ms，防瞬态误判)
                 m_trackingState = AMFTTrackingState::TRACK_OCCLUDED;
                 m_core.setLearningFrozen(true);
                 emit trackingLost();

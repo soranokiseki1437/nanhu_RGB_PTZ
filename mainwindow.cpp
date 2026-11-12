@@ -1392,6 +1392,7 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
                 m_trackingController->setFeedforwardGain(ui->spinTrackKff->value() / 100.0f);
                 m_trackingController->setPredictHorizon(ui->spinTrackPredict->value());
                 m_trackingController->setFrameSize(m_lastFrame.width(), m_lastFrame.height());
+                m_trackingController->setRedetectionEnabled(true);
 
                 try {
                     m_trackingController->setTarget(m_lastFrame, targetRect);
@@ -1649,6 +1650,10 @@ void MainWindow::on_radioModeAuto_toggled(bool checked)
         m_isSelectingTarget = false;
         m_selectBox = QRectF();
         m_trackBoxVisible = false;
+
+        if (m_trackingController) {
+            m_trackingController->setRedetectionEnabled(true);
+        }
 
         ui->groupSotControls->setEnabled(false);
         ui->groupMotControls->setEnabled(true);

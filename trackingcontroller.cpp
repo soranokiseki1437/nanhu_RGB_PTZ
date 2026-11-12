@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QCoreApplication>
 #include <QDir>
+#include <QFileInfo>
 
 TrackingController::TrackingController(QObject *parent)
     : QObject(parent)
@@ -96,6 +97,9 @@ void TrackingController::setTarget(const QImage& frame, const QRectF& targetRect
     m_trackerThread = nullptr;
     qDebug() << "[TrackCtrl] 旧 tracker 清理完毕";
 
+    // 自动开启本次跟踪的飞行黑匣子记录
+    startFlightRecord();
+
     // C9：创建 tracker + 线程后投递异步初始化（init 含核响应运算，移出 UI 线程）
     m_trackerThread = new QThread(this);
     m_tracker = new ObjectTracker(nullptr);
@@ -115,6 +119,7 @@ void TrackingController::setTarget(const QImage& frame, const QRectF& targetRect
             computePTZControl(result);
         } else {
             emit ptzControlDelta(0, 0, 0, 0);
+            recordFlightFrame(result, 0, 0, 0, 0);
         }
     });
     connect(m_tracker, &ObjectTracker::trackingLost, this, &TrackingController::onTrackingLost);
@@ -262,6 +267,7 @@ void TrackingController::computePTZControl(const TrackResult& result)
         m_prevErrorX = errorX;
         m_prevErrorY = errorY;
         emit ptzControlDelta(0, 0, 0, 0);
+        recordFlightFrame(result, 0, 0, qRound(errorX), qRound(errorY));
         return;
     }
 
@@ -316,6 +322,7 @@ void TrackingController::computePTZControl(const TrackResult& result)
     const int outSpeedY = qRound(speedYf);
 
     emit ptzControlDelta(outDeltaX, outDeltaY, outSpeedX, outSpeedY);
+    recordFlightFrame(result, outSpeedX, outSpeedY, outDeltaX, outDeltaY);
 }
 
 void TrackingController::stopTracking()
@@ -336,6 +343,7 @@ void TrackingController::stopTracking()
         delete m_trackerThread;
         m_trackerThread = nullptr;
     }
+    stopFlightRecord();
     m_isProcessingFrame.store(false);  // R-02: 停止跟踪时重置
     m_state = Idle;
     emit stateChanged(m_state);
@@ -393,4 +401,82 @@ void TrackingController::setRedetectionEnabled(bool enabled)
     if (m_tracker) {
         m_tracker->setRedetectionEnabled(enabled);
     }
+}
+
+void TrackingController::startFlightRecord()
+{
+    stopFlightRecord();
+
+    QDir dir(QStringLiteral("日志"));
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+
+    const QString timeStr = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+    m_flightFilePath = dir.filePath(QString("track_%1.csv").arg(timeStr));
+    m_flightFile.setFileName(m_flightFilePath);
+
+    if (m_flightFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        m_flightStream.setDevice(&m_flightFile);
+        m_flightStream << "timestamp,frame,mode,state,x,y,w,h,kf_x,kf_y,kf_vx,kf_vy,err_x,err_y,speed_x,speed_y,psr,amft_r,amft_tau,occluded,recovered,fps\n";
+        m_flightStream.flush();
+        m_flightFrameCounter = 0;
+        qInfo() << "[FlightRecorder] 跟踪飞行数据自动记录开启:" << m_flightFilePath;
+        emit statusMessage(QString("飞行数据记录已启动: %1").arg(QFileInfo(m_flightFilePath).fileName()));
+    } else {
+        qWarning() << "[FlightRecorder] 无法创建飞行数据文件:" << m_flightFilePath;
+    }
+}
+
+void TrackingController::recordFlightFrame(const TrackResult& result, int speedX, int speedY, int deltaX, int deltaY)
+{
+    if (!m_flightFile.isOpen()) return;
+
+    ++m_flightFrameCounter;
+    const QString timestamp = QDateTime::currentDateTime().toString("HH:mm:ss.zzz");
+    const QString modeStr = m_redetectionEnabled ? "MOT_AI" : "SOT_PURE";
+    const int stateInt = static_cast<int>(result.state);
+
+    m_flightStream << timestamp << ","
+                   << m_flightFrameCounter << ","
+                   << modeStr << ","
+                   << stateInt << ","
+                   << QString::number(result.bbox.x(), 'f', 2) << ","
+                   << QString::number(result.bbox.y(), 'f', 2) << ","
+                   << QString::number(result.bbox.width(), 'f', 2) << ","
+                   << QString::number(result.bbox.height(), 'f', 2) << ","
+                   << QString::number(result.kfX, 'f', 2) << ","
+                   << QString::number(result.kfY, 'f', 2) << ","
+                   << QString::number(result.kfVx, 'f', 2) << ","
+                   << QString::number(result.kfVy, 'f', 2) << ","
+                   << deltaX << ","
+                   << deltaY << ","
+                   << speedX << ","
+                   << speedY << ","
+                   << QString::number(result.psr, 'f', 2) << ","
+                   << QString::number(result.amftScore, 'f', 4) << ","
+                   << QString::number(result.amftTau, 'f', 4) << ","
+                   << (result.occluded ? 1 : 0) << ","
+                   << (result.recovered ? 1 : 0) << ","
+                   << QString::number(result.fps, 'f', 1) << "\n";
+
+    if (m_flightFrameCounter % 15 == 0) {
+        m_flightStream.flush();
+    }
+}
+
+void TrackingController::stopFlightRecord()
+{
+    if (m_flightFile.isOpen()) {
+        m_flightStream.flush();
+        m_flightFile.close();
+        if (m_flightFrameCounter > 0) {
+            qInfo() << "[FlightRecorder] 跟踪飞行数据已保存:" << m_flightFilePath
+                    << "共" << m_flightFrameCounter << "帧";
+            emit statusMessage(QString("飞行数据已保存至 日志/%1 (共%2帧)")
+                               .arg(QFileInfo(m_flightFilePath).fileName())
+                               .arg(m_flightFrameCounter));
+        }
+    }
+    m_flightFrameCounter = 0;
 }

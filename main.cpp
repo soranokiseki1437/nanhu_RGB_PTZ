@@ -16,12 +16,9 @@ int main(int argc, char *argv[])
     // Step6：限制 OpenCV 内部线程池，避免与 Qt/解码线程过度争抢 CPU
     cv::setNumThreads(2);
 
-    // 日志分级默认策略：不再用 QT_NO_DEBUG_OUTPUT 一刀切，
-    // 默认关闭 debug 级输出（保持安静），现场排障时用环境变量打开，例如：
-    //   set QT_LOGGING_RULES=*.debug=true          全部打开
-    //   set QT_LOGGING_RULES=tracker.debug=true    只打开跟踪逐帧日志
+    // 默认开启跟踪与控制排障日志，流媒体网络包保持静音
     if (qEnvironmentVariableIsEmpty("QT_LOGGING_RULES")) {
-        QLoggingCategory::setFilterRules(QStringLiteral("*.debug=false"));
+        QLoggingCategory::setFilterRules(QStringLiteral("*.debug=false\ndefault.debug=true\ntracker.debug=true\nptz.debug=true\nstream.debug=false"));
     }
 
     // 启动日志（输出到"日志"目录）
