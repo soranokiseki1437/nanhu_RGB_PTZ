@@ -72,6 +72,7 @@ private slots:
     void on_btnTrackSelect_clicked();
     void on_btnTrackStart_clicked();
     void on_btnTrackStop_clicked();
+    void on_btnMotTrackStop_clicked();
     void onTrackStateChanged(TrackingController::TrackingState state);
     void onTrackResult(const TrackResult& result);
     void onTrackBoxDraw(const QRectF& bbox, bool occluded);

@@ -258,7 +258,12 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
             "models/yolov8n.onnx",
             QCoreApplication::applicationDirPath() + "/models/yolov8n.onnx",
             QCoreApplication::applicationDirPath() + "/../models/yolov8n.onnx",
-            QDir::currentPath() + "/models/yolov8n.onnx"
+            QCoreApplication::applicationDirPath() + "/../../models/yolov8n.onnx",
+            QCoreApplication::applicationDirPath() + "/../../../models/yolov8n.onnx",
+            QDir::currentPath() + "/models/yolov8n.onnx",
+            QDir::currentPath() + "/../models/yolov8n.onnx",
+            QDir::currentPath() + "/../../models/yolov8n.onnx",
+            QDir::currentPath() + "/../../../models/yolov8n.onnx"
         };
         QString foundPath;
         for (const auto& path : candidatePaths) {

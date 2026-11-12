@@ -230,16 +230,19 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #56）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_56.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_56.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #57）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_57.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_57.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-11 #57
+### Checkpoint 2026-11-12 #58
 - **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：编制《Qt上位机嵌入LightTrack跟踪算法任务书.md》，固化纯客观工程现状、目的与六大交接任务
+- **类型**：Qt 上位机多级 Shadow Build 模型检索鲁棒化与多目标检测跟踪退出交互闭环
 - **核心内容**：
-  1. **编制交接任务书**：
-     - 生成 [待执行方案/Qt上位机嵌入LightTrack跟踪算法任务书.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/Qt上位机嵌入LightTrack跟踪算法任务书.md)；
-     - 严格约束内容边界，仅客观阐述【系统现状与工程基准】、【工程目的】与【交接任务】，杜绝主观评述与过渡性词汇；
-     - 详尽交代当前软件多线程模型（UI / Worker / 控制）、MinGW 依赖库（OpenCV 4.10.0、ONNX Runtime DirectML）、LightTrack 双分支纯静态 ONNX 张量规格与真值数据集路径；
-     - 明确规定后续会话需产出的 6 项核心执行方案模块与验收指标矩阵。
-  2. **事实源与版本库强一致同步**：
-     - 归档检查点 #56 至 `checkpoints/archive/checkpoint_archive_56.md`，更新唯一事实源 [checkpoint.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoint.md)，执行 Git 规范提交并推送远程仓库。
+  1. **多级目录模型检索与筛选优化**：
+     - 在 [MainWindow::resolveModelPath](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp#L1510) 与 [MainWindow::refreshModelList](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp#L1535) 中增加 `../../models` 与 `../../../models` 等多级父路径搜索，彻底兼容 Qt Creator 深度 Shadow Build 目录结构；
+     - 在 [MainWindow::refreshModelList](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp#L1555) 增加 SOT 双分支权重（`sot_*.onnx`）排除过滤，确保 `comboAiModel` 仅列出 YOLO 检测模型；
+     - 同步增强 [ObjectTracker](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp#L258) 与 [TrackingController](file:///d:/PyProjects/RGB_PTZ_Integrated/trackingcontroller.cpp#L31) 默认检测模型的候选路径探测深度。
+  2. **多目标检测模式“退出跟踪”控制交互闭环**：
+     - 在 [mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui#L928) 的“多目标检测”组中增加专用 [btnMotTrackStop](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui#L930)（退出跟踪）控件；
+     - 在 [MainWindow](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp) 中建立槽函数关联与生命周期状态机驱动：锁定目标并触发闭环伺服时使能该按钮，点击退出时彻底重置检测与云台伺服；
+     - 在 [MainWindow::on_btnAutoDetect_clicked](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp#L1670) 增加前置状态保护，重新触发巡检时自动停止既有跟踪与 PTZ 机电伺服。
+  3. **事实源与版本库强一致同步**：
+     - 归档检查点 #57 至 `checkpoints/archive/checkpoint_archive_57.md`，更新唯一事实源 [checkpoint.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoint.md)，MinGW 完整编译验证无误。

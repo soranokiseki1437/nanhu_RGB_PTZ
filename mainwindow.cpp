@@ -324,6 +324,7 @@ void MainWindow::initTrackingModule()
     // UI 控件已在 mainwindow.ui 中添加，直接使用 ui-> 访问
     ui->btnTrackStart->setEnabled(false);
     ui->btnTrackStop->setEnabled(false);
+    if (ui->btnMotTrackStop) ui->btnMotTrackStop->setEnabled(false);
 
     // 从 ConfigManager 读取默认值并同步到 UI 控件
     ui->spinTrackDeadZone->setValue(m_configManager->getTrackDeadZone());
@@ -370,10 +371,14 @@ void MainWindow::updateTrackingUIState()
 
     ui->btnTrackSelect->setEnabled(canTrack && (state == TrackingController::Idle));
     ui->btnTrackStart->setEnabled(canTrack && (state == TrackingController::Selecting));
-    ui->btnTrackStop->setEnabled(state == TrackingController::Initializing ||
-                                 state == TrackingController::Tracking ||
-                                 state == TrackingController::Lost ||
-                                 state == TrackingController::Paused);
+    bool isTrackingOrLost = (state == TrackingController::Initializing ||
+                             state == TrackingController::Tracking ||
+                             state == TrackingController::Lost ||
+                             state == TrackingController::Paused);
+    ui->btnTrackStop->setEnabled(isTrackingOrLost);
+    if (ui->btnMotTrackStop) {
+        ui->btnMotTrackStop->setEnabled(isTrackingOrLost);
+    }
 
     // 更新状态标签
     QString statusText;
@@ -1226,6 +1231,11 @@ void MainWindow::on_btnTrackStart_clicked()
     m_selectBox = QRectF();
 }
 
+void MainWindow::on_btnMotTrackStop_clicked()
+{
+    on_btnTrackStop_clicked();
+}
+
 void MainWindow::on_btnTrackStop_clicked()
 {
     m_trackingController->stopTracking();
@@ -1397,6 +1407,9 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
                         .arg(static_cast<int>(targetRect.center().x()))
                         .arg(static_cast<int>(targetRect.center().y())));
                     ui->btnTrackStop->setEnabled(true);
+                    if (ui->btnMotTrackStop) {
+                        ui->btnMotTrackStop->setEnabled(true);
+                    }
                 } catch (const std::exception &e) {
                     qWarning() << "[Click-to-Lock] 启动跟踪异常:" << e.what();
                 }
@@ -1510,7 +1523,12 @@ QString MainWindow::resolveModelPath(const QString &modelName) const
         "models/" + cleanName,
         QCoreApplication::applicationDirPath() + "/models/" + cleanName,
         QCoreApplication::applicationDirPath() + "/../models/" + cleanName,
-        QDir::currentPath() + "/models/" + cleanName
+        QCoreApplication::applicationDirPath() + "/../../models/" + cleanName,
+        QCoreApplication::applicationDirPath() + "/../../../models/" + cleanName,
+        QDir::currentPath() + "/models/" + cleanName,
+        QDir::currentPath() + "/../models/" + cleanName,
+        QDir::currentPath() + "/../../models/" + cleanName,
+        QDir::currentPath() + "/../../../models/" + cleanName
     };
     for (const auto &path : candidates) {
         if (QFile::exists(path)) {
@@ -1526,12 +1544,17 @@ void MainWindow::refreshModelList()
 
     QString currentModel = ui->comboAiModel->currentText().trimmed();
 
-    // 收集所有候选模型目录
+    // 收集所有候选模型目录（包含多级父路径，兼容 Qt Creator 深度 shadow build）
     const QStringList candidateDirs = {
         "models",
         QCoreApplication::applicationDirPath() + "/models",
         QCoreApplication::applicationDirPath() + "/../models",
-        QDir::currentPath() + "/models"
+        QCoreApplication::applicationDirPath() + "/../../models",
+        QCoreApplication::applicationDirPath() + "/../../../models",
+        QDir::currentPath() + "/models",
+        QDir::currentPath() + "/../models",
+        QDir::currentPath() + "/../../models",
+        QDir::currentPath() + "/../../../models"
     };
 
     QSet<QString> foundModels;
@@ -1542,7 +1565,10 @@ void MainWindow::refreshModelList()
             filters << "*.onnx";
             QStringList entries = dir.entryList(filters, QDir::Files, QDir::Name);
             for (const QString &entry : entries) {
-                foundModels.insert(entry);
+                // 仅收录检测模型，排除 SOT (Siamese) 模板/搜索模型
+                if (!entry.startsWith("sot_", Qt::CaseInsensitive)) {
+                    foundModels.insert(entry);
+                }
             }
         }
     }
@@ -1639,6 +1665,12 @@ void MainWindow::on_btnAutoDetect_clicked(bool checked)
             ui->statusbar->showMessage("相机未连接或未收到画面，无法启动自动检测", 3000);
             ui->btnAutoDetect->setChecked(false);
             return;
+        }
+
+        // 若当前正处于目标跟踪中，先中止跟踪再启动巡检
+        if (m_trackingController && m_trackingController->isTracking()) {
+            m_trackingController->stopTracking();
+            emit ptzStop();
         }
 
         // 确保模型已加载

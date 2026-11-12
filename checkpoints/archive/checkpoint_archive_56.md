@@ -18,3 +18,4 @@
      - `课题/轻量级跟踪基线实验分析与Rep-LightBackbone立项论证.md`：去除“最具学术含金量”、“全库最低”等词汇，客观陈述能效分析与四级备选技术方案。
   3. **事实源与版本库强一致同步**：
      - 归档检查点 #55 至 `checkpoints/archive/checkpoint_archive_55.md`，更新唯一事实源 [checkpoint.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoint.md)，执行 Git 规范提交并推送远程仓库。
+
