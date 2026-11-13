@@ -230,23 +230,16 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #62）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_62.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_62.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #63）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_63.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_63.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-14 #63
+### Checkpoint 2026-11-14 #64
 - **记录人**：Antigravity (Gemini 3.8 Flash High)
-- **类型**：组会汇报演示文稿精细化重构（删减冗余页面、Pareto 散点图零遮挡优化、消除自嗨与主观修饰词、严格对齐初始需求规程）
+- **类型**：DUT-Anti-UAV 数据集展示拆页与版面重构（新增数据集真实样本图片、拆分为数据集与消融对比双页、零新增内容与排版优化）
 - **核心内容**：
-  1. **幻灯片精简与结构对齐（全案 14 页）**：按照用户最新指令，删除原独立第 11 页基线列表，全案由 15 页精简为 14 页，重塑目录（3 大板块）与转场逻辑。
-  2. **Pareto 图表遮挡彻底消除与图例规范化**：
-     - 使用统一 10pt 圆形矢量图元替代不同参数量大散点，消除图例内圆球过大重叠遮挡文字缺陷；
-     - 微调全部 13 款算法标注框偏移坐标与文字锚点，实现点、线、标注框零碰撞、零遮挡；
-     - 调整第 11 页版面，Pareto 矢量散点图占据左侧 ~70% 视觉中心，右侧仅保留 4 条紧凑客观数据结论，彻底去除冗余大段文字。
-  3. **自嗨式与防御性措辞全面净化**：
-     - 单红外页面（P09）删除“实测状态客观说明”，改为客观标题并保留事实陈述“实测目前未实现单红外跟踪功能”，坚决不出现“客观”、“为后续课题嵌入”等防御性词汇；
-     - 实测视频页面（P06~P08）删除“（视频一与视频二）”等冗余括号副标，去除自拟的“深度归因”分析块，纯粹保留用户原文缺陷归因；
-     - 室内多目标页面（P05）严格对齐原文，记录模板过大、帧间隔长放大静止预测误差、日志排查未触发重检测之事实，并给出规范日志排查方案。
-  4. **跟踪规划严格对齐初始需求（剔除自研创新设想）**：
-     - 彻底删除未经验证的“MFFN”、“DAC-Head”、“Cov-NWD”等自拟创新点；
-     - 严格忠实于 `ppt内容.txt`，明确“LightTrack 骨干替换为 RepViT”、“ImageNet 预训练 -> GOT-10k 预训练 -> CASIA Anti-UAV300 微调三步训练体系”、“两批次基线评测体系”与“打不过其他轻型网络则吸纳优势结构的退路规划”。
-  5. **100% 视觉走查与预览验收**：全量 14 页 1280x720 PNG 预览图片已全部导出至 `20261114组会/preview_slides/` 并通过多模态检查，公式 Cambria Math 矢量渲染正常，图片/视频比例绝对锁定无畸变。
+  1. **DUT-Anti-UAV 拆为双页（全案 15 页）**：
+     - **第一页（P03）**：聚焦 DUT-Anti-UAV 检测数据集与训练方案，左侧等比例嵌入 2 张真实数据集样本图片（`dut_antiuav_sample_01.jpg` 低空开阔空域无人机与 `dut_antiuav_sample_02.jpg` 城市建筑复杂地表杂波无人机，红框高亮标准标注），右侧客观呈现数据集 5,200/2,600 规模划分、场景覆盖特征及迁移微调 vs 从头训练 300 轮方案设计；
+     - **第二页（P04）**：聚焦可见光检测消融对比与选型，左侧承接上位机 UI 检测截屏，右侧呈现 6 行 7 列 YOLOv8/11 系列消融大表，底部给出选型分析结论；
+     - **后续序号顺延**：AMFT 公式页平移至 P05，全套数学公式通过 OpenXML Cambria Math 矢量注入，室内视频顺移至 P06，全案逻辑严密顺畅。
+  2. **内容零新增与纯排版优化铁律**：除排版空间释放与两张真实数据集样本图嵌入外，文字内容 100% 沿用初始文本，绝无主观自嗨与冗余扩写。
+  3. **视觉全量走查验收**：全套 15 页 1280x720 PNG 预览图片已全部导出至 `20261114组会/preview_slides/` 并通过多模态检查，宽高比绝对锁定无单向拉伸畸变。
 - **下一步**：推进方案 04 LightTrack ONNX 模型导出与 C++ 嵌入测试。
