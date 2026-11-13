@@ -230,18 +230,16 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #60）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_60.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_60.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #61）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_61.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_61.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-14 #61
-- **记录人**：Antigravity (Claude Opus 5.5)
-- **类型**：方案 04 LightTrack 上位机嵌入执行方案编制与基准事实核实
+### Checkpoint 2026-11-14 #62
+- **记录人**：Antigravity (Gemini 3.8 Flash High)
+- **类型**：组会汇报材料全流程交付（20261114组会 PPTX 生成、Pareto重绘、AMFT公式与媒体嵌入）
 - **核心内容**：
-  1. **执行方案交付**：编制 [Qt上位机嵌入LightTrack轻量单目标跟踪算法执行方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/Qt上位机嵌入LightTrack轻量单目标跟踪算法执行方案.md)，覆盖任务书六项任务（OnnxSotTracker 引擎、双内核切换、AMFT 接线、test_sot_tracker 工具、文件清单、阶段与 22 项验收矩阵）。
-  2. **基准事实实地打点**（`SOT_Tracking_Baselines`，`anti_uav_yolo` 环境）：
-     - LightTrackM 张量：模板 127 → `[1,96,8,8]`；搜索 255/256 → 16×16，288 → 18×18；权重加载 missing keys = 0。
-     - 基准超参（OTB yaml + adapter）：`penalty_k=0.15`、`window_influence=0.45`、`lr=0.35`、`instance_size` 按面积比 0.004 在 256/288 间切换；输入 ImageNet mean/std 归一化。
-     - Anti-UAV 20 组中 15 组使用 288、5 组使用 256；任务书单一 255 搜索规格无法复现 52.24% 基准，方案改为 `lighttrack_search_256.onnx` + `lighttrack_search_288.onnx` 双静态搜索图。
-     - 基准 26.88 ms / 37.2 FPS 计时含 `cv2.imread` 与 Python 前后处理；纯模型 2.1 ms 待 Phase 2 C++ 工具实测确认。
-     - 评测协议：AUC = 21 阈值成功率均值，首帧计入 GT 初始化框，Lost Rate = IoU==0 帧比例。
-  3. **代码状态**：本检查点仅交付方案文档，生产代码未改动，未执行编译；LightTrack ONNX 尚未导出。
-- **下一步**：按执行方案 P0 导出三份 ONNX 并完成 E1–E4 校验。
+  1. **PPTX 汇报演示文稿交付**：基于 20261114组会\李行—组会汇报20260523.pptx 原版母版（枣红色 #701624），构建并导出全量 16 页无损演示文稿 [20261114组会\李行—组会汇报20261114.pptx](file:///d:/PyProjects/RGB_PTZ_Integrated/20261114组会/李行—组会汇报20261114.pptx)，文件大小 154 MB（内嵌完整 4 路高清外场实测与室内异常复现视频）。
+  2. **配套图表与公式自动化资产**：
+     - 重绘并生成 3 色离散标注、去渐变彩条版 SOT 基准 Pareto 前沿图 [20261114组会\pareto_speed_vs_auc_3color.png](file:///d:/PyProjects/RGB_PTZ_Integrated/20261114组会/pareto_speed_vs_auc_3color.png)；
+     - 依据文献 AMFT_IMCEC2025.pdf 提取四组核心公式，渲染 300+ DPI 矢量级透明公式图元 [20261114组会\amft_formulas_box.png](file:///d:/PyProjects/RGB_PTZ_Integrated/20261114组会/amft_formulas_box.png)；
+     - 提取 4 路外场/室内视频的关键帧海报 [video_*_poster.png](file:///d:/PyProjects/RGB_PTZ_Integrated/20261114组会/)。
+  3. **事实与大纲对齐**：全案大纲严格去冗余与去辩解，单红外上位机明确核验 GitHub 仓库 IRPTZ_demo（Qt 6.12 + FFmpeg + SV_NET_SDK，注明未实现红外跟踪）；外场实测 4 项缺陷直接引用原文归因紧凑标注于对应视频下方。
+- **下一步**：推进方案 04 LightTrack ONNX 模型导出与 C++ 嵌入测试。

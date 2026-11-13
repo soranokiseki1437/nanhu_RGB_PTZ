@@ -61,6 +61,11 @@ test_detection_vis.png
 # ===== 导出汇报材料 =====
 导出材料/
 周报素材/
+*.pptx
+*.mp4
+*.avi
+20261114组会/preview_slides/
+20261114组会/inspect_slides/
 
 # ===== 数据集（仅保留说明与配置文件，大体积图片序列不入库） =====
 datasets/*
