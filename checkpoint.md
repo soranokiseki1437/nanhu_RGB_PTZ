@@ -1,4 +1,4 @@
-# 项目状态检查点机制与全景状态（checkpoint.md）
+﻿# 项目状态检查点机制与全景状态（checkpoint.md）
 
 > **机制定义**：本文件是 `RGB_PTZ_Integrated` 项目的**唯一事实源（Single Source of Truth）**与**项目状态机**。用于跨开发会话、跨代理（Agent）与人类开发者之间的无缝交接，记录项目全景健康度、里程碑推进、Git 工作区状态、体检问题闭环及后续行动项。
 
@@ -36,12 +36,12 @@ flowchart LR
 
 ---
 
-## 二、当前项目状态快照（2026-11-11 最新）
+## 二、当前项目状态快照（2026-11-14 最新）
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
 | **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 已交付 5 款 ONNX)；目标跟踪：LightTrack 原版基准模型交付 + 传统滤波 (DSST)；协同大脑：AMFT 状态机** | 遵循 Tracer Bullet 极简贯通原则：方案 04 锁定 LightTrack 原版（LightTrackM 官方预训练权重，AUC 52.24%，跟丢率 14.16%）作为基线交付模型，导出纯静态 ONNX 并跑通 C++ 链路；方案 05 将微调 YOLO 与 LightTrack 原版部署至 RK3588 边缘端进行量化与闭环实测；方案 06 承接后续硕士课题自研创新探索（Rep-Backbone 骨干、三阶段深度重训、尺度回归修复、损失函数消融与论文大表）。 |
-| **最新进展** | 🟢 **编制《Qt上位机嵌入LightTrack跟踪算法任务书.md》，固化纯客观工程现状、目的与六大交接任务；归档检查点 #56，建立检查点 #57** | 任务书严格遵循 AGENTS.md 准则，零主观噪音与评述，清晰规范当前 C++ 架构、DirectML 环境、张量接口定义与待编制执行方案规范。 |
+| **最新进展** | 🟢 **编制《Qt上位机嵌入LightTrack轻量单目标跟踪算法执行方案.md》并实地核实 LightTrack 基准事实；归档检查点 #60，建立检查点 #61** | 核实发现基准使用 256/288 双搜索尺寸（15/20 序列为 288）与 ImageNet 归一化，方案据此采用三份纯静态 ONNX（模板 + 搜索 256 + 搜索 288）。 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
 | **GPU 推理基准** | 🟢 **224.5~373.4 FPS / 2.1~4.45ms (SOT 跟踪)；77.2~86.6 FPS / 2.7~5.8ms (YOLO 检测)** | NVIDIA RTX 5070 Laptop GPU (CUDA 13.0 加速)：LightTrack 原版纯推理时延 2.1ms (0.58 GFLOPs)，满足 <=5ms 机电伺服硬实时要求 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
@@ -218,7 +218,7 @@ flowchart LR
 - [x] **04-2.1 自研轻量 SOT 网络搭建**：在 `models/sot/` 构建包含 Rep-Backbone、MFFN 多尺度细节融合与 DAC-Head 动态匹配头的自研架构（已闭环）。
 - [x] **04-2.2 样本对生成与两阶段训练**：编写样本对切片与空天时序增强管线，基于 RTX 5070 GPU 端到端 100 轮全量两阶段训练收敛（已闭环）。
 - [x] **04-3.1 学术消融与曲线绘制**：完成 4 组模块消融对比，在本地 DUT Anti-UAV 20 组真机跟踪序列（24,784 帧）全量评测达标 (DP@20 75.32%，FPS 224.5)，生成学术三线表与 300-DPI Pareto 能效前沿图（已闭环）。
-- [ ] **04-4.1 纯静态 ONNX 解耦与 DirectML 部署**：导出 `sot_template.onnx` 与 `sot_search.onnx`，实现 C++ `OnnxSotTracker` 并闭环伺服。
+- [ ] **04-4.1 纯静态 ONNX 解耦与 DirectML 部署**：导出 `lighttrack_template.onnx`、`lighttrack_search_256.onnx`、`lighttrack_search_288.onnx`，实现 C++ `OnnxSotTracker` 并闭环伺服（执行方案已编制，P0 待执行）。
 
 ### 阶段六：光电跟踪系统 RK3588 边缘端量化与工程移植实操方案（方案 05，终极规划）
 - [ ] **05-1 真实长焦工况校准集与全系统模型 INT8 量化**：YOLO 与 LightTrack 统一定点量化为 RKNN。
@@ -230,21 +230,18 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #59）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_59.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_59.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #60）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_60.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_60.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-12 #60
-- **记录人**：Antigravity (Gemini 3.8 Flash)
-- **类型**：跟踪飞行黑匣子数据自动落盘、分类日志默认开启与多目标重检测判据精细化
+### Checkpoint 2026-11-14 #61
+- **记录人**：Antigravity (Claude Opus 5.5)
+- **类型**：方案 04 LightTrack 上位机嵌入执行方案编制与基准事实核实
 - **核心内容**：
-  1. **跟踪与控制排障日志默认落盘**：
-     - 在 [main.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/main.cpp) 中调整默认日志过滤规则，默认启用 `tracker.debug` 与 `ptz.debug`，静音高频流媒体数据包，排障日志默认自动写入 `日志/` 目录。
-  2. **跟踪飞行黑匣子数据自动保存 (Flight Recorder)**：
-     - 在 [TrackingController](file:///d:/PyProjects/RGB_PTZ_Integrated/trackingcontroller.cpp) 中建立自动黑匣子机制，每次跟踪启动时自动创建 `日志/track_YYYYMMDD_HHmmss.csv`；
-     - 逐帧记录时间戳、跟踪模式、状态机状态、目标框、卡尔曼预测、脱靶量、云台下发速度、PSR、AMFT 综合得分与阈值；停止跟踪时自动存盘并在状态栏提示路径。
-  3. **多目标模式状态机联动规范化**：
-     - 在 [MainWindow::on_radioModeAuto_toggled](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.cpp) 与点击画面目标启动跟踪处，显式调用 `setRedetectionEnabled(true)`，保证多目标模式正常使能 AI 协同重检测链路。
-  4. **AMFT 遮挡判定与重检测候选筛选调优**：
-     - 在 [ObjectTracker](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp) 中将微失锁遮挡判定由 2 帧调整为 4 帧，抑制瞬态高频光照与形变波动误判；
-     - 优化 `tryDetectAndRecover` 候选框筛选公式，引入二次距离衰减惩罚并约束物理搜索半径，增加候选目标置信度与打分调试输出，防止多目标同屏时误锁他靶。
-  5. **构建与测试**：
-     - MinGW 64-bit Release 全量构建通过（0 错误 0 告警），`run_test.ps1` 验收通过。
+  1. **执行方案交付**：编制 [Qt上位机嵌入LightTrack轻量单目标跟踪算法执行方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/Qt上位机嵌入LightTrack轻量单目标跟踪算法执行方案.md)，覆盖任务书六项任务（OnnxSotTracker 引擎、双内核切换、AMFT 接线、test_sot_tracker 工具、文件清单、阶段与 22 项验收矩阵）。
+  2. **基准事实实地打点**（`SOT_Tracking_Baselines`，`anti_uav_yolo` 环境）：
+     - LightTrackM 张量：模板 127 → `[1,96,8,8]`；搜索 255/256 → 16×16，288 → 18×18；权重加载 missing keys = 0。
+     - 基准超参（OTB yaml + adapter）：`penalty_k=0.15`、`window_influence=0.45`、`lr=0.35`、`instance_size` 按面积比 0.004 在 256/288 间切换；输入 ImageNet mean/std 归一化。
+     - Anti-UAV 20 组中 15 组使用 288、5 组使用 256；任务书单一 255 搜索规格无法复现 52.24% 基准，方案改为 `lighttrack_search_256.onnx` + `lighttrack_search_288.onnx` 双静态搜索图。
+     - 基准 26.88 ms / 37.2 FPS 计时含 `cv2.imread` 与 Python 前后处理；纯模型 2.1 ms 待 Phase 2 C++ 工具实测确认。
+     - 评测协议：AUC = 21 阈值成功率均值，首帧计入 GT 初始化框，Lost Rate = IoU==0 帧比例。
+  3. **代码状态**：本检查点仅交付方案文档，生产代码未改动，未执行编译；LightTrack ONNX 尚未导出。
+- **下一步**：按执行方案 P0 导出三份 ONNX 并完成 E1–E4 校验。
