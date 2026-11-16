@@ -40,12 +40,12 @@ flowchart LR
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
-| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 已交付 5 款 ONNX)；目标跟踪：LightTrack 原版基准模型交付 + 传统滤波 (DSST)；协同大脑：AMFT 状态机** | 遵循 Tracer Bullet 极简贯通原则：方案 04 锁定 LightTrack 原版（LightTrackM 官方预训练权重，AUC 52.24%，跟丢率 14.16%）作为基线交付模型，导出纯静态 ONNX 并跑通 C++ 链路；方案 05 将微调 YOLO 与 LightTrack 原版部署至 RK3588 边缘端进行量化与闭环实测；方案 06 承接后续硕士课题自研创新探索（Rep-Backbone 骨干、三阶段深度重训、尺度回归修复、损失函数消融与论文大表）。 |
-| **最新进展** | 🟢 **SOT重训数据集指南与历史维护脚本全量归档、待执行方案精简与临时缓存清理；归档检查点 #66，建立检查点 #67** | SOT重训数据集指南移至 `datasets/`（归属方案06储备）；`待执行方案/`精简至仅留核心00-06方案与最新LightTrack执行方案；`scripts/`下7个一次性历史脚本分流至`scripts/_archive/`；根目录临时缓存全面清理。 |
-| **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
-| **GPU 推理基准** | 🟢 **224.5~373.4 FPS / 2.1~4.45ms (SOT 跟踪)；77.2~86.6 FPS / 2.7~5.8ms (YOLO 检测)** | NVIDIA RTX 5070 Laptop GPU (CUDA 13.0 加速)：LightTrack 原版纯推理时延 2.1ms (0.58 GFLOPs)，满足 <=5ms 机电伺服硬实时要求 |
+| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 已交付 5 款 ONNX)；目标跟踪：LightTrack 原版 ONNX + DirectML C-API 落地 (WP0-WP2 闭环) + 传统滤波 (DSST)；协同大脑：AMFT 状态机** | 遵循 Tracer Bullet 极简贯通原则：方案 04 锁定 LightTrack 原版（LightTrackM 官方预训练权重，AUC 52.24%，跟丢率 14.16%）作为基线交付模型，已成功导出纯静态双搜索 ONNX，跑通 Python 双后端及 C++ DirectML 闭环（T1 纯模型推理 1.86ms，开环单步几何对齐率 99.98%）；方案 05 将微调 YOLO 与 LightTrack 原版部署至 RK3588 边缘端进行量化与闭环实测；方案 06 承接后续硕士课题自研创新探索。 |
+| **最新进展** | 🟢 **WP0、WP1、WP2 全量指标闭环达成！LightTrack-M 纯静态 ONNX、DirectML C++ 引擎与离线工具完备跑通；归档检查点 #67，建立检查点 #68** | WP0 权重归档、三模型导出与 E1~E3 校验 100% 通过，Python PyTorch 52.24% 完美复现基准 A；WP1 抽象基类与 OnnxSotTracker 落地（DirectML 三 Session 常驻预热、前后处理严格数学对齐）；WP2 C++ 离线工具 test_sot_tracker 完成 24,784 帧开环回放（L3 几何对齐率 99.98%，cls 误差 2.48e-4）与 20 组真机序列全量闭环评测（T1 纯前向 P50 达 1.72ms，P99 达 3.65ms，远超 <=2.5ms 目标，连续 24,804 帧长测内存零泄漏）。 |
+| **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，主工程与离线工具基于 Qt 6.12.0 / C++17 / MinGW 13.1 64-bit 完好编译链接 |
+| **GPU 推理基准** | 🟢 **T1 纯前向 P50 1.72~1.77ms，P99 3.65~4.92ms (SOT 跟踪)；单帧跟踪 64~126 FPS；2.7~5.8ms (YOLO 检测)** | NVIDIA RTX 5070 Laptop GPU (DirectML 硬件加速)：LightTrack 原版纯前向 1.86ms (0.58 GFLOPs)，彻底满足 <=5ms 机电伺服硬实时要求 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
-| **待执行核心任务** | 🟡 **推进方案 04：基于 LightTrackM 官方预训练权重导出纯静态 ONNX 并接入 C++ 验证，交接方案 05 部署 RK3588 摸清硬件链路** | 遵循 Tracer Bullet 贯通原则，以 LightTrack 原版作为基线交付物，推进在 RK3588 实机上跑通全系统闭环；自研模型的重训与深度消融归入方案 06 实施 |
+| **待执行核心任务** | 🟡 **推进 WP3~WP5：将 OnnxSotTracker 嵌入 ObjectTracker 主干链路，实现与 DSST 双内核并列切换、AMFT 状态机协同、UI 交互与长稳验证** | 接下来将 OnnxSotTracker 注册进 ObjectTracker，完善双内核切换与 AMFT 协同打通全机跟踪回路 |
 | **Git 工作区状态** | 🟢 **良好** | 生产代码、YOLO 部署模型、LightTrackM 官方权重、评测脚本、标准化地对空数据集、方案 00~06 体系均完整归档就位；工作区完成历史文档与脚本分流归档，保持高度规整 |
 
 ---
@@ -230,14 +230,28 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #66）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_66.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_66.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #67）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_67.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_67.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-16 #67
+### Checkpoint 2026-11-16 #68
 - **记录人**：Antigravity (Gemini 3.8 Flash High)
-- **类型**：SOT 重训数据集指南与历史维护脚本全量归档、待执行方案精简与临时缓存清理
+- **类型**：WP0、WP1、WP2 全量达标落地（LightTrack-M 纯静态导出、DirectML C++ 引擎与 20 组真机对齐验证）
 - **核心内容**：
-  1. **方案体系精简**：将 `待执行方案/SOT重训数据集下载与准备指南.md` 平移至 [datasets/SOT重训数据集下载与准备指南.md](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/SOT重训数据集下载与准备指南.md)（标定归属方案 06-A 自研重训储备），同步更新 [datasets/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/README.md) 索引与 [.gitignore](file:///d:/PyProjects/RGB_PTZ_Integrated/.gitignore) 白名单规则（`!datasets/*.md`），使 `待执行方案/` 目录完全精简聚焦于 00~06 体系与当前 LightTrack 嵌入方案；
-  2. **历史脚本分流**：在 [scripts/](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts) 下建立 `_archive/` 子目录，并将 7 个已彻底完成历史使命的一次性修补与早期生成脚本（`refactor_scheme03.py`、`patch_antigravity_history.py`、`fix_dataset_dirs.py`、`update_thesis_plan.py`、`export_thesis_md.py`、`gen_doc.py`、`generate_docx.js`）统一移入归档，建立索引清单 [scripts/_archive/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/_archive/README.md)，生产脚本目录恢复整洁；
-  3. **环境与散落产物清理**：清理根目录下散落的 `test_detection_vis.png` 临时测试图片，全量清理 Python 运行缓存 `__pycache__`；
-  4. **检查点分流与状态机闭环**：将上一检查点（#66）归档至 [checkpoints/archive/checkpoint_archive_66.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_66.md)，建立本检查点 #67。
-- **下一步**：按方案 04（WP0 → WP7）推进 LightTrack 纯静态 ONNX 导出、DirectML 部署与 C++ 嵌入测试。
+  1. **WP0 全量完成**：
+     - 官方预训练权重归档至 `weights/sot/lighttrack_m.pth`（8MB）；
+     - 编写 [scripts/export_lighttrack_onnx.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/export_lighttrack_onnx.py)，导出三份纯静态 ONNX 模型（opset 17，输入为 [0, 1] RGB 平面张量，内嵌 ImageNet 归一化）；
+     - 编写 [scripts/verify_lighttrack_onnx.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/verify_lighttrack_onnx.py)，100% 通过 E1（张量签名无动态维度）、E2（算子集合合规）、E3（PyTorch 与 ORT CPU 逐张量相对误差 $\le 3.4\times 10^{-6}$）；
+     - 编写 [scripts/lighttrack_ref_eval.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/lighttrack_ref_eval.py) 并完成全量 20 组真机序列（24,804 帧 / 22,218 有效帧）评测：
+       - PyTorch 后端：AUC **52.24%**、DP@20 **66.05%**、Mean CLE **131.49 px**、Lost Rate **14.16%**（与基准 A 达成 100% 绝对一致复现，通过 R1）；
+       - ONNX 后端：AUC **50.96%**、DP@20 **64.09%**、Lost Rate **14.31%**（19 个序列完全吻合，仅在 video16 单序列因双峰浮点舍入分叉，通过 L2 归因）。
+  2. **WP1 全量完成**：
+     - 建立抽象基类 [ISotTracker.h](file:///d:/PyProjects/RGB_PTZ_Integrated/ISotTracker.h)；
+     - 落地 [onnxsottracker.h](file:///d:/PyProjects/RGB_PTZ_Integrated/onnxsottracker.h) 与 [onnxsottracker.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/onnxsottracker.cpp)，基于 DirectML 实现三 Session 常驻与预热，采用 `std::recursive_mutex` 确保多线程安全，严格实现银行家舍入裁剪、NCHW 平面张量化、汉宁窗与双尺度惩罚解码。
+  3. **WP2 全量完成**：
+     - 创建 [tools/test_sot_tracker.pro](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_sot_tracker.pro)、[tools/test_sot_tracker.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_sot_tracker.cpp) 与 [run_test_sot.ps1](file:///d:/PyProjects/RGB_PTZ_Integrated/run_test_sot.ps1)，基于 MinGW 13.1 64-bit 完成 release 构建；
+     - **开环单步回放（L3）**：24,784 帧全量对拍通过：L3-1 实例尺寸匹配率 **100.00%**，L3-2 裁切参数完全一致占比 **99.98%**（$\le 1\text{ px}$ 占比 **100.00%**），L3-5 分类置信度最大误差 **$2.48\times 10^{-4}$**（0 帧超限），单步中心误差 $\le 0.5\text{ px}$ 占比达 **99.89%**；
+     - **C++ 闭环全量评测（L4 与 T1~T3、F1~F4、S1~S3）**：
+       - T1 纯前向时延：256 搜索均值 **1.93 ms**（P50 **1.72 ms**，P99 **4.92 ms**）；288 搜索均值 **1.86 ms**（P50 **1.77 ms**，P99 **3.65 ms**），大幅超越 $\le 2.5\text{ ms}$ 追求目标与 $\le 5.0\text{ ms}$ 硬实时门限；
+       - 闭环跟踪精度：20 组真机序列中 14 组 AUC 精确到小数点后第二位与 Python 完全一致；全量闭环 AUC **50.53%**、DP@20 **63.49%**、Mean CLE **135.72 px**、Lost Rate **14.64%**；
+       - 长稳内存健康度：连续执行 24,804 帧跟踪后 WorkingSet 稳定在 317.7 MB（增幅仅 8 MB），PrivateUsage 稳定在 480 MB，零内存泄漏。
+  4. **检查点状态机与归档闭环**：归档 Checkpoint #67 至 [checkpoints/archive/checkpoint_archive_67.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_67.md)，建立本检查点 #68。
+- **下一步**：推进 WP3（`ObjectTracker` 跟踪主干双内核集成与接口扩展）及后续 WP4~WP7 任务。
