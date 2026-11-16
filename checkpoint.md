@@ -232,31 +232,22 @@ flowchart LR
 
 > **归档指引**：历史检查点（#01 ~ #68）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_68.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_68.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-16 #69
+### Checkpoint 2026-11-16 #70
 - **记录人**：Antigravity (Gemini 3.8 Flash High)
-- **类型**：WP0~WP7 全量达标收官（Qt 上位机嵌入 LightTrack 轻量单目标跟踪算法工程链路跑通）
+- **类型**：异机反无人机基线微调实验排查、Bug 修复与重训交接完成（`SOT_Tracking_Baselines` 同步推送远程）
 - **核心内容**：
-  1. **WP0~WP2 离线对齐与评测基线建立**：
-     - 官方权重归档至 `weights/sot/lighttrack_m.pth`；导出三份 opset 17 纯静态 ONNX 模型（127/256/288）并通过 E1~E3 校验；
-     - Python 参考评测完成全量 20 组真机序列（PyTorch AUC 52.24%、ONNX AUC 50.96%）；
-     - C++ DirectML 离线工具 `test_sot_tracker` 完成 24,784 帧开环回放（L3 几何一致性 99.98%，分类置信度误差 $2.48\times 10^{-4}$）与闭环全量评测（AUC 50.53%，DP@20 63.49%，T1 纯前向 P50 1.72ms，P99 3.65ms）。
-  2. **WP3 `ObjectTracker` 跟踪主干双内核集成**：
-     - 在 [objecttracker.h](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.h) / [objecttracker.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp) 中新增 `TrackResult::procMs`、`TrackingKernel` 枚举（`KERNEL_DSST` vs `KERNEL_LIGHTTRACK`）；
-     - 实现 `reinitKernel` 与 `runKernel` 分派逻辑，完成目标尺寸映射（`m_currentScale=1.0`）、KF 状态保护与 LightTrack 下的 `peek()` 遮挡重捕；
-     - 严格保持 DSST 传统相关滤波原有逻辑路径不受干扰。
-  3. **WP4 `TrackingController` 协同闭环**：
-     - 管理 `OnnxSotTracker` 单例生命周期与动态注入；通过 `resolveModelPath()` 解析多候选绝对路径；
-     - 飞行记录黑匣子 CSV 表头与数据行末尾扩展 `proc_ms` 与 `kernel` 两列，提供完整外场飞行复盘数据源。
-  4. **WP5 UI 交互与配置持久化**：
-     - [mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui) 在模式组中新增 `comboTrackKernel` 下拉菜单（支持实时切换 DSST / LightTrack）；
-     - [configmanager.h](file:///d:/PyProjects/RGB_PTZ_Integrated/configmanager.h) / [configmanager.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/configmanager.cpp) 增加 `tracking/kernel` 读写；
-     - `refreshModelList()` 增加 `lighttrack_` 前缀过滤，避免 SOT 权重混入 YOLO 列表。
-  5. **WP6 AMFT 网格标定与回归测试**：
-     - `test_sot_tracker --amft` 在 20 组序列生成全量 `results/lighttrack/cpp_dml/amft.csv`（24,805 行）；
-     - 执行 [scripts/calib_amft_lighttrack.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/calib_amft_lighttrack.py) 离线网格统计，输出 [results/lighttrack/amft_calibration.json](file:///d:/PyProjects/RGB_PTZ_Integrated/results/lighttrack/amft_calibration.json)；在 FAR $\le 1.0/1\text{k}$ 条件下候选覆盖率均 $<50\%$，按规则沿用 $\tau_0=0.65$；
-     - 构建并运行 `test_amft.exe`，4 项体检 100% 全部 PASS；运行 `test_detector.exe`，5 项体检 100% 全部 PASS。
-  6. **WP7 产物分发与收口**：
-     - 主工程 `RGB_PTZ_Integrated.pro` 引入 `onnxsottracker.cpp` / `onnxsottracker.h` / `ISotTracker.h`；
-     - Release 模式编译 0 告警 0 错误生成 `build/release/RGB_PTZ_Integrated.exe`（635,904 字节），DLL 与模型全自动同步；
-     - 回填 [04 方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04_轻量单目标跟踪基准模型交付与工程链路跑通方案.md) 实测指标，更新 [README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/README.md) 工具清单，归档 Checkpoint #68，建立本检查点 #69。
-- **下一步**：方案 04 圆满收官，移交方案 05（光电跟踪系统 RK3588 边缘端量化与工程移植实操方案）。
+  1. **异机 47 次微调/重训运行记录与日志全维度复盘**：
+     - 还原客观学术事实：在 CASIA Anti-UAV300 val 验证集（67 序列 / 61,999 帧）上，所有 14 款基线在微调后全部取得正向增益（AUC 提升 +2.1% ~ +13.9%，如 SiamGAT 0.4974 -> 0.6365，LightTrackM 0.4709 -> 0.5357）；
+     - 厘清跨域负迁移根因：CASIA 训练集中位目标尺度为 ~80~85px（中近景），DUT 测试集中位目标尺度仅 56.3px（面积小约 50%）且包含超长序列（最高 2635 帧），小模型（0.3M~1.6M）在单源 160 条序列微调后容易向 80px 尺度偏置收缩，丧失弱小目标尺度不变性。
+  2. **定位并修复 LightTrackM 训练管线致命中心退化 Bug**：
+     - 在 [train_lighttrack.py](file:///D:/PyProjects/SOT_Tracking_Baselines/baselines/finetune/train_lighttrack.py) 中补齐空间数据增强，显式注入 `SHIFTs=64.0` 与 `SCALEs=0.18`，杜绝 `SHIFTs=0, SCALEs=0` 导致目标 100% 居中及分类标签恒为常量的退化解；显式关闭未校准坐标镜像的翻转（`flip=0.0`）。
+  3. **定位并修复 FEAR-XS 训练破坏性毁权与负样本缺失缺陷**：
+     - 在 [train_fear.py](file:///D:/PyProjects/SOT_Tracking_Baselines/baselines/finetune/train_fear.py) 中引入默认 `negative_ratio=0.15` 采样负样本对；学习率由 1e-4 降为更温和的 2e-5；重构为 Per-step Linear Warmup + Cosine 退火平滑调度器；过滤 Albumentations 2.x 警告。
+  4. **明确 NanoTrack-V1/V2 重训 BAN 结构匹配规范**：
+     - 确认 [configv1_casia_ft.yaml](file:///D:/PyProjects/SOT_Tracking_Baselines/baselines/finetune/configs/nanotrack/configv1_casia_ft.yaml) 与 [configv2_casia_ft.yaml](file:///D:/PyProjects/SOT_Tracking_Baselines/baselines/finetune/configs/nanotrack/configv2_casia_ft.yaml) 显式绑定 `DepthwiseBAN_v1` / `DepthwiseBAN_v2`，杜绝调用端误用默认 V3 结构导致 Size Mismatch。
+  5. **自动化脚本与工程交接说明书落地**：
+     - 编写 [baselines/finetune/run_repaired_trainings.sh](file:///D:/PyProjects/SOT_Tracking_Baselines/baselines/finetune/run_repaired_trainings.sh)，支持一键自动执行微调、CASIA-val 选优与 DUT 盲测；
+     - 编写 [交接_反无人机基线微调重训与数据整理指引.md](file:///D:/PyProjects/SOT_Tracking_Baselines/交接_反无人机基线微调重训与数据整理指引.md)，明确执行步骤、统一评测协议（CASIA-val 统一 `--seq-stride 4 --max-frames 0`）与 `实验总表.csv` 归档规范。
+  6. **Git 版本控制同步（强制 Commit & Push）**：
+     - 异机关联仓库 `D:\PyProjects\SOT_Tracking_Baselines` 完成语义化提交（`534a224`）并成功推送到远程仓库 `origin/main`；云端代码绝对同步。
+- **下一步**：异机拉取代码执行修复重训并整理汇总数据；本机继续推进光电跟踪系统 RK3588 边缘端量化与工程移植（方案 05）。
