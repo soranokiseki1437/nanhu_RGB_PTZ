@@ -354,6 +354,13 @@ void MainWindow::initTrackingModule()
     // 初始化检测频率：默认 2 FPS (500ms)
     ui->comboAiFps->setCurrentIndex(1);
 
+    // 初始化跟踪内核：从配置读取并同步至控制器与 UI
+    const int kernelIdx = m_configManager->getTrackKernel();
+    ui->comboTrackKernel->blockSignals(true);
+    ui->comboTrackKernel->setCurrentIndex(kernelIdx == 1 ? 1 : 0);
+    ui->comboTrackKernel->blockSignals(false);
+    m_trackingController->setTrackingKernel(kernelIdx == 1 ? TrackingKernel::KERNEL_LIGHTTRACK : TrackingKernel::KERNEL_DSST);
+
     // 动态扫描 models 目录，自动识别新增的所有 ONNX 模型
     refreshModelList();
     loadSelectedModel();
@@ -1563,7 +1570,8 @@ void MainWindow::refreshModelList()
             QStringList entries = dir.entryList(filters, QDir::Files, QDir::Name);
             for (const QString &entry : entries) {
                 // 仅收录检测模型，排除 SOT (Siamese) 模板/搜索模型
-                if (!entry.startsWith("sot_", Qt::CaseInsensitive)) {
+                if (!entry.startsWith("sot_", Qt::CaseInsensitive) &&
+                    !entry.startsWith("lighttrack_", Qt::CaseInsensitive)) {
                     foundModels.insert(entry);
                 }
             }
@@ -1727,6 +1735,19 @@ void MainWindow::on_comboAiFps_currentIndexChanged(int index)
     if (m_isAutoDetecting) {
         m_aiDetectTimer->start();
     }
+}
+
+void MainWindow::on_comboTrackKernel_currentIndexChanged(int index)
+{
+    const TrackingKernel k = (index == 1) ? TrackingKernel::KERNEL_LIGHTTRACK : TrackingKernel::KERNEL_DSST;
+    if (m_trackingController) {
+        m_trackingController->setTrackingKernel(k);
+    }
+    if (m_configManager) {
+        m_configManager->setTrackKernel(index);
+    }
+    const QString name = (index == 1) ? QStringLiteral("LightTrack (深度孪生)") : QStringLiteral("DSST (相关滤波)");
+    ui->textLog->append(QStringLiteral("[跟踪] 跟踪内核已切换为: %1").arg(name));
 }
 
 void MainWindow::onAiDetectTimerTimeout()

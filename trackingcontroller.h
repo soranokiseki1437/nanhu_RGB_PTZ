@@ -96,6 +96,10 @@ public slots:
     void setRedetectionEnabled(bool enabled);
     bool isRedetectionEnabled() const { return m_redetectionEnabled; }
 
+    // 跟踪内核配置（DSST vs LightTrack）
+    void setTrackingKernel(TrackingKernel k);
+    TrackingKernel trackingKernel() const { return m_kernel; }
+
 signals:
     // 跟踪结果信号
     void trackingResult(const TrackResult& result);
@@ -123,6 +127,9 @@ private:
     ObjectTracker* m_tracker;
     QThread* m_trackerThread;
     std::shared_ptr<IDetector> m_detector;
+    TrackingKernel m_kernel = TrackingKernel::KERNEL_DSST;
+    std::shared_ptr<ISotTracker> m_sotEngine;
+    QString resolveModelPath(const QString& modelName) const;
 
     bool m_redetectionEnabled = false;  // 重检测控制：false=纯SOT(无YOLO劫持)，true=允许AI协同重捕
 

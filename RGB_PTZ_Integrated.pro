@@ -29,7 +29,8 @@ SOURCES += \
     imagematconvert.cpp \
     yolopostprocessor.cpp \
     onnxdetector.cpp \
-    amftevaluator.cpp
+    amftevaluator.cpp \
+    onnxsottracker.cpp
 
 HEADERS += \
     mainwindow.h \
@@ -54,7 +55,9 @@ HEADERS += \
     IDetector.h \
     yolopostprocessor.h \
     onnxdetector.h \
-    amftevaluator.h
+    amftevaluator.h \
+    ISotTracker.h \
+    onnxsottracker.h
 
 FORMS += \
     mainwindow.ui

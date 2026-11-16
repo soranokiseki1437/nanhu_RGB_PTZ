@@ -1,5 +1,6 @@
 #include "trackingcontroller.h"
 #include "onnxdetector.h"
+#include "onnxsottracker.h"
 #include <QDebug>
 #include <QtMath>
 #include <QFile>
@@ -103,6 +104,18 @@ void TrackingController::setTarget(const QImage& frame, const QRectF& targetRect
     // C9：创建 tracker + 线程后投递异步初始化（init 含核响应运算，移出 UI 线程）
     m_trackerThread = new QThread(this);
     m_tracker = new ObjectTracker(nullptr);
+    m_tracker->setTrackingKernel(m_kernel);
+    if (m_kernel == TrackingKernel::KERNEL_LIGHTTRACK) {
+        if (!m_sotEngine) {
+            SotTrackerConfig cfg;
+            cfg.templateModel    = resolveModelPath("lighttrack_template.onnx");
+            cfg.searchModelSmall = resolveModelPath("lighttrack_search_256.onnx");
+            cfg.searchModelBig   = resolveModelPath("lighttrack_search_288.onnx");
+            cfg.useGpu = true;
+            m_sotEngine = std::make_shared<OnnxSotTracker>(cfg);
+        }
+        m_tracker->setSotEngine(m_sotEngine);
+    }
     m_tracker->setRedetectionEnabled(m_redetectionEnabled);
     if (m_detector) {
         m_tracker->setDetector(m_detector);
@@ -395,6 +408,41 @@ void TrackingController::onTrackingRecovered()
     }
 }
 
+void TrackingController::setTrackingKernel(TrackingKernel k)
+{
+    if (m_kernel == k) return;
+    m_kernel = k;
+    if (m_state == Tracking || m_state == Initializing) {
+        emit statusMessage("新跟踪内核将在下次框选时生效");
+    }
+}
+
+QString TrackingController::resolveModelPath(const QString& modelName) const
+{
+    QString cleanName = modelName.trimmed();
+    if (cleanName.contains(" ")) {
+        cleanName = cleanName.split(" ").first();
+    }
+    const QStringList candidates = {
+        cleanName,
+        "models/" + cleanName,
+        QCoreApplication::applicationDirPath() + "/models/" + cleanName,
+        QCoreApplication::applicationDirPath() + "/../models/" + cleanName,
+        QCoreApplication::applicationDirPath() + "/../../models/" + cleanName,
+        QCoreApplication::applicationDirPath() + "/../../../models/" + cleanName,
+        QDir::currentPath() + "/models/" + cleanName,
+        QDir::currentPath() + "/../models/" + cleanName,
+        QDir::currentPath() + "/../../models/" + cleanName,
+        QDir::currentPath() + "/../../../models/" + cleanName
+    };
+    for (const auto &path : candidates) {
+        if (QFile::exists(path)) {
+            return path;
+        }
+    }
+    return cleanName;
+}
+
 void TrackingController::setRedetectionEnabled(bool enabled)
 {
     m_redetectionEnabled = enabled;
@@ -418,7 +466,7 @@ void TrackingController::startFlightRecord()
 
     if (m_flightFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
         m_flightStream.setDevice(&m_flightFile);
-        m_flightStream << "timestamp,frame,mode,state,x,y,w,h,kf_x,kf_y,kf_vx,kf_vy,err_x,err_y,speed_x,speed_y,psr,amft_r,amft_tau,occluded,recovered,fps\n";
+        m_flightStream << "timestamp,frame,mode,state,x,y,w,h,kf_x,kf_y,kf_vx,kf_vy,err_x,err_y,speed_x,speed_y,psr,amft_r,amft_tau,occluded,recovered,fps,proc_ms,kernel\n";
         m_flightStream.flush();
         m_flightFrameCounter = 0;
         qInfo() << "[FlightRecorder] 跟踪飞行数据自动记录开启:" << m_flightFilePath;
@@ -458,7 +506,9 @@ void TrackingController::recordFlightFrame(const TrackResult& result, int speedX
                    << QString::number(result.amftTau, 'f', 4) << ","
                    << (result.occluded ? 1 : 0) << ","
                    << (result.recovered ? 1 : 0) << ","
-                   << QString::number(result.fps, 'f', 1) << "\n";
+                   << QString::number(result.fps, 'f', 1) << ","
+                   << QString::number(result.procMs, 'f', 2) << ","
+                   << (m_kernel == TrackingKernel::KERNEL_LIGHTTRACK ? "LT" : "DSST") << "\n";
 
     if (m_flightFrameCounter % 15 == 0) {
         m_flightStream.flush();

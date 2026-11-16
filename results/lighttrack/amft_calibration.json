@@ -1,0 +1,85 @@
+{
+  "optimal_tau0": 0.7,
+  "grid_results": [
+    {
+      "tau0": 0.4,
+      "good_frames": 13869,
+      "false_triggers": 0,
+      "false_alarm_rate_per_1k": 0.0,
+      "total_failure_episodes": 24,
+      "covered_episodes": 0,
+      "coverage_pct": 0.0,
+      "median_delay_frames": -1.0
+    },
+    {
+      "tau0": 0.45,
+      "good_frames": 13869,
+      "false_triggers": 0,
+      "false_alarm_rate_per_1k": 0.0,
+      "total_failure_episodes": 24,
+      "covered_episodes": 0,
+      "coverage_pct": 0.0,
+      "median_delay_frames": -1.0
+    },
+    {
+      "tau0": 0.5,
+      "good_frames": 13869,
+      "false_triggers": 0,
+      "false_alarm_rate_per_1k": 0.0,
+      "total_failure_episodes": 24,
+      "covered_episodes": 0,
+      "coverage_pct": 0.0,
+      "median_delay_frames": -1.0
+    },
+    {
+      "tau0": 0.55,
+      "good_frames": 13869,
+      "false_triggers": 0,
+      "false_alarm_rate_per_1k": 0.0,
+      "total_failure_episodes": 24,
+      "covered_episodes": 0,
+      "coverage_pct": 0.0,
+      "median_delay_frames": -1.0
+    },
+    {
+      "tau0": 0.6,
+      "good_frames": 13869,
+      "false_triggers": 0,
+      "false_alarm_rate_per_1k": 0.0,
+      "total_failure_episodes": 24,
+      "covered_episodes": 0,
+      "coverage_pct": 0.0,
+      "median_delay_frames": -1.0
+    },
+    {
+      "tau0": 0.65,
+      "good_frames": 13869,
+      "false_triggers": 2,
+      "false_alarm_rate_per_1k": 0.1442,
+      "total_failure_episodes": 24,
+      "covered_episodes": 3,
+      "coverage_pct": 12.5,
+      "median_delay_frames": 13.0
+    },
+    {
+      "tau0": 0.7,
+      "good_frames": 13869,
+      "false_triggers": 3,
+      "false_alarm_rate_per_1k": 0.2163,
+      "total_failure_episodes": 24,
+      "covered_episodes": 7,
+      "coverage_pct": 29.17,
+      "median_delay_frames": 35.0
+    },
+    {
+      "tau0": 0.75,
+      "good_frames": 13869,
+      "false_triggers": 37,
+      "false_alarm_rate_per_1k": 2.6678,
+      "total_failure_episodes": 24,
+      "covered_episodes": 13,
+      "coverage_pct": 54.17,
+      "median_delay_frames": 35.0
+    }
+  ]
+}

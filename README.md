@@ -67,6 +67,7 @@ RGB_PTZ_Integrated/
 ├── tools/                          # 阶段全景质量体检与闭环验收工具链源码
 │   ├── test_detector.cpp           # 检测引擎速度、精度、内存长稳等 5 项体检工具
 │   ├── test_amft.cpp               # AMFT 检测-跟踪协同 4 大维度闭环验收工具
+│   ├── test_sot_tracker.cpp        # SOT 轻量单目标跟踪算法离线开环回放与闭环评测工具
 │   └── offline_runner.cpp          # 算法内核离线数据对拍工具
 ├── scripts/                        # 工程脚本库
 │   ├── export_yolo.py              # 标准化静态 ONNX 导出工具

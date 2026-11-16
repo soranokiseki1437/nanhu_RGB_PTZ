@@ -549,6 +549,19 @@ int main(int argc, char* argv[])
     QTextStream csvOut(&csvFile);
     csvOut << "seq,frame,bx,by,bw,bh,inst,crop_sz,crop_xmin,crop_ymin,ax,ay,aw,ah,cls_max,box_x,box_y,box_w,box_h,iou,cle,gt_valid,model_ms,total_ms\n";
 
+    std::unique_ptr<QFile> amftFile;
+    std::unique_ptr<QTextStream> amftOut;
+    if (runAmft) {
+        QString amftPath = outDir + "/amft.csv";
+        amftFile = std::make_unique<QFile>(amftPath);
+        if (amftFile->open(QIODevice::WriteOnly | QIODevice::Text)) {
+            amftOut = std::make_unique<QTextStream>(amftFile.get());
+            *amftOut << "seq,frame,iou,cls,s_conf,s_mot,s_bg,r_t,tau_t\n";
+        } else {
+            std::cerr << "[-] Warning: Failed to create AMFT CSV: " << amftPath.toStdString() << "\n";
+        }
+    }
+
     std::vector<float> allIous;
     std::vector<float> allCles;
     std::vector<float> allNormCles;
@@ -619,6 +632,13 @@ int main(int argc, char* argv[])
                << QString::number(iou0, 'f', 4) << "," << QString::number(cle0, 'f', 4) << ","
                << (gt0Valid ? 1 : 0) << ",0.0000,0.0000\n";
 
+        AMFTEvaluator amftEval(10, 0.65f, 0.5f);
+        if (runAmft && amftOut) {
+            amftEval.init(cv::Rect2f(initBox.x, initBox.y, initBox.width, initBox.height));
+            *amftOut << seq.name << ",0,"
+                     << QString::number(iou0, 'f', 4) << ",1.0000,1.0000,1.0000,1.0000,1.0000,0.6500\n";
+        }
+
         for (size_t fIdx = 1; fIdx < nFrames; ++fIdx) {
             auto tE2e0 = std::chrono::steady_clock::now();
             cv::Mat im = cv::imread(seq.imgPaths[fIdx].toStdString());
@@ -664,6 +684,19 @@ int main(int argc, char* argv[])
                    << QString::number(iou, 'f', 4) << "," << QString::number(cle, 'f', 4) << ","
                    << (gtValid ? 1 : 0) << ","
                    << QString::number(t1, 'f', 4) << "," << QString::number(t2, 'f', 4) << "\n";
+
+            if (runAmft && amftOut) {
+                float cls = res.score;
+                AMFTScore as = amftEval.evaluate(5.0f + 20.0f * cls, res.valid, res.bbox, im);
+                *amftOut << seq.name << "," << fIdx << ","
+                         << QString::number(iou, 'f', 4) << ","
+                         << QString::number(cls, 'f', 4) << ","
+                         << QString::number(as.sConf, 'f', 4) << ","
+                         << QString::number(as.sMot, 'f', 4) << ","
+                         << QString::number(as.sBg, 'f', 4) << ","
+                         << QString::number(as.rTotal, 'f', 4) << ","
+                         << QString::number(as.dynamicTau, 'f', 4) << "\n";
+            }
         }
 
         EvalMetrics sm = evaluateArrays(seqIous, seqCles, seqNormCles);

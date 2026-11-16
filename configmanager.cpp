@@ -192,6 +192,18 @@ void ConfigManager::setVideoSavePath(const QString &path)
     m_videoSavePath = path;
 }
 
+int ConfigManager::getTrackKernel() const
+{
+    QMutexLocker locker(&m_mutex);
+    return m_trackKernel;
+}
+
+void ConfigManager::setTrackKernel(int kernel)
+{
+    QMutexLocker locker(&m_mutex);
+    m_trackKernel = kernel;
+}
+
 void ConfigManager::saveConfig()
 {
     QMutexLocker locker(&m_mutex);
@@ -214,6 +226,7 @@ void ConfigManager::saveConfig()
     settings.setValue("track/deadZone", m_trackDeadZone);
     settings.setValue("track/maxSpeed", m_trackMaxSpeed);
     settings.setValue("video/savePath", m_videoSavePath);
+    settings.setValue("tracking/kernel", m_trackKernel);
     qDebug() << "Config saved";
 }
 
@@ -240,5 +253,6 @@ void ConfigManager::loadConfig()
     m_trackDeadZone = settings.value("track/deadZone", 15).toInt();
     m_trackMaxSpeed = settings.value("track/maxSpeed", 20).toInt();
     m_videoSavePath = settings.value("video/savePath", QCoreApplication::applicationDirPath() + "/videos").toString();
+    m_trackKernel = settings.value("tracking/kernel", 0).toInt();
     qDebug() << "Config loaded";
 }

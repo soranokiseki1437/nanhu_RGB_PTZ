@@ -41,8 +41,64 @@ void ObjectTracker::reset()
 
 QString ObjectTracker::modelSize() const
 {
+    if (m_kernel == TrackingKernel::KERNEL_LIGHTTRACK) {
+        return m_sot ? m_sot->name() : QStringLiteral("LightTrack-Uninitialized");
+    }
     const cv::Size ms = m_core.modelSize();
     return QString("%1x%2").arg(ms.width).arg(ms.height);
+}
+
+// ========================
+// 跟踪内核重置与前向分派
+// ========================
+bool ObjectTracker::reinitKernel(const cv::Mat& bgr, const cv::Rect& roi)
+{
+    if (m_kernel == TrackingKernel::KERNEL_LIGHTTRACK) {
+        if (!m_sot) {
+            qWarning() << "[ObjectTracker] reinitKernel: LightTrack 引擎未注入";
+            return false;
+        }
+        if (!m_sot->ensureLoaded()) {
+            qWarning() << "[ObjectTracker] reinitKernel: LightTrack 模型加载失败";
+            return false;
+        }
+        const cv::Rect2f bbox(static_cast<float>(roi.x), static_cast<float>(roi.y),
+                              static_cast<float>(roi.width), static_cast<float>(roi.height));
+        return m_sot->init(bgr, bbox);
+    } else {
+        return m_core.init(bgr, roi);
+    }
+}
+
+ObjectTracker::KernelOutput ObjectTracker::runKernel(const cv::Mat& bgr)
+{
+    KernelOutput ko;
+    if (m_kernel == TrackingKernel::KERNEL_LIGHTTRACK) {
+        if (!m_sot || !m_sot->isInitialized()) {
+            return ko;
+        }
+        SotResult r = m_sot->track(bgr);
+        ko.valid = r.valid;
+        ko.center = r.center;
+        ko.size = r.size;
+        ko.rawScore = r.score;
+        // 方案 9.4: 使 computeSConf 的 (psr - 5) / 20 映射输出恰为 rawScore
+        ko.psrForAmft = 5.0f + 20.0f * ko.rawScore;
+        return ko;
+    } else {
+        cv::Mat response;
+        const cv::Rect bbox = m_core.update(bgr, &response);
+        ko.valid = (bbox.width > 0 && bbox.height > 0);
+        if (ko.valid) {
+            ko.center = m_core.position();
+            ko.size = cv::Size2f(m_targetW * m_core.currentScale(), m_targetH * m_core.currentScale());
+            ko.rawScore = computePSR(response);
+        } else {
+            ko.rawScore = 0.0f;
+        }
+        ko.psrForAmft = ko.rawScore;
+        return ko;
+    }
 }
 
 // ========================
@@ -100,8 +156,8 @@ bool ObjectTracker::init(const QImage& frame, const QRectF& targetRect)
 
     const cv::Rect roi(static_cast<int>(left), static_cast<int>(top),
                        static_cast<int>(clippedW), static_cast<int>(clippedH));
-    if (!m_core.init(image, roi)) {
-        qWarning() << "[ObjectTracker] DsstCore 初始化失败";
+    if (!reinitKernel(image, roi)) {
+        qWarning() << "[ObjectTracker] 内核初始化失败";
         return false;
     }
 
@@ -351,7 +407,7 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
                         << (bestBox.rect.y() + bestBox.rect.height() * 0.5f)
                         << ") score=" << bestCandidateScore;
 
-    // 命中目标：以全新高精检测框重置 DsstCore 模板
+    // 命中目标：以全新高精检测框重置跟踪内核
     cv::Rect newRoi(static_cast<int>(std::round(bestBox.rect.x())),
                     static_cast<int>(std::round(bestBox.rect.y())),
                     static_cast<int>(std::round(bestBox.rect.width())),
@@ -362,11 +418,13 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
         return false;
     }
 
-    if (!m_core.init(image, newRoi)) {
+    if (!reinitKernel(image, newRoi)) {
         return false;
     }
 
-    m_core.setLearningFrozen(false);
+    if (m_kernel == TrackingKernel::KERNEL_DSST) {
+        m_core.setLearningFrozen(false);
+    }
     m_posX = newRoi.x + newRoi.width * 0.5f;
     m_posY = newRoi.y + newRoi.height * 0.5f;
     m_targetW = static_cast<float>(newRoi.width);
@@ -418,10 +476,33 @@ void ObjectTracker::initSlot(const QImage& frame, const QRectF& targetRect)
 }
 
 // ========================
-// 遮挡局部重检测 (旧版纯 SOT 九宫格检测：基于当前已学 DSST 模板，不调用 YOLO)
+// 遮挡局部重检测 (旧版纯 SOT 局部重捕：DSST 九宫格检测 / LightTrack peek 重捕)
 // ========================
 bool ObjectTracker::reDetect(const cv::Mat& image)
 {
+    if (m_kernel == TrackingKernel::KERNEL_LIGHTTRACK) {
+        if (!m_sot || !m_sot->isInitialized()) return false;
+        const float kfX = m_kf.x[0];
+        const float kfY = m_kf.x[1];
+        SotResult r = m_sot->peek(image, cv::Point2f(kfX, kfY));
+        const float recoverThr = 0.8f * m_psrBaseline;
+        if (!r.valid || r.score <= recoverThr) return false;
+
+        const float dist = std::sqrt((r.center.x - kfX) * (r.center.x - kfX)
+                                   + (r.center.y - kfY) * (r.center.y - kfY));
+        const float maxDist = 2.0f * std::max(m_targetW, m_targetH);
+        if (dist > maxDist) return false;
+
+        m_sot->setState(r.center, r.size);
+        m_posX = r.center.x;
+        m_posY = r.center.y;
+        m_targetW = r.size.width;
+        m_targetH = r.size.height;
+        m_currentScale = 1.0f;
+        kfUpdate(m_posX, m_posY);
+        return true;
+    }
+
     const cv::Size modelSz = m_core.modelSize();
     const float scale = m_core.currentScale();
 
@@ -537,21 +618,25 @@ TrackResult ObjectTracker::update(const QImage& frame)
                 m_lostCount++;
             }
         } else {
-            // 正常跟踪主循环：内核检测 + 尺度估计 + 模板更新
-            cv::Mat response;
-            const cv::Rect bbox = m_core.update(image, &response);
-            const bool detValid = (bbox.width > 0 && bbox.height > 0);
-            const float psr = detValid ? computePSR(response) : 0.0f;
+            // 正常跟踪主循环：分派内核检测 + 尺度估计 + 模板更新
+            const KernelOutput ko = runKernel(image);
+            const bool detValid = ko.valid;
+            const float psr = ko.rawScore;
             result.confidence = psr;
             result.psr = psr;
 
             float detX = m_posX;
             float detY = m_posY;
             if (detValid) {
-                const cv::Point2f p = m_core.position();
-                detX = (std::isnan(p.x) || std::isinf(p.x)) ? m_posX : p.x;
-                detY = (std::isnan(p.y) || std::isinf(p.y)) ? m_posY : p.y;
-                m_currentScale = m_core.currentScale();
+                detX = (std::isnan(ko.center.x) || std::isinf(ko.center.x)) ? m_posX : ko.center.x;
+                detY = (std::isnan(ko.center.y) || std::isinf(ko.center.y)) ? m_posY : ko.center.y;
+                if (m_kernel == TrackingKernel::KERNEL_LIGHTTRACK) {
+                    m_targetW = ko.size.width;
+                    m_targetH = ko.size.height;
+                    m_currentScale = 1.0f;
+                } else {
+                    m_currentScale = m_core.currentScale();
+                }
             }
 
             // 依据 PSR 基线平稳判断（杜绝因 AMFT 短期敏感波动而频繁判丢）
@@ -571,7 +656,9 @@ TrackResult ObjectTracker::update(const QImage& frame)
                 m_posX = kfPredX;
                 m_posY = kfPredY;
                 result.occluded = true;
-                m_core.setLearningFrozen(true);
+                if (m_kernel == TrackingKernel::KERNEL_DSST) {
+                    m_core.setLearningFrozen(true);
+                }
                 emit trackingLost();
                 emit trackingStateChanged(m_trackingState);
                 qCDebug(trackerLog) << "[Tracker-SOT] 连续 5 帧 PSR 低于基线，进入遮挡保持态";
@@ -627,13 +714,17 @@ TrackResult ObjectTracker::update(const QImage& frame)
         result.kfVx = m_kf.x[2];
         result.kfVy = m_kf.x[3];
 
+        result.procMs = timer.nsecsElapsed() / 1e6f;
+
         return result;
     }
 
     // === 2. 状态机分流 (仅在 m_redetectionEnabled 时生效) ===
     if (m_trackingState == AMFTTrackingState::TRACK_OCCLUDED || m_trackingState == AMFTTrackingState::TRACK_LOST) {
         // --- 遮挡或丢失状态 ---
-        m_core.setLearningFrozen(true);
+        if (m_kernel == TrackingKernel::KERNEL_DSST) {
+            m_core.setLearningFrozen(true);
+        }
         m_lostCount++;
 
         // 在 OCCLUDED 态每帧尝试单次重捕（至多持续 15 帧）
@@ -684,20 +775,24 @@ TrackResult ObjectTracker::update(const QImage& frame)
             tryDetectAndRecover(image);
         }
 
-        // 局部跟踪主循环：DsstCore 高频检测 + 尺度估计 + 模板更新 (<1ms)
-        cv::Mat response;
-        const cv::Rect bbox = m_core.update(image, &response);
-        const bool detValid = (bbox.width > 0 && bbox.height > 0);
-        const float psr = detValid ? computePSR(response) : 0.0f;
+        // 局部跟踪主循环：分派内核检测 + 尺度估计 + 模板更新
+        const KernelOutput ko = runKernel(image);
+        const bool detValid = ko.valid;
+        const float psr = ko.rawScore;
         result.psr = psr;
 
         float detX = m_posX;
         float detY = m_posY;
         if (detValid) {
-            const cv::Point2f p = m_core.position();
-            detX = (std::isnan(p.x) || std::isinf(p.x)) ? m_posX : p.x;
-            detY = (std::isnan(p.y) || std::isinf(p.y)) ? m_posY : p.y;
-            m_currentScale = m_core.currentScale();
+            detX = (std::isnan(ko.center.x) || std::isinf(ko.center.x)) ? m_posX : ko.center.x;
+            detY = (std::isnan(ko.center.y) || std::isinf(ko.center.y)) ? m_posY : ko.center.y;
+            if (m_kernel == TrackingKernel::KERNEL_LIGHTTRACK) {
+                m_targetW = ko.size.width;
+                m_targetH = ko.size.height;
+                m_currentScale = 1.0f;
+            } else {
+                m_currentScale = m_core.currentScale();
+            }
         }
 
         // 构建当前目标框供 AMFT 评估
@@ -706,7 +801,7 @@ TrackResult ObjectTracker::update(const QImage& frame)
         cv::Rect2f evalBox(detX - currentW * 0.5f, detY - currentH * 0.5f, currentW, currentH);
 
         // === AMFT 三维特征评估 + 动态滑动阈值 ===
-        m_lastScore = m_evaluator.evaluate(psr, detValid, evalBox, image);
+        m_lastScore = m_evaluator.evaluate(ko.psrForAmft, detValid, evalBox, image);
         result.amftScore = m_lastScore.rTotal;
         result.amftTau = m_lastScore.dynamicTau;
         result.confidence = m_lastScore.rTotal;
@@ -730,7 +825,9 @@ TrackResult ObjectTracker::update(const QImage& frame)
             if (m_lostCount >= 4) {
                 // 确认进入遮挡/微失锁态 (连续 4 帧低于阈值，约 130ms，防瞬态误判)
                 m_trackingState = AMFTTrackingState::TRACK_OCCLUDED;
-                m_core.setLearningFrozen(true);
+                if (m_kernel == TrackingKernel::KERNEL_DSST) {
+                    m_core.setLearningFrozen(true);
+                }
                 emit trackingLost();
                 emit trackingStateChanged(m_trackingState);
 
@@ -780,6 +877,8 @@ TrackResult ObjectTracker::update(const QImage& frame)
     result.kfY  = m_kf.x[1];
     result.kfVx = m_kf.x[2];
     result.kfVy = m_kf.x[3];
+
+    result.procMs = timer.nsecsElapsed() / 1e6f;
 
     return result;
 }

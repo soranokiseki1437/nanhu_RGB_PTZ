@@ -864,6 +864,20 @@
             </property>
            </widget>
           </item>
+          <item>
+           <widget class="QComboBox" name="comboTrackKernel">
+            <item>
+             <property name="text">
+              <string>跟踪内核: DSST</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>跟踪内核: LightTrack</string>
+             </property>
+            </item>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>

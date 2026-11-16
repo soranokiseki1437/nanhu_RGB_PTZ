@@ -10,6 +10,14 @@
 #include "dsstcore.h"
 #include "amftevaluator.h"
 #include "IDetector.h"
+#include "ISotTracker.h"
+
+// 跟踪内核类型（传统相关滤波 DSST vs 深度孪生网络 LightTrack）
+enum class TrackingKernel {
+    KERNEL_DSST = 0,
+    KERNEL_LIGHTTRACK = 1
+};
+Q_DECLARE_METATYPE(TrackingKernel)
 
 // 跟踪状态机枚举（海军工程大学 AMFT 四态闭环）
 enum class AMFTTrackingState {
@@ -40,10 +48,14 @@ struct TrackResult {
     float amftTau;        // 动态判定阈值 tau_t
     AMFTTrackingState state; // 当前状态机状态
 
+    // 性能耗时指标
+    float procMs;         // 单帧跟踪端到端总耗时 (ms)
+
     TrackResult()
         : valid(false), confidence(0.0f), psr(0.0f), occluded(false), recovered(false), fps(0.0f),
           kfX(0.0f), kfY(0.0f), kfVx(0.0f), kfVy(0.0f),
-          amftScore(0.0f), amftTau(0.65f), state(AMFTTrackingState::TRACK_NORMAL) {}
+          amftScore(0.0f), amftTau(0.65f), state(AMFTTrackingState::TRACK_NORMAL),
+          procMs(0.0f) {}
 };
 Q_DECLARE_METATYPE(TrackResult)
 
@@ -84,6 +96,12 @@ public:
     void setDetector(const std::shared_ptr<IDetector>& detector) { m_detector = detector; }
     std::shared_ptr<IDetector> detector() const { return m_detector; }
 
+    // 跟踪内核配置（DSST vs LightTrack）
+    void setTrackingKernel(TrackingKernel k) { m_kernel = k; }
+    TrackingKernel trackingKernel() const { return m_kernel; }
+    void setSotEngine(const std::shared_ptr<ISotTracker>& e) { m_sot = e; }
+    std::shared_ptr<ISotTracker> sotEngine() const { return m_sot; }
+
     // 跟踪模式与重检测开关（单目标框选模式下默认禁用，杜绝 YOLO 误重置）
     void setRedetectionEnabled(bool enabled) { m_redetectionEnabled = enabled; }
     bool isRedetectionEnabled() const { return m_redetectionEnabled; }
@@ -113,6 +131,20 @@ public slots:
     void triggerScaleCalibration();
 
 private:
+    // === 跟踪内核与抽象引擎 ===
+    TrackingKernel m_kernel = TrackingKernel::KERNEL_DSST;
+    std::shared_ptr<ISotTracker> m_sot;
+
+    struct KernelOutput {
+        bool valid = false;
+        cv::Point2f center;
+        cv::Size2f size;
+        float rawScore = 0.0f;     // DSST: PSR；LightTrack: sigmoid cls 峰值
+        float psrForAmft = 0.0f;   // 送入 AMFTEvaluator::evaluate 的 psr 参数
+    };
+    KernelOutput runKernel(const cv::Mat& bgr);
+    bool reinitKernel(const cv::Mat& bgr, const cv::Rect& roi);
+
     // === DsstCore 内核 + 模式 ===
     DsstCore m_core;
 

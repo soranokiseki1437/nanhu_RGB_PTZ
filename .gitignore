@@ -79,4 +79,5 @@ __pycache__/
 
 # ===== SOT 评测大文件 =====
 results/lighttrack/**/per_frame.csv
+results/lighttrack/**/amft.csv
 

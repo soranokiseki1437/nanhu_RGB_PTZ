@@ -51,6 +51,10 @@ public:
     QString getVideoSavePath() const;
     void setVideoSavePath(const QString &path);
 
+    // 跟踪内核配置 (0: DSST, 1: LightTrack)
+    int getTrackKernel() const;
+    void setTrackKernel(int kernel);
+
     void saveConfig();
 
 private:
@@ -69,6 +73,7 @@ private:
     float m_trackKp, m_trackKi, m_trackKd, m_trackKff;
     int m_trackTPredict, m_trackDeadZone, m_trackMaxSpeed;
     QString m_videoSavePath;
+    int m_trackKernel = 0;
 
     void loadConfig();
 };

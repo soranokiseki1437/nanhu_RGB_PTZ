@@ -85,6 +85,7 @@ private slots:
     void on_btnAutoDetect_clicked(bool checked);
     void on_comboAiModel_currentIndexChanged(int index);
     void on_comboAiFps_currentIndexChanged(int index);
+    void on_comboTrackKernel_currentIndexChanged(int index);
     void onAiDetectTimerTimeout();
 
     // 弹性布局侧边栏折叠/展开槽
