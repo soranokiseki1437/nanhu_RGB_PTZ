@@ -38,7 +38,7 @@ datasets/
    * 来源：Hugging Face 官方镜像 `aegean-ai/dut-anti-uav`；
    * 下载脚本：[scripts/download_anti_uav.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/download_anti_uav.py)；
    * 状态：已完整就位并参与方案 03 与 04 研发。
-2. **外部准备数据源（用于方案 04B 台式机重训）**：
-   * 详见专项指南文档：[待执行方案/SOT重训数据集下载与准备指南.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/SOT重训数据集下载与准备指南.md)。
+2. **外部准备数据源（用于方案 06-A SOT 架构深度重训）**：
+   * 详见专项指南文档：[datasets/SOT重训数据集下载与准备指南.md](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/SOT重训数据集下载与准备指南.md)。
 
 

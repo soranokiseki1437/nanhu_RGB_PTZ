@@ -41,12 +41,12 @@ flowchart LR
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
 | **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 已交付 5 款 ONNX)；目标跟踪：LightTrack 原版基准模型交付 + 传统滤波 (DSST)；协同大脑：AMFT 状态机** | 遵循 Tracer Bullet 极简贯通原则：方案 04 锁定 LightTrack 原版（LightTrackM 官方预训练权重，AUC 52.24%，跟丢率 14.16%）作为基线交付模型，导出纯静态 ONNX 并跑通 C++ 链路；方案 05 将微调 YOLO 与 LightTrack 原版部署至 RK3588 边缘端进行量化与闭环实测；方案 06 承接后续硕士课题自研创新探索（Rep-Backbone 骨干、三阶段深度重训、尺度回归修复、损失函数消融与论文大表）。 |
-| **最新进展** | 🟢 **LightTrack 上位机嵌入执行方案定稿（WP0–WP7）、任务书归档、04/05 方案张量规格同步；归档检查点 #64，建立检查点 #65** | 搜索图按目标面积比选 256/288（Anti-UAV 15/20 序列为 288），三份纯静态 ONNX；精度对齐以开环回放（L3）为数值判据，闭环（L4）容差由两组已发布基准的差异量标定。 |
+| **最新进展** | 🟢 **SOT重训数据集指南与历史维护脚本全量归档、待执行方案精简与临时缓存清理；归档检查点 #66，建立检查点 #67** | SOT重训数据集指南移至 `datasets/`（归属方案06储备）；`待执行方案/`精简至仅留核心00-06方案与最新LightTrack执行方案；`scripts/`下7个一次性历史脚本分流至`scripts/_archive/`；根目录临时缓存全面清理。 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，Qt 6.12.0 / C++17 / MinGW 13.1 64-bit |
 | **GPU 推理基准** | 🟢 **224.5~373.4 FPS / 2.1~4.45ms (SOT 跟踪)；77.2~86.6 FPS / 2.7~5.8ms (YOLO 检测)** | NVIDIA RTX 5070 Laptop GPU (CUDA 13.0 加速)：LightTrack 原版纯推理时延 2.1ms (0.58 GFLOPs)，满足 <=5ms 机电伺服硬实时要求 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
 | **待执行核心任务** | 🟡 **推进方案 04：基于 LightTrackM 官方预训练权重导出纯静态 ONNX 并接入 C++ 验证，交接方案 05 部署 RK3588 摸清硬件链路** | 遵循 Tracer Bullet 贯通原则，以 LightTrack 原版作为基线交付物，推进在 RK3588 实机上跑通全系统闭环；自研模型的重训与深度消融归入方案 06 实施 |
-| **Git 工作区状态** | 🟢 **良好** | 生产代码、YOLO 部署模型、LightTrackM 官方权重、评测脚本、标准化地对空数据集、方案 00~06 体系均完整归档就位 |
+| **Git 工作区状态** | 🟢 **良好** | 生产代码、YOLO 部署模型、LightTrackM 官方权重、评测脚本、标准化地对空数据集、方案 00~06 体系均完整归档就位；工作区完成历史文档与脚本分流归档，保持高度规整 |
 
 ---
 
@@ -230,18 +230,14 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #64）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_64.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_64.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #66）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_66.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_66.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-16 #65
-- **记录人**：Antigravity (Claude Sonnet 5.5)
-- **类型**：方案 04 LightTrack 上位机嵌入执行方案定稿、任务书归档与基准事实核实
+### Checkpoint 2026-11-16 #67
+- **记录人**：Antigravity (Gemini 3.8 Flash High)
+- **类型**：SOT 重训数据集指南与历史维护脚本全量归档、待执行方案精简与临时缓存清理
 - **核心内容**：
-  1. **执行方案定稿**：[Qt上位机嵌入LightTrack轻量单目标跟踪算法执行方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/Qt上位机嵌入LightTrack轻量单目标跟踪算法执行方案.md) 划分 WP0–WP7，含 22 项验收矩阵与 7 项停止条件；04、05 方案的 SOT 张量规格同步为三份静态 ONNX（模板、搜索 256、搜索 288），RKNN 输入归一化配置修正为 `mean=0 / std=255`。
-  2. **任务书归档**：`Qt上位机嵌入LightTrack跟踪算法任务书.md` 移至 `_archive/`。
-  3. **实地核实（只读 + scratch 探针）**：
-     - LightTrack 源码、权重、旧评测代码位于 `D:\PyProjects\SOT_Tracking_Baselines_官方权重试跑`；`SOT_Tracking_Baselines` 已重组为 `baselines/` 结构，含 LightTrackM 官方权重新基准（AUC 51.69%、DP@20 65.31%、Mean CLE 146.74 px、Lost Rate 15.57%），与旧基准（52.24% / 66.06% / 131.49 px / 14.16%）的差异量作为闭环对齐容差的标定依据；
-     - `get_subwindow_tracking` 的裁切角点使用内建 `round`（银行家舍入），搜索边长使用 `python2round`；边界填充值按截断取整；评测输出框左上角钳制 ≥ 0；
-     - `torch.onnx.export(..., opset_version=17, dynamo=False)` 导出模板与 256/288 搜索图实测成功，算子均为标准算子，无动态维度，与 PyTorch 的相对误差 ≤ 2.6e-6；Python `onnxruntime` 仅含 CPU EP，DirectML 验证在 C++ 工具中执行；
-     - `.gitignore` 忽略 `models/*.onnx`、`weights/`、`*.pth`：模型与权重为本地资产。
-  4. **代码状态**：生产代码未改动，未执行编译，LightTrack ONNX 尚未导出。
-- **下一步**：由执行代理按实施规范 WP0 → WP7 逐包实施。
+  1. **方案体系精简**：将 `待执行方案/SOT重训数据集下载与准备指南.md` 平移至 [datasets/SOT重训数据集下载与准备指南.md](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/SOT重训数据集下载与准备指南.md)（标定归属方案 06-A 自研重训储备），同步更新 [datasets/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/README.md) 索引与 [.gitignore](file:///d:/PyProjects/RGB_PTZ_Integrated/.gitignore) 白名单规则（`!datasets/*.md`），使 `待执行方案/` 目录完全精简聚焦于 00~06 体系与当前 LightTrack 嵌入方案；
+  2. **历史脚本分流**：在 [scripts/](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts) 下建立 `_archive/` 子目录，并将 7 个已彻底完成历史使命的一次性修补与早期生成脚本（`refactor_scheme03.py`、`patch_antigravity_history.py`、`fix_dataset_dirs.py`、`update_thesis_plan.py`、`export_thesis_md.py`、`gen_doc.py`、`generate_docx.js`）统一移入归档，建立索引清单 [scripts/_archive/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/_archive/README.md)，生产脚本目录恢复整洁；
+  3. **环境与散落产物清理**：清理根目录下散落的 `test_detection_vis.png` 临时测试图片，全量清理 Python 运行缓存 `__pycache__`；
+  4. **检查点分流与状态机闭环**：将上一检查点（#66）归档至 [checkpoints/archive/checkpoint_archive_66.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_66.md)，建立本检查点 #67。
+- **下一步**：按方案 04（WP0 → WP7）推进 LightTrack 纯静态 ONNX 导出、DirectML 部署与 C++ 嵌入测试。

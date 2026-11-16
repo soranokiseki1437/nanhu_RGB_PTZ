@@ -53,6 +53,9 @@ Desktop.ini
 # ===== 历史备份归档 =====
 _archive/*
 !_archive/待执行方案_20261022/
+!_archive/20261114组会/
+_archive/20261114组会/preview_slides/
+_archive/20261114组会/inspect_slides/
 
 # ===== 测试可视化临时输出 =====
 test_*.png
@@ -64,15 +67,18 @@ test_detection_vis.png
 *.pptx
 *.mp4
 *.avi
-20261114组会/preview_slides/
-20261114组会/inspect_slides/
 
 # ===== 数据集（仅保留说明与配置文件，大体积图片序列不入库） =====
 datasets/*
 !datasets/README.md
+!datasets/*.md
 !datasets/*.yaml
 
 # ===== Python 缓存 =====
 __pycache__/
 *.pyc
 *.pyo
+
+# ===== SOT 评测大文件 =====
+results/**/per_frame.csv
+

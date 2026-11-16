@@ -2,7 +2,7 @@
 
 > **文件性质**：工程任务交接书  
 > **归属工程**：[RGB_PTZ_Integrated](file:///d:/PyProjects/RGB_PTZ_Integrated)  
-> **存放路径**：[待执行方案/Qt上位机嵌入LightTrack跟踪算法任务书.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/Qt上位机嵌入LightTrack跟踪算法任务书.md)  
+> **存放路径**：[_archive/Qt上位机嵌入LightTrack跟踪算法任务书.md](file:///d:/PyProjects/RGB_PTZ_Integrated/_archive/Qt上位机嵌入LightTrack跟踪算法任务书.md)  
 > **目标接收方**：后续开发会话（用于编制具体的工程实施方案与代码接线方案）
 
 ---

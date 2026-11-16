@@ -1,6 +1,7 @@
 # SOT 重训数据集下载与本地组织规范指南
 
 > **归属工程**：[RGB_PTZ_Integrated](file:///d:/PyProjects/RGB_PTZ_Integrated)  
+> **归属规划**：[06_后续创新规划.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/06_后续创新规划.md)（专项规划 06-A 自研跟踪网络深度重训）  
 > **面向任务**：自研轻量单目标跟踪网络（LightUAV-SOT）两阶段预训练与地对空领域微调  
 > **核心算力支撑**：RTX 4080 Super 台式机（16GB GDDR6X 显存，10,240 CUDA 核心）  
 > **目标存储建议**：固态硬盘（SSD）分区，预留 $\ge 120\text{ GB}$ 空间  
