@@ -41,7 +41,7 @@ flowchart LR
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
 | **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 已交付 5 款 ONNX)；目标跟踪：LightTrack 原版 ONNX + DirectML C-API 完整嵌入上位机 (WP0~WP7 全量闭环) + 传统滤波 (DSST) 双内核；协同大脑：AMFT 状态机** | 遵循 Tracer Bullet 极简贯通原则：方案 04（Qt 上位机嵌入 LightTrack 轻量单目标跟踪算法）WP0~WP7 全量达标闭环。上位机已实现与 DSST 无缝并列切换、与 AMFT 状态机及 YOLO 全局重捕协同闭环、与 KF/PID 伺服闭环；方案 07 针对长焦变焦跟丢与脱靶重检失效完成自检强化；方案 05 推进 RK3588 边缘端部署；方案 06 承接后续硕士课题自研创新探索。 |
-| **最新进展** | 🟢 **方案 07 编制与真实序列实测仿真闭环达成！归档检查点 #70，建立检查点 #71** | 针对此前无人机实测暴露的变倍尺度失配与目标脱靶重检失效两大问题，深度排查底层逻辑缺陷，完成方案 07 编制；基于 Anti-UAV 序列 `video01` 与真机实录视频完成变焦校准与分级重捕实测闭环；自检修复持续变焦时序盲区、伪目标误劫持与 KF 速度冲击 3 项物理隐患；准备进入工程代码落地实施。 |
+| **最新进展** | 🟢 **方案 07 工程全链路代码落地实施圆满达成！主工程 Release 编译 0 告警 0 错误；test_amft 回归测试 4/4 PASS 100% 通过；Git 提交并推送远程同步** | 变焦双触发（350ms 持续步进 + 终态校准）与 5 帧重试容错全量接通；重构 `tryDetectAndRecover` 实现 OCCLUDED 局部邻域关联与 LOST 全图两级重捕；集成长宽比一致性严惩罚与时序两帧确认彻底排除地面杂波；脱靶恢复 KF 速度强制清零与 PID 平稳软启动落地；主工程 Release 生成 `RGB_PTZ_Integrated.exe`，`test_amft` 4/4 PASS。 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，主工程、test_sot_tracker 与 test_amft 基于 Qt 6.12.0 / C++17 / MinGW 13.1 64-bit 完好编译链接，全部 DLL 与 ONNX 模型自动同步 |
 | **GPU 推理基准** | 🟢 **T1 纯前向 P50 1.62~1.72ms，P99 4.09~4.75ms (SOT 跟踪)；单帧跟踪 44~141 FPS；2.7~5.8ms (YOLO 检测)** | NVIDIA RTX 5070 Laptop GPU (DirectML 硬件加速)：LightTrack 原版纯前向 1.83ms (0.58 GFLOPs)，彻底满足 <=5ms 机电伺服硬实时要求 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
@@ -249,7 +249,9 @@ flowchart LR
      - 脱靶大距离再入测试：原版在 $642\text{px}$ 搜索半径截断下对 $712\text{px}$ 目标直接漏捕；方案分级重捕成功解锁全图搜索，并依靠长宽比校验成功剔除地面横向杂波（长宽比 3.1 候选被过滤），以 0.502 分精准锁定真实目标。
   4. **全量 20 组 Anti-UAV 序列 DirectML GPU 基准复核**：
      - 完整运行 `test_sot_tracker.exe`，复核基准指标：AUC 50.53%，DP@20 63.49%，Mean CLE 135.72 px，T1 (256) P50 1.62ms，T1 (288) P50 1.82ms，确认 GPU 加速运行稳健。
-  5. **文档与检查点归档入库**：
-     - 方案文件落盘至 `待执行方案/07_光电云台变焦尺度自适应与目标重捕恢复实操方案.md`；
-     - 归档检查点 #70 至 `checkpoints/archive/checkpoint_archive_70.md`，建立检查点 #71。
-- **下一步**：全面启动方案 07 代码落地实施，依次修改 `mainwindow.cpp`、`objecttracker.h/.cpp` 与 `trackingcontroller.cpp`。
+  5. **方案 07 全链路代码落地与构建闭环**：
+     - 修改 `mainwindow.h/.cpp`：增加 `m_zoomStepTimer`（按住变倍键 350ms 周期步进触发），模式切换与手动框选统一使能协同检测；
+     - 修改 `objecttracker.h/.cpp`：`update` 头部前置变焦校准并提供 5 帧重试容错；实现 `calibrateScaleOnZoom`；重构 `tryDetectAndRecover`（时空局部邻域 + 全图检索，长宽比一致性校验，连续 2 帧时序确认，KF 速度清零软启动）；
+     - 修改 `trackingcontroller.cpp`：`onTrackingLost` 与 `onTrackingRecovered` 均重置 PID 积分与历史误差；
+     - 主工程 `RGB_PTZ_Integrated.exe` 基于 MinGW 13.1 / C++17 Release 成功编译链接，0 告警 0 错误；`test_amft.exe` 回归测试 4/4 PASS 100% 通过。
+- **下一步**：连接实机进行外场长焦变焦无人机飞行联调测试；继续推进方案 05（光电跟踪系统 RK3588 边缘端量化与工程移植）。

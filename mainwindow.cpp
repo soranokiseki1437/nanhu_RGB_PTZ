@@ -37,6 +37,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     , m_isSelectingTarget(false)
     , m_trackBoxVisible(false)
     , m_trackBoxOccluded(false)
+    , m_zoomStepTimer(new QTimer(this))
     , m_aiDetectTimer(new QTimer(this))
     , m_isAutoDetecting(false)
     , m_aiInferencing(false)
@@ -138,15 +139,28 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     if (ui->btnIrisOpen) ui->btnIrisOpen->setAutoRepeat(false);
     if (ui->btnIrisClose) ui->btnIrisClose->setAutoRepeat(false);
     
+    // 变焦持续步进校准信号
+    connect(m_zoomStepTimer, &QTimer::timeout, this, [this]() {
+        if (m_trackingController && m_trackingController->isTracking()) {
+            m_trackingController->triggerScaleCalibration();
+        }
+    });
+
     // 变倍+
     if (ui->btnZoomIn) {
         connect(ui->btnZoomIn, &QPushButton::pressed, this, [this]() {
             uint8_t speed = static_cast<uint8_t>(ui->spinLensSpeed->value());
             m_deviceManager->getLensManager()->zoomIn(speed, false);
+            if (m_zoomStepTimer && m_trackingController && m_trackingController->isTracking()) {
+                m_zoomStepTimer->start(350);
+            }
         });
         connect(ui->btnZoomIn, &QPushButton::released, this, [this]() {
             uint8_t speed = static_cast<uint8_t>(ui->spinLensSpeed->value());
             m_deviceManager->getLensManager()->zoomIn(speed, true);
+            if (m_zoomStepTimer) {
+                m_zoomStepTimer->stop();
+            }
         });
     }
     
@@ -155,10 +169,16 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         connect(ui->btnZoomOut, &QPushButton::pressed, this, [this]() {
             uint8_t speed = static_cast<uint8_t>(ui->spinLensSpeed->value());
             m_deviceManager->getLensManager()->zoomOut(speed, false);
+            if (m_zoomStepTimer && m_trackingController && m_trackingController->isTracking()) {
+                m_zoomStepTimer->start(350);
+            }
         });
         connect(ui->btnZoomOut, &QPushButton::released, this, [this]() {
             uint8_t speed = static_cast<uint8_t>(ui->spinLensSpeed->value());
             m_deviceManager->getLensManager()->zoomOut(speed, true);
+            if (m_zoomStepTimer) {
+                m_zoomStepTimer->stop();
+            }
         });
     }
     
@@ -230,6 +250,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 MainWindow::~MainWindow()
 {
     m_isAutoDetecting = false;
+    if (m_zoomStepTimer) {
+        m_zoomStepTimer->stop();
+    }
     if (m_aiDetectTimer) {
         m_aiDetectTimer->stop();
     }
@@ -1202,7 +1225,7 @@ void MainWindow::on_btnTrackStart_clicked()
     qDebug() << "[TrackStart] frame size:" << m_lastFrame.width() << "x" << m_lastFrame.height();
 
     // 从 UI 控件读取参数
-    m_trackingController->setRedetectionEnabled(false); // 框选模式彻底禁用 YOLO 误重置
+    m_trackingController->setRedetectionEnabled(true); // 使能协同检测与变焦自适应重校准
     m_trackingController->setDeadZonePixels(ui->spinTrackDeadZone->value());
     m_trackingController->setMaxSpeed(ui->spinTrackMaxSpeed->value());
     m_trackingController->setProportionalGain(ui->spinTrackKp->value() / 100.0f);
@@ -1639,11 +1662,11 @@ void MainWindow::on_radioModeManual_toggled(bool checked)
             on_btnAutoDetect_clicked(false);
         }
         if (m_trackingController) {
-            m_trackingController->setRedetectionEnabled(false);
+            m_trackingController->setRedetectionEnabled(true);
         }
         ui->groupSotControls->setEnabled(true);
         ui->groupMotControls->setEnabled(false);
-        ui->textLog->append("[模式] 切换至手动框选模式 (纯净 SOT，无 YOLO 劫持)");
+        ui->textLog->append("[模式] 切换至手动框选模式 (协同 SOT，带 AI 重捕与变焦自适应)");
         updateTrackingUIState();
     }
 }

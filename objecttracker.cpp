@@ -35,6 +35,9 @@ void ObjectTracker::reset()
     m_lostCount = 0;
     m_frameCount = 0;
     m_needScaleCalibration = false;
+    m_zoomCalibRetries = 0;
+    m_reacquireConsecutiveHits = 0;
+    m_candidateBox = DetectionBox();
     m_evaluator.reset();
     m_lastScore = AMFTScore();
 }
@@ -107,7 +110,8 @@ ObjectTracker::KernelOutput ObjectTracker::runKernel(const cv::Mat& bgr)
 void ObjectTracker::triggerScaleCalibration()
 {
     m_needScaleCalibration = true;
-    qCDebug(trackerLog) << "[Tracker] 变焦尺度纠偏已标记，下一帧将触发 AI 尺度校准";
+    m_zoomCalibRetries = 5;
+    qCDebug(trackerLog) << "[Tracker] 变焦尺度纠偏已标记，将连续进行至多 5 帧 AI 尺度重校准";
 }
 
 // ========================
@@ -306,18 +310,17 @@ void ObjectTracker::kfUpdate(float measX, float measY)
 // ========================
 bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
 {
-    // 如果未外部设置检测器，则尝试懒加载默认模型
+    // 如果未外部设置检测器，则尝试懒加载默认模型 (优先 UAV 专属微调模型)
     if (!m_detector || !m_detector->isLoaded()) {
         const QStringList candidatePaths = {
+            "models/yolo11n_uav_ft.onnx",
+            "models/yolov8n_uav_ft.onnx",
             "models/yolov8n.onnx",
+            QCoreApplication::applicationDirPath() + "/models/yolo11n_uav_ft.onnx",
+            QCoreApplication::applicationDirPath() + "/models/yolov8n_uav_ft.onnx",
             QCoreApplication::applicationDirPath() + "/models/yolov8n.onnx",
-            QCoreApplication::applicationDirPath() + "/../models/yolov8n.onnx",
-            QCoreApplication::applicationDirPath() + "/../../models/yolov8n.onnx",
-            QCoreApplication::applicationDirPath() + "/../../../models/yolov8n.onnx",
-            QDir::currentPath() + "/models/yolov8n.onnx",
-            QDir::currentPath() + "/../models/yolov8n.onnx",
-            QDir::currentPath() + "/../../models/yolov8n.onnx",
-            QDir::currentPath() + "/../../../models/yolov8n.onnx"
+            QDir::currentPath() + "/models/yolo11n_uav_ft.onnx",
+            QDir::currentPath() + "/models/yolov8n.onnx"
         };
         QString foundPath;
         for (const auto& path : candidatePaths) {
@@ -344,6 +347,7 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
     // 单次唤醒 YOLO 全图检测 (DirectML 仅耗时 3.06ms)
     std::vector<DetectionBox> detections = m_detector->detect(image);
     if (detections.empty()) {
+        m_reacquireConsecutiveHits = 0;
         return false;
     }
 
@@ -355,11 +359,18 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
 
     const float currentW = m_targetW * m_currentScale;
     const float currentH = m_targetH * m_currentScale;
-    const float targetDiag = std::sqrt(currentW * currentW + currentH * currentH);
+    const float currentAspect = (currentH > 1.0f) ? (currentW / currentH) : 1.0f;
+    const float origArea = std::max(16.0f, currentW * currentH);
+    const float frameDiag = std::sqrt(static_cast<float>(image.cols * image.cols + image.rows * image.rows));
 
-    // 根据目标尺寸与运动速度估计合理的最大搜索半径
-    float maxRadius = std::max(targetDiag * 2.0f, speed * std::min(m_lostCount, 15) * 1.2f + 50.0f);
-    maxRadius = std::min(maxRadius, static_cast<float>(std::max(image.cols, image.rows)) * 0.35f);
+    const bool isTotalLost = (m_trackingState == AMFTTrackingState::TRACK_LOST) || (m_lostCount >= 15);
+
+    // 第一级搜索半径：随失锁时间与速度线性扩张；第二级搜索半径：全图对角线
+    const float maxRadius = isTotalLost ? frameDiag : 
+        std::min(frameDiag * 0.40f, std::max(currentW * 3.0f, speed * m_lostCount * 1.5f + 80.0f));
+
+    // 全图检索提高置信度门限以抑制杂波虚警
+    const float minConfThr = isTotalLost ? 0.35f : 0.25f;
 
     float bestCandidateScore = 0.0f;
     DetectionBox bestBox;
@@ -367,23 +378,45 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
 
     for (size_t i = 0; i < detections.size(); ++i) {
         const auto& det = detections[i];
-        if (det.confidence < 0.25f) continue;
+        if (det.confidence < minConfThr) continue;
 
-        float cx = static_cast<float>(det.rect.x() + det.rect.width() * 0.5f);
-        float cy = static_cast<float>(det.rect.y() + det.rect.height() * 0.5f);
+        const float cx = static_cast<float>(det.rect.x() + det.rect.width() * 0.5f);
+        const float cy = static_cast<float>(det.rect.y() + det.rect.height() * 0.5f);
 
-        float dist = std::sqrt((cx - kfX) * (cx - kfX) + (cy - kfY) * (cy - kfY));
-        if (dist > maxRadius) continue;
+        const float dist = std::sqrt((cx - kfX) * (cx - kfX) + (cy - kfY) * (cy - kfY));
 
-        float detArea = static_cast<float>(det.rect.width() * det.rect.height());
-        float origArea = std::max(1.0f, currentW * currentH);
-        float areaRatio = detArea / origArea;
-        if (areaRatio < 0.20f || areaRatio > 5.0f) continue;
+        // 第一级距离拦截；第二级全图允许
+        if (!isTotalLost && dist > maxRadius) continue;
 
-        float distNorm = dist / maxRadius;
-        float distPenalty = std::max(0.0f, 1.0f - distNorm * distNorm);
-        float areaPenalty = std::min(areaRatio, 1.0f / areaRatio);
-        float candidateScore = det.confidence * distPenalty * areaPenalty;
+        // 几何长宽比校验：抑制地面长条杂波（如路面白线、屋檐反光等极端高长宽比目标）
+        const float detAspect = (det.rect.height() > 1.0f) ? 
+            (static_cast<float>(det.rect.width()) / det.rect.height()) : 1.0f;
+        const float aspectDiff = std::abs(detAspect - currentAspect) / std::max(currentAspect, 0.1f);
+        if (aspectDiff > 1.5f) continue;
+
+        // 面积与几何比率校验（全图丢失态放宽面积约束至 0.05x ~ 20.0x）
+        const float detArea = static_cast<float>(det.rect.width() * det.rect.height());
+        const float areaRatio = detArea / origArea;
+        const float minAreaRatio = isTotalLost ? 0.05f : 0.20f;
+        const float maxAreaRatio = isTotalLost ? 20.0f : 5.00f;
+        if (areaRatio < minAreaRatio || areaRatio > maxAreaRatio) continue;
+
+        float candidateScore = 0.0f;
+        if (!isTotalLost) {
+            // 时空局部打分：置信度 × 空间近邻惩罚 × 面积相似度
+            const float distNorm = dist / maxRadius;
+            const float distPenalty = std::max(0.0f, 1.0f - distNorm * distNorm);
+            const float areaPenalty = std::min(areaRatio, 1.0f / areaRatio);
+            candidateScore = det.confidence * distPenalty * areaPenalty;
+        } else {
+            // 全图重捕打分：置信度 (60%) + 长宽比一致性 (25%) + 画面中心近邻度 (15%)
+            const float centerX = image.cols * 0.5f;
+            const float centerY = image.rows * 0.5f;
+            const float distCenter = std::sqrt((cx - centerX) * (cx - centerX) + (cy - centerY) * (cy - centerY));
+            const float centerWeight = 1.0f - (distCenter / frameDiag);
+            const float aspectWeight = std::max(0.0f, 1.0f - aspectDiff * 0.5f);
+            candidateScore = det.confidence * 0.60f + aspectWeight * 0.25f + centerWeight * 0.15f;
+        }
 
         qCDebug(trackerLog) << "[ReDetect] 候选#" << i << QString::fromStdString(det.className)
                             << "pos=(" << cx << "," << cy << ") conf=" << det.confidence
@@ -397,10 +430,24 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
         }
     }
 
-    if (!found || bestCandidateScore < 0.20f) {
-        qCDebug(trackerLog) << "[ReDetect] 未找到合格候选目标 (最高分=" << bestCandidateScore << ", 门限=0.20)";
+    const float scoreThreshold = isTotalLost ? 0.35f : 0.20f;
+    if (!found || bestCandidateScore < scoreThreshold) {
+        m_reacquireConsecutiveHits = 0;
+        qCDebug(trackerLog) << "[ReDetect] 未找到合格候选目标 (最高分=" << bestCandidateScore
+                            << ", 门限=" << scoreThreshold << ")";
         return false;
     }
+
+    // 全图检索增加时序双帧确认（防止单帧杂波突发劫持）
+    if (isTotalLost) {
+        m_reacquireConsecutiveHits++;
+        if (m_reacquireConsecutiveHits < 2) {
+            m_candidateBox = bestBox;
+            qCDebug(trackerLog) << "[ReDetect] 全图首帧捕获候选，等待下一帧时序确认...";
+            return false;
+        }
+    }
+    m_reacquireConsecutiveHits = 0;
 
     qCDebug(trackerLog) << "[ReDetect] 最佳匹配锁定成功: pos=("
                         << (bestBox.rect.x() + bestBox.rect.width() * 0.5f) << ","
@@ -431,12 +478,108 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
     m_targetH = static_cast<float>(newRoi.height);
     m_currentScale = 1.0f;
 
-    // 更新 KF 状态与 AMFT 评估器
-    kfUpdate(m_posX, m_posY);
+    // 机电伺服平稳软启动机制：
+    // 若从 TRACK_LOST 恢复，强制清零卡尔曼速度并重置协方差，杜绝超大速度跳变
+    if (isTotalLost) {
+        m_kf.x = cv::Vec4f(m_posX, m_posY, 0.0f, 0.0f);
+        m_kf.P = cv::Matx44f::eye() * 8.0f;
+    } else {
+        kfUpdate(m_posX, m_posY);
+    }
+
     m_evaluator.init(cv::Rect2f(m_posX - m_targetW * 0.5f,
                                 m_posY - m_targetH * 0.5f,
                                 m_targetW, m_targetH));
 
+    return true;
+}
+
+// ========================
+// 变焦联动：执行定向尺度校准与模板自适应重置
+// ========================
+bool ObjectTracker::calibrateScaleOnZoom(const cv::Mat& image)
+{
+    // 如果未外部设置检测器，则尝试懒加载
+    if (!m_detector || !m_detector->isLoaded()) {
+        tryDetectAndRecover(image);
+    }
+    if (!m_detector || !m_detector->isLoaded()) {
+        return false;
+    }
+
+    const float kfX = m_kf.x[0];
+    const float kfY = m_kf.x[1];
+
+    std::vector<DetectionBox> detections = m_detector->detect(image);
+    if (detections.empty()) {
+        return false;
+    }
+
+    float bestScore = 0.0f;
+    DetectionBox bestBox;
+    bool matched = false;
+
+    // 变焦工况下，允许目标尺寸大幅度缩放 (0.1x ~ 10.0x)，重点考量空间近邻与长宽比一致性
+    const float currentAspect = (m_targetH > 1.0f) ? (m_targetW / m_targetH) : 1.0f;
+    const float zoomSearchRadius = std::max(image.cols, image.rows) * 0.45f;
+
+    for (const auto& det : detections) {
+        if (det.confidence < 0.25f) continue;
+
+        const float cx = det.rect.x() + det.rect.width() * 0.5f;
+        const float cy = det.rect.y() + det.rect.height() * 0.5f;
+        const float dist = std::sqrt((cx - kfX) * (cx - kfX) + (cy - kfY) * (cy - kfY));
+        if (dist > zoomSearchRadius) continue;
+
+        const float detAspect = (det.rect.height() > 1.0f) ? 
+            (static_cast<float>(det.rect.width()) / det.rect.height()) : 1.0f;
+        const float aspectDiff = std::abs(detAspect - currentAspect) / std::max(currentAspect, 0.1f);
+        if (aspectDiff > 1.2f) continue; // 排除长宽比畸变过大目标
+
+        const float spatialWeight = 1.0f - (dist / zoomSearchRadius);
+        const float aspectWeight = std::max(0.1f, 1.0f - aspectDiff * 0.6f);
+        const float score = det.confidence * spatialWeight * aspectWeight;
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestBox = det;
+            matched = true;
+        }
+    }
+
+    if (!matched || bestScore < 0.20f) {
+        return false;
+    }
+
+    const cv::Rect newRoi(static_cast<int>(std::round(bestBox.rect.x())),
+                          static_cast<int>(std::round(bestBox.rect.y())),
+                          static_cast<int>(std::round(bestBox.rect.width())),
+                          static_cast<int>(std::round(bestBox.rect.height())));
+    const cv::Rect clampedRoi = newRoi & cv::Rect(0, 0, image.cols, image.rows);
+
+    if (clampedRoi.width < 6 || clampedRoi.height < 6) {
+        return false;
+    }
+
+    if (!reinitKernel(image, clampedRoi)) {
+        return false;
+    }
+
+    if (m_kernel == TrackingKernel::KERNEL_DSST) {
+        m_core.setLearningFrozen(false);
+    }
+
+    m_posX = clampedRoi.x + clampedRoi.width * 0.5f;
+    m_posY = clampedRoi.y + clampedRoi.height * 0.5f;
+    m_targetW = static_cast<float>(clampedRoi.width);
+    m_targetH = static_cast<float>(clampedRoi.height);
+    m_currentScale = 1.0f;
+
+    kfUpdate(m_posX, m_posY);
+    m_evaluator.init(cv::Rect2f(clampedRoi.x, clampedRoi.y, clampedRoi.width, clampedRoi.height));
+
+    qCDebug(trackerLog) << "[Tracker] 变焦尺度重校准成功: 新尺寸=" << m_targetW << "x" << m_targetH
+                        << "中心=(" << m_posX << "," << m_posY << ") score=" << bestScore;
     return true;
 }
 
@@ -588,6 +731,26 @@ TrackResult ObjectTracker::update(const QImage& frame)
     kfPredict();
     const float kfPredX = m_kf.x[0];
     const float kfPredY = m_kf.x[1];
+
+    // 检查变焦尺度纠偏（支持步进与终态触发，具备 5 帧重试容错）
+    if (m_needScaleCalibration || m_zoomCalibRetries > 0) {
+        if (calibrateScaleOnZoom(image)) {
+            m_needScaleCalibration = false;
+            m_zoomCalibRetries = 0;
+            if (m_trackingState != AMFTTrackingState::TRACK_NORMAL) {
+                m_trackingState = AMFTTrackingState::TRACK_NORMAL;
+                m_inOcclusion = false;
+                m_lostCount = 0;
+                result.recovered = true;
+                result.occluded = false;
+                emit trackingRecovered();
+                emit trackingStateChanged(m_trackingState);
+            }
+        } else {
+            if (m_zoomCalibRetries > 0) m_zoomCalibRetries--;
+            if (m_zoomCalibRetries == 0) m_needScaleCalibration = false;
+        }
+    }
 
     // === 2. 纯单目标框选模式分流 (回归旧版稳定处理，绝不触发 YOLO 劫持) ===
     if (!m_redetectionEnabled) {
@@ -767,12 +930,6 @@ TrackResult ObjectTracker::update(const QImage& frame)
         if (m_trackingState == AMFTTrackingState::TRACK_REACQUIRED) {
             m_trackingState = AMFTTrackingState::TRACK_NORMAL;
             emit trackingStateChanged(m_trackingState);
-        }
-
-        // 检查变焦尺度纠偏
-        if (m_needScaleCalibration) {
-            m_needScaleCalibration = false;
-            tryDetectAndRecover(image);
         }
 
         // 局部跟踪主循环：分派内核检测 + 尺度估计 + 模板更新

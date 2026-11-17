@@ -175,6 +175,9 @@ private:
     AMFTScore m_lastScore;
     int m_lostCount = 0;
     bool m_needScaleCalibration = false;
+    int m_zoomCalibRetries = 0;
+    int m_reacquireConsecutiveHits = 0;
+    DetectionBox m_candidateBox;
     bool m_redetectionEnabled = false;
 
     // === 旧版纯 SOT 稳态基线相关 ===
@@ -198,6 +201,9 @@ private:
 
     // 单次唤醒全局检测重捕（替换旧版九宫格盲试）
     bool tryDetectAndRecover(const cv::Mat& image);
+
+    // 变焦联动：执行定向尺度校准与模板自适应重置
+    bool calibrateScaleOnZoom(const cv::Mat& image);
 };
 
 #endif // OBJECTTRACKER_H

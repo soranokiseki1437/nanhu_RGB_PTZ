@@ -168,6 +168,9 @@ private:
     QPixmap m_scaledPixmap;         // C8：displayImage 缓存的缩放结果（跟踪框重绘复用）
     QSize m_scaledFrameSize;        // C8：m_scaledPixmap 对应的原始帧尺寸（坐标换算用）
 
+    // 变焦持续步进校准定时器
+    QTimer *m_zoomStepTimer;
+
     // AI 自动巡检与模型热切换
     QTimer *m_aiDetectTimer;
     std::atomic<bool> m_isAutoDetecting{false};

@@ -394,6 +394,7 @@ void TrackingController::onTrackingLost()
 {
     if (m_state == Tracking) {
         m_state = Lost;
+        resetPidState(); // 目标丢失时清空积分，防止脱靶期间积分饱和
         emit stateChanged(m_state);
         emit statusMessage("目标丢失，尝试恢复中...");
     }
@@ -403,6 +404,7 @@ void TrackingController::onTrackingRecovered()
 {
     if (m_state == Lost) {
         m_state = Tracking;
+        resetPidState(); // 伺服平稳软启动：重置 PID 积分与微分历史，避免大跳变导致云台甩头
         emit stateChanged(m_state);
         emit statusMessage("目标已恢复");
     }
