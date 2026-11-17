@@ -23,6 +23,7 @@ reference/papers/
 ├── 03_轻量结构与重参数化SOT_Lightweight_Rep/
 │   ├── LightTrack_ICCV2021.pdf               # ICCV 2021 Oral 微软轻量 NAS 跟踪网络 (核心基准)
 │   ├── NanoTrack_ICCV2021.pdf                # ICCV 2021 超轻移动端 DW-CNN (0.4M 极速基准)
+│   ├── RepVGG_CVPR2021.pdf                   # CVPR 2021 经典结构重参数化骨干开山之作 (无损折叠理论)
 │   ├── RepViT_CVPR2024.pdf                   # CVPR 2024 结构重参数化移动端卷积骨干理论
 │   ├── FEAR_ECCV2022.pdf                     # ECCV 2022 动态双模板机制
 │   ├── ECA-Net_CVPR2020.pdf                  # CVPR 2020 非降维高效通道注意力理论

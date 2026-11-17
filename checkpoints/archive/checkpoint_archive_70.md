@@ -18,3 +18,4 @@
      - 编写 `交接_反无人机基线微调重训与数据整理指引.md`，明确执行步骤、统一评测协议（CASIA-val 统一 `--seq-stride 4 --max-frames 0`）与 `实验总表.csv` 归档规范。
   6. **Git 版本控制同步（强制 Commit & Push）**：
      - 异机关联仓库 `D:\PyProjects\SOT_Tracking_Baselines` 完成语义化提交（`534a224`）并成功推送到远程仓库 `origin/main`；云端代码绝对同步。
+
