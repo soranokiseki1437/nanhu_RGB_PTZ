@@ -27,3 +27,4 @@
      - Release 模式编译 0 告警 0 错误生成 `build/release/RGB_PTZ_Integrated.exe`（635,904 字节），DLL 与模型全自动同步；
      - 回填 [04 方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04_轻量单目标跟踪基准模型交付与工程链路跑通方案.md) 实测指标，更新 [README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/README.md) 工具清单，归档 Checkpoint #68，建立本检查点 #69。
 - **下一步**：方案 04 圆满收官，移交方案 05（光电跟踪系统 RK3588 边缘端量化与工程移植实操方案）。
+
