@@ -36,17 +36,17 @@ flowchart LR
 
 ---
 
-## 二、当前项目状态快照（2026-11-17 最新）
+## 二、当前项目状态快照（2026-11-23 最新）
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
-| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 已交付 5 款 ONNX)；目标跟踪：LightTrack 原版 ONNX + DirectML C-API 完整嵌入上位机 (WP0~WP7 全量闭环) + 传统滤波 (DSST) 双内核；协同大脑：AMFT 状态机** | 遵循 Tracer Bullet 极简贯通原则：方案 04（Qt 上位机嵌入 LightTrack 轻量单目标跟踪算法）WP0~WP7 全量达标闭环。上位机已实现与 DSST 无缝并列切换、与 AMFT 状态机及 YOLO 全局重捕协同闭环、与 KF/PID 伺服闭环；方案 07 针对长焦变焦跟丢与脱靶重检失效完成自检强化；方案 05 推进 RK3588 边缘端部署；方案 06 承接后续硕士课题自研创新探索。 |
-| **最新进展** | 🟢 **方案 07 工程全链路代码落地实施圆满达成！主工程 Release 编译 0 告警 0 错误；test_amft 回归测试 4/4 PASS 100% 通过；Git 提交并推送远程同步** | 变焦双触发（350ms 持续步进 + 终态校准）与 5 帧重试容错全量接通；重构 `tryDetectAndRecover` 实现 OCCLUDED 局部邻域关联与 LOST 全图两级重捕；集成长宽比一致性严惩罚与时序两帧确认彻底排除地面杂波；脱靶恢复 KF 速度强制清零与 PID 平稳软启动落地；主工程 Release 生成 `RGB_PTZ_Integrated.exe`，`test_amft` 4/4 PASS。 |
+| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 交付 5 款标准静态 ONNX)；目标跟踪：双内核 (DSST 滤波闭环 + LightTrack 原版 C++ 代码接入待验证)；协同大脑：AMFT 状态机 + 方案 07 变焦/重捕控制强化** | 1. 目标检测：YOLO 多模型领域微调与免重启动态热切换已闭环；<br>2. 协同大脑：AMFT 三维评估状态机（方案 02）已闭环；<br>3. 控制与状态机强化：变焦双触发尺度校准、分级防误劫持重捕与伺服软启动（方案 07）代码已实施落地；<br>4. 深度跟踪基线：LightTrack 原版纯静态 ONNX 与 C++ DirectML 双内核分派已接入主工程（方案 04），待整机闭环验证；<br>5. 后续演进：推进 RK3588 边缘端量化移植（方案 05）与硕士课题算法深度创新及重训消融（方案 06，规划储备/尚未实现）。 |
+| **最新进展** | 🟢 **方案 07 工程全链路代码落地实施；主工程 Release 编译 0 告警 0 错误；test_amft 回归测试 4/4 PASS 100% 通过；方案状态与实施逻辑严格客观对齐** | 变焦双触发（350ms 持续步进 + 终态校准）与 5 帧重试容错已接入；重构 `tryDetectAndRecover` 实现 OCCLUDED 局部邻域关联与 LOST 全图两级重捕；长宽比一致性校验排除地面杂波；脱靶恢复 KF 速度强制清零与 PID 平稳软启动落地；主工程 Release 构建通过生成 `RGB_PTZ_Integrated.exe`；`test_amft` 4/4 PASS。 |
 | **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，主工程、test_sot_tracker 与 test_amft 基于 Qt 6.12.0 / C++17 / MinGW 13.1 64-bit 完好编译链接，全部 DLL 与 ONNX 模型自动同步 |
-| **GPU 推理基准** | 🟢 **T1 纯前向 P50 1.62~1.72ms，P99 4.09~4.75ms (SOT 跟踪)；单帧跟踪 44~141 FPS；2.7~5.8ms (YOLO 检测)** | NVIDIA RTX 5070 Laptop GPU (DirectML 硬件加速)：LightTrack 原版纯前向 1.83ms (0.58 GFLOPs)，彻底满足 <=5ms 机电伺服硬实时要求 |
+| **GPU 推理基准** | 🟢 **DirectML 硬件加速：YOLO 检测 2.7~5.8ms；LightTrack 纯前向 1.83ms (0.58 GFLOPs)** | NVIDIA RTX 5070 Laptop GPU：满足 <=5ms 机电伺服硬实时要求；当前处于待整机实机闭环验证阶段 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
-| **待执行核心任务** | 🟢 **实施方案 07（光电云台变焦尺度自适应与目标重捕恢复工程落地）** | 实施变焦联动步进/终态重校准、重构 tryDetectAndRecover 排除伪目标误劫持、KF 速度清零软启动与框选模式链路打通 |
-| **Git 工作区状态** | 🟢 **良好** | 生产代码、YOLO 部署模型、LightTrack 三份纯静态 ONNX、方案 07、评测报告均完整归档就位 |
+| **待执行核心任务** | 🟡 **推进 LightTrack 深度跟踪整机闭环验证（方案 04）、外场变焦联调、RK3588 边缘移植（方案 05）与学术创新重训实验准备（方案 06）** | 推进方案 04 序列与外场整机跟踪验证；连接相机与云台开展外场实机长焦变焦飞行跟踪测试；筹备方案 05 边缘端量化部署与方案 06 自研架构重训消融 |
+| **Git 工作区状态** | 🟢 **良好** | 生产代码、YOLO 部署模型、LightTrack 纯静态 ONNX、方案规范均完整归档就位 |
 
 ---
 
@@ -200,7 +200,13 @@ flowchart LR
 - [x] **02-1.5 变焦尺度动态校准**：联动 [LensManager](file:///d:/PyProjects/RGB_PTZ_Integrated/lensmanager.cpp) 变焦完成事件触发单次尺度纠偏。
 - [x] **02-1.6 全景验收实跑**：通过 [tools/test_amft.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_amft.cpp) 4 大维度闭环验收（100 帧全长调用率 0.00%，中心误差 2.22px，严重遮挡单次极速拉回）。
 
-### 阶段四：YOLO 多模型受控领域微调、免重启热切换与抗虚警校验（方案 03，当前主力推进 P0）
+### 阶段四：光电云台变焦尺度自适应与目标重捕恢复（方案 07，代码已落地闭环）
+- [x] **07-1.1 变焦双触发机制**：主界面联动按住变倍键 350ms 周期步进触发 + 松开按键终态收敛校准，手动框选与模式切换统一使能协同。
+- [x] **07-1.2 分级防误劫持重捕状态机**：失锁 $\le 15$ 帧执行时空局部动网格搜索；失锁 $> 15$ 帧执行全图检索，结合长宽比一致性严惩罚与连续两帧平滑确认排除地面杂波。
+- [x] **07-1.3 伺服平稳软启动**：从 LOST 态重捕时清零卡尔曼滤波速度与协方差，清空 PID 积分，杜绝机电伺服甩头冲击。
+- [x] **07-1.4 单元回归测试**：主工程 Release 构建通过（0 告警 0 错误），`test_amft.exe` 4/4 PASS 100% 通过。
+
+### 阶段五：YOLO 多模型受控领域微调、免重启热切换与抗虚警校验（方案 03，已全面闭环）
 - [x] **03-1 数据工程与格式标准化**：DUT Anti-UAV 7,800 份 XML 标注批量转换为标准 YOLO 格式（5,200 Train / 2,600 Val），重构 `train/images` 与 `val/images` 原生物理目录并保留兼容软链接，生成 [datasets/anti_uav.yaml](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/anti_uav.yaml)，经官方数据引擎全量扫描 100% 完好通过（0 损坏），生成 `.cache` 索引。
 - [x] **03-2 Blackwell RTX 5070 硬件级训练环境与全链路验收**：在 [D:\miniconda3](file:///d:/miniconda3) 部署独立 Python 3.11 专属环境 `anti_uav_yolo`，配置 PyTorch 2.14.1 + CUDA 13.0 (`cu130`)，攻克 RTX 5070 Laptop GPU 缺少 Blackwell `sm_120` 内核镜像的底层硬件报错；编写 [scripts/train_uav_detector.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/train_uav_detector.py) 并通过 1-Epoch 端到端实跑，成功导出单输入纯静态 ONNX 模型 (`1x3x640x640`, 10.2 MB)。
 - [x] **03-3 四款候选模型领域微调流水线 (Phase 1 100% 达成)**：
@@ -212,19 +218,24 @@ flowchart LR
 - [x] **03-5 C++ 多规格模型免重启热切换**：`OnnxDetector` 互斥锁加固与界面下拉菜单无缝实时重载。
 - [ ] **03-6 VaL_CNN 抗虚警二级校验**：放宽初筛低门限（0.2）同时抑制背景虚警（待补充数据集测试）。
 
-### 阶段五：基于轻量深度网络的可见光单目标跟踪（方案 04，当前推进 P0）
-- [x] **04-1.1 跟踪评测流水线搭建**：编写 `scripts/eval_sot.py`，加载本地已就绪的 DUT Anti-UAV 20 组真机长焦跟踪序列（`Anti-UAV-Tracking-V0`）与逐帧 Ground Truth（已闭环）。
-- [x] **04-1.2 传统与开源基线横评**：统一拉取自研 [DsstCore](file:///d:/PyProjects/RGB_PTZ_Integrated/dsstcore.h)、SiamCAR、LightTrack 进行 Success/Precision/FPS 对比分析（已闭环）。
-- [x] **04-2.1 自研轻量 SOT 网络搭建**：在 `models/sot/` 构建包含 Rep-Backbone、MFFN 多尺度细节融合与 DAC-Head 动态匹配头的自研架构（已闭环）。
-- [x] **04-2.2 样本对生成与两阶段训练**：编写样本对切片与空天时序增强管线，基于 RTX 5070 GPU 端到端 100 轮全量两阶段训练收敛（已闭环）。
-- [x] **04-3.1 学术消融与曲线绘制**：完成 4 组模块消融对比，在本地 DUT Anti-UAV 20 组真机跟踪序列（24,784 帧）全量评测达标 (DP@20 75.32%，FPS 224.5)，生成学术三线表与 300-DPI Pareto 能效前沿图（已闭环）。
-- [x] **04-4.1 纯静态 ONNX 解耦与 DirectML 部署**：导出 `lighttrack_template.onnx`、`lighttrack_search_256.onnx`、`lighttrack_search_288.onnx`，实现 C++ `OnnxSotTracker` 并闭环伺服；完成 WP0~WP7 全量实施、双内核分派、UI 交互与长稳回归验证（已全量闭环）。
+### 阶段六：基于 LightTrack 原版轻量深度跟踪基线接入与工程验证（方案 04，进行中 / 待验证）
+- [x] **04-1 原版静态 ONNX 导出与张量校验**：导出 `lighttrack_template.onnx`、`lighttrack_search_256.onnx`、`lighttrack_search_288.onnx` 纯静态双输入计算图（opset 17）。
+- [x] **04-2 C++ 抽象与推理引擎实现**：实现 `ISotTracker` 抽象接口与 `OnnxSotTracker` DirectML 驱动，对齐 Python 预处理、后处理与窗惩罚。
+- [x] **04-3 双内核分派与界面集成**：`ObjectTracker` 支持 `KERNEL_DSST` 与 `KERNEL_LIGHTTRACK` 动态切换，UI 集成内核选择与配置存盘。
+- [ ] **04-4 序列与长稳回归验证**：在 DUT Anti-UAV 20 组真机序列上执行闭环基准打点与长稳验证。
+- [ ] **04-5 实机外场动态目标跟踪与机电伺服闭环验证**：连接相机与云台开展外场实机跟踪与闭环延迟评测。
 
-### 阶段六：光电跟踪系统 RK3588 边缘端量化与工程移植实操方案（方案 05，终极规划）
+### 阶段七：光电跟踪系统 RK3588 边缘端量化与工程移植实操方案（方案 05，规划待开展）
 - [ ] **05-1 真实长焦工况校准集与全系统模型 INT8 量化**：YOLO 与 LightTrack 统一定点量化为 RKNN。
 - [ ] **05-2 嵌入式 aarch64 交叉编译与 librknnrt.so 运行时构建**：业务逻辑纯 C++ 100% 复用。
 - [ ] **05-3 NPU 多核调度亲和性与零拷贝 DMA-BUF 缓存接入**：SOT 独占 Core 0，YOLO 并发双核。
 - [ ] **05-4 RK3588 真机整机外场联调与闭环延迟验收**：伺服端到端延迟 $\le 30\text{ ms}$。
+
+### 阶段八：硕士课题算法深度创新与论文消融总控（方案 06，规划储备 / 尚未实现）
+- [ ] **06-1 自研轻量 SOT 网络架构搭建**：构建 Rep-LightBackbone 结构重参数化骨干、MFFN 浅层高分辨率细节融合与 DAC-Head 动态匹配头。
+- [ ] **06-2 样本对生成与端到端充分训练收敛**：空天样本对切片与数据增强管线，开展充分训练。
+- [ ] **06-3 弱小目标边界框损失与特征增强机制消融实验**：评测 CIoU/Inner-CIoU/NWD 损失函数与 ECA 模块收益。
+- [ ] **06-4 硕士学位论文核心消融矩阵与 Pareto 能效前沿图打点**：在权威空域数据集上完成最终对比与消融实验闭环。
 
 ---
 
@@ -232,26 +243,17 @@ flowchart LR
 
 > **归档指引**：历史检查点（#01 ~ #70）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_70.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_70.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-17 #71
+### Checkpoint 2026-11-23 #72
 - **记录人**：Antigravity (Gemini 3.8 Flash High)
-- **类型**：变焦尺度自适应与防误劫持目标重捕方案设计、实测验证与方案入库（方案 07 全量闭环就绪）
+- **类型**：方案实施逻辑与工程客观状态核准归正
 - **核心内容**：
-  1. **无人机实测问题排查与根因定位**：
-     - **变焦尺度不变跟丢**：定位到 DSST 离散尺度步长（单帧 1.05 上限）无法适应长焦连续光学放大速率，且手动框选模式下将变焦重校准逻辑意外短路；
-     - **脱靶后显眼位置重检未触发**：定位到框选模式硬编码禁用全局检测（强制走九宫格局部模板匹配，无法覆盖远离区域），且 AI 模式下存在 `maxRadius` 硬距离截断，飞回目标被主动剔除。
-  2. **编制方案 07《光电云台变焦尺度自适应与目标重捕恢复实操方案》**：
-     - 建立变焦双触发机制（持续变焦期间每 300ms 步进微调 + 松开按键终态收敛校准）；
-     - 重构分级重捕状态机（OCCLUDED 态局部时空关联，LOST 态全图无距离门限检索）；
-     - 引入长宽比一致性严惩罚与时序两帧平滑确认机制，排除地面杂波误劫持；
-     - 引入伺服平稳软启动机制：从 LOST 重捕时清零 KF 速度与协方差，清空 PID 积分，彻底杜绝伺服甩头冲击。
-  3. **真实视频序列（Anti-UAV `video01` 与实录视频）仿真闭环验证**：
-     - 变焦测试（2.5x 光学放大）：原版 DSST 尺度误差 58.0%（框小于目标），方案定向校准后尺度误差收敛至 15.7%，重构真实尺度；
-     - 脱靶大距离再入测试：原版在 $642\text{px}$ 搜索半径截断下对 $712\text{px}$ 目标直接漏捕；方案分级重捕成功解锁全图搜索，并依靠长宽比校验成功剔除地面横向杂波（长宽比 3.1 候选被过滤），以 0.502 分精准锁定真实目标。
-  4. **全量 20 组 Anti-UAV 序列 DirectML GPU 基准复核**：
-     - 完整运行 `test_sot_tracker.exe`，复核基准指标：AUC 50.53%，DP@20 63.49%，Mean CLE 135.72 px，T1 (256) P50 1.62ms，T1 (288) P50 1.82ms，确认 GPU 加速运行稳健。
-  5. **方案 07 全链路代码落地与构建闭环**：
-     - 修改 `mainwindow.h/.cpp`：增加 `m_zoomStepTimer`（按住变倍键 350ms 周期步进触发），模式切换与手动框选统一使能协同检测；
-     - 修改 `objecttracker.h/.cpp`：`update` 头部前置变焦校准并提供 5 帧重试容错；实现 `calibrateScaleOnZoom`；重构 `tryDetectAndRecover`（时空局部邻域 + 全图检索，长宽比一致性校验，连续 2 帧时序确认，KF 速度清零软启动）；
-     - 修改 `trackingcontroller.cpp`：`onTrackingLost` 与 `onTrackingRecovered` 均重置 PID 积分与历史误差；
-     - 主工程 `RGB_PTZ_Integrated.exe` 基于 MinGW 13.1 / C++17 Release 成功编译链接，0 告警 0 错误；`test_amft.exe` 回归测试 4/4 PASS 100% 通过。
-- **下一步**：连接实机进行外场长焦变焦无人机飞行联调测试；继续推进方案 05（光电跟踪系统 RK3588 边缘端量化与工程移植）。
+  1. **方案实施逻辑与阶段推进核准**：
+     - 确立方案 07（光电云台变焦尺度自适应与防误劫持目标重捕）为上位机跟踪与伺服状态机强化模块，相关 C++ 代码（变焦双触发校准、OCCLUDED/LOST 分级重捕、长宽比滤波、KF 速度清零软启动）已在主工程实施落地，Release 构建 0 告警 0 错误，`test_amft` 4/4 PASS；
+     - 方案 04（基于 LightTrack 原版轻量深度跟踪接入）C++ 接口与双内核分派已接入主工程，整机实机动态跟踪与伺服闭环处于待验证状态；
+     - 方案 06（硕士课题算法深度创新与重训消融）界定为规划储备阶段，尚未实现；
+     - 方案 05（RK3588 边缘端量化与工程移植）维持规划待执行状态。
+  2. **工程看板与事实源对齐**：
+     - 刷新 [待执行方案/00_方案总览与执行推进管理规范.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/00_方案总览与执行推进管理规范.md)，将方案 00~07 按真实工程依赖与实施逻辑排序；
+     - 刷新 [待执行方案/04_轻量单目标跟踪基准模型交付与工程链路跑通方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04_轻量单目标跟踪基准模型交付与工程链路跑通方案.md)，更新为进行中/待验证状态；
+     - 刷新 [课题/sot_ablation_summary.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/sot_ablation_summary.md)，明确学术消融矩阵的设计规划属性。
+- **下一步**：推进 LightTrack 深度跟踪整机闭环验证（方案 04）；开展外场变焦联调；筹备 RK3588 边缘端量化部署（方案 05）与自研网络重训消融（方案 06）。
