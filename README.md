@@ -113,15 +113,17 @@ RGB_PTZ_Integrated/
 
 ## 六、 方案演进总控全景看板
 
-本工程技术演进严格受控于 [待执行方案/00_方案总览与执行推进管理规范.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/00_方案总览与执行推进管理规范.md)：
+本工程技术演进严格受控于 [待执行方案/00_方案总览与执行推进管理规范.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/00_方案总览与执行推进管理规范.md)，方案实施先后顺序严格对齐：
 
 | 方案编号 | 方案名称 | 当前状态 | 达成成果 / 核心目标 |
 | :---: | :--- | :---: | :--- |
 | **01** | [Windows平台深度学习目标检测引擎接入方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/01_Windows平台深度学习目标检测与跟踪集成实操方案.md) | 🟢 **已全面闭环** | DirectML 3.06ms 极速底座打通，5/5 项全景体检全部 PASS |
 | **02** | [基于自适应多特征融合(AMFT)的协同实操方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/02_基于自适应多特征融合(AMFT)的光电云台检测-跟踪协同实操方案.md) | 🟢 **已全面闭环** | AMFT 状态机落地，0 FPS 冷态待机与单次唤醒闭环验收 PASS |
-| **03** | [YOLO多模型横评、免重启热切换与微尺度增强方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/03_YOLO多模型(v8n_11n_11s)性能横评与动态切换实操方案.md) | 🟡 **进行中 (当前主力 P0)** | v8n/s 与 11n/s 4 款模型就绪，UI 免重启热切换与消融测试 |
-| **04** | [基于轻量深度网络的可见光单目标跟踪实操方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04_基于轻量深度网络的可见光云台单目标跟踪实操方案.md) | ⚪ **已纳编 (Planned)** | LightTrack / RepSOT 3 通道高维色彩特征攻坚地表杂波 |
-| **05** | [光电跟踪系统RK3588边缘端量化与工程移植实操方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/05_光电跟踪系统RK3588边缘端量化与工程移植实操方案.md) | ⚪ **终极规划 (Planned)** | INT8 RKNN 模型量化、NPU 三核亲和性调度与 ARM64 闭环 |
+| **03** | [基于DUT Anti-UAV的YOLO多模型空域微调与动态切换实操方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/03_YOLO多模型(v8n_11n_11s)性能横评与动态切换实操方案.md) | 🟢 **已全面闭环** | 7,800 份标注标准化，4 款模型微调收敛，C++ 免重启动态热切换 |
+| **04** | [光电云台变焦尺度自适应与目标重捕恢复实操方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04_光电云台变焦尺度自适应与目标重捕恢复实操方案.md) | 🟢 **已实施闭环** | 变焦双触发校准、OCCLUDED/LOST分级重捕、长宽比滤波与伺服软启动代码落地 |
+| **05** | [基于LightTrack原版轻量深度跟踪基准模型交付与工程链路跑通方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/05_轻量单目标跟踪基准模型交付与工程链路跑通方案.md) | 🟡 **进行中 (代码接入就绪，待验证)** | 纯静态双输入 ONNX 导出，C++ ISotTracker/OnnxSotTracker 双内核分派接入主工程 |
+| **06** | [光电跟踪系统RK3588边缘端量化与工程移植实操方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/06_光电跟踪系统RK3588边缘端量化与工程移植实操方案.md) | ⚪ **工程落地规划 (Planned)** | INT8 RKNN 模型量化、NPU 三核亲和性调度与 ARM64 闭环 |
+| **07** | [后续创新规划（硕士课题算法深度创新与论文消融总控方案）](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/07_后续创新规划.md) | ⚪ **规划储备 (尚未实现)** | 自研 Rep-LightBackbone 结构重参数化、MFFN 细节融合、DAC-Head 动态头与论文消融 |
 
 ---
 

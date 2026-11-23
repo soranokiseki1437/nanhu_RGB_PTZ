@@ -1,8 +1,14 @@
-# Qt上位机嵌入LightTrack轻量单目标跟踪算法执行方案
+# Qt上位机嵌入LightTrack轻量单目标跟踪算法执行方案（已实现归档）
 
-> **文件性质**：工程实施规范（供执行代理逐包实施）  
+> **归档状态**：🟢 **工程代码与离线验证全量实现闭环（归档存查）**  
 > **归属工程**：[RGB_PTZ_Integrated](file:///d:/PyProjects/RGB_PTZ_Integrated)  
-> **关联方案**：[04_轻量单目标跟踪基准模型交付与工程链路跑通方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04_轻量单目标跟踪基准模型交付与工程链路跑通方案.md)、[05_光电跟踪系统RK3588边缘端量化与工程移植实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/05_光电跟踪系统RK3588边缘端量化与工程移植实操方案.md)  
+> **对应总控方案**：[05_轻量单目标跟踪基准模型交付与工程链路跑通方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/05_轻量单目标跟踪基准模型交付与工程链路跑通方案.md)  
+> **落地核心产物**：
+> - 跟踪抽象接口与驱动：[ISotTracker.h](file:///d:/PyProjects/RGB_PTZ_Integrated/ISotTracker.h)、[onnxsottracker.h](file:///d:/PyProjects/RGB_PTZ_Integrated/onnxsottracker.h) / [.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/onnxsottracker.cpp)
+> - 纯静态计算图：`models/lighttrack_template.onnx`、`lighttrack_search_256.onnx`、`lighttrack_search_288.onnx`
+> - 离线评测与标定工具：[tools/test_sot_tracker.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_sot_tracker.cpp) 及评测报告 [results/lighttrack/](file:///d:/PyProjects/RGB_PTZ_Integrated/results/lighttrack/)
+> - 主工程双内核集成：[objecttracker.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp)（DSST 与 LightTrack 双内核分派）、[trackingcontroller.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/trackingcontroller.cpp)（引擎注入与飞行记录）与 [mainwindow.ui](file:///d:/PyProjects/RGB_PTZ_Integrated/mainwindow.ui)（内核选择控件）
+> - 待执行项：整机外场实机联调闭环验证
 > **算法事实源**：`D:\PyProjects\SOT_Tracking_Baselines_官方权重试跑\algorithms\LightTrack\lib\tracker\lighttrack.py`、`...\lib\utils\utils.py`（`get_subwindow_tracking`、`python2round`、`cxy_wh_2_rect`）、`...\experiments\test\OTB\LightTrack.yaml`；评测协议事实源 `...\evaluation\run_eval.py`、`...\evaluation\metrics.py`、`...\evaluation\trackers\lighttrack_adapter.py`
 
 ---
