@@ -36,13 +36,13 @@ flowchart LR
 
 ---
 
-## 二、当前项目状态快照（2026-11-23 最新）
+## 二、当前项目状态快照（2026-11-24 最新）
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
-| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 交付 5 款标准静态 ONNX)；目标跟踪：双内核 (DSST 滤波闭环 + LightTrack 原版 C++ 代码接入待验证)；协同大脑：AMFT 状态机 + 方案 04 变焦/重捕控制强化** | 1. 目标检测：YOLO 多模型领域微调与免重启动态热切换（方案 03）已闭环；<br>2. 协同大脑：AMFT 三维评估状态机（方案 02）已闭环；<br>3. 控制与状态机强化：变焦双触发尺度校准、分级防误劫持重捕与伺服软启动（方案 04）代码已实施落地；<br>4. 深度跟踪基线：LightTrack 原版纯静态 ONNX 与 C++ DirectML 双内核分派已接入主工程（方案 05），对应工程实施规范已归档存查，待整机闭环验证；<br>5. 后续演进：推进 RK3588 边缘端量化移植（方案 06）与硕士课题算法深度创新及重训消融（方案 07，规划储备/尚未实现）。 |
-| **最新进展** | 🟢 **方案 04 工程全链路代码落地实施；主工程 Release 编译 0 告警 0 错误；test_amft 回归测试 4/4 PASS 100% 通过；方案编号与实施先后顺序严格对齐** | 变焦双触发（350ms 持续步进 + 终态校准）与 5 帧重试容错已接入；重构 `tryDetectAndRecover` 实现 OCCLUDED 局部邻域关联与 LOST 全图两级重捕；长宽比一致性校验排除地面杂波；脱靶恢复 KF 速度强制清零与 PID 平稳软启动落地；主工程 Release 构建通过生成 `RGB_PTZ_Integrated.exe`；`test_amft` 4/4 PASS；LightTrack 嵌入执行规范归档至 `待执行方案/archive/`。 |
-| **编译状态** | 🟢 **通过（0 告警 0 错误）** | Release 构建已通过，主工程、test_sot_tracker 与 test_amft 基于 Qt 6.12.0 / C++17 / MinGW 13.1 64-bit 完好编译链接，全部 DLL 与 ONNX 模型自动同步 |
+| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 交付 5 款标准静态 ONNX)；目标跟踪：双内核 (DSST 滤波闭环 + LightTrack ONNX)；协同大脑：AMFT 状态机 + 初始锚点防劫持校验** | 1. 目标检测：YOLO 多模型领域微调与免重启动态热切换（方案 03）已闭环；<br>2. 协同大脑：AMFT 三维评估状态机（方案 02）与不可变初始目标外观锚点守护机制已闭环；<br>3. 控制与状态机强化：变焦双触发尺度校准、分级防误劫持重捕与伺服软启动（方案 04）代码已实施落地；<br>4. 深度跟踪基线：LightTrack 原版纯静态 ONNX 与 C++ DirectML 双内核分派已接入主工程（方案 05），待整机实机闭环验证；<br>5. 后续演进：推进 RK3588 边缘端量化移植（方案 06）与硕士课题算法深度创新及重训消融（方案 07，规划储备/尚未实现）。 |
+| **最新进展** | 🟢 **目标丢失保持与防异物劫持机制落地；主工程、`test_amft` 与 `test_sot_tracker` Release 编译通过；`test_amft` 5/5 PASS（DSST/LightTrack 防劫持与原目标回归闭环验证通过）** | 固化初始目标 HSV 色彩-亮度直方图与 `24×24` ZNCC 模板及内核原始特征（`OnnxSotTracker::m_anchorTemplateFeat`、`DsstCore::detectOnlyBackup`）；实现丢失首帧即时冻结学习、重捕候选框锚点一致性校验、`TRACK_LOST` 双帧空间连续确认与非破坏性状态恢复；主工程 `RGB_PTZ_Integrated.exe`、`test_sot_tracker.exe`、`test_amft.exe` 编译通过；`test_amft.exe` 5/5 PASS（序列均值误差 `2.68 px`，DSST 回归误差 `0.00 px`，LightTrack 回归误差 `1.17 px`）。 |
+| **编译状态** | 🟢 **通过（0 错误）** | Release 构建已通过，主工程、`test_sot_tracker` 与 `test_amft` 基于 Qt 6.12.0 / C++17 / MinGW 13.1 64-bit 完好编译链接，全部 DLL 与 ONNX 模型自动同步 |
 | **GPU 推理基准** | 🟢 **DirectML 硬件加速：YOLO 检测 2.7~5.8ms；LightTrack 纯前向 1.83ms (0.58 GFLOPs)** | NVIDIA RTX 5070 Laptop GPU：满足 <=5ms 机电伺服硬实时要求；当前处于待整机实机闭环验证阶段 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
 | **待执行核心任务** | 🟡 **推进 LightTrack 深度跟踪整机闭环验证（方案 05）、外场变焦联调、RK3588 边缘移植（方案 06）与学术创新重训实验准备（方案 07）** | 推进方案 05 序列与外场整机跟踪验证；连接相机与云台开展外场实机长焦变焦飞行跟踪测试；筹备方案 06 边缘端量化部署与方案 07 自研架构重训消融 |
@@ -242,20 +242,21 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #70）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_70.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_70.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #72）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_72.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_72.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-23 #72
-- **记录人**：Antigravity (Gemini 3.8 Flash High)
-- **类型**：方案实施先后顺序严格对齐与 LightTrack 执行规范归档
+### Checkpoint 2026-11-24 #73
+- **记录人**：Antigravity (Gemini 4 Hydrogen High)
+- **类型**：目标丢失状态保持、不可变外观锚点防异物劫持及原目标回归重捕闭环修复
 - **核心内容**：
-  1. **方案编号与实施先后顺序严格对齐**：
-     - 已实施闭环的上位机控制强化方案调整为 [方案 04](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/04_光电云台变焦尺度自适应与目标重捕恢复实操方案.md)（变焦双触发校准、分级重捕、软启动，主工程 Release 编译通过，`test_amft` 4/4 PASS），排在未实施方案之前；
-     - 原 LightTrack 深度跟踪基线交付调整为 [方案 05](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/05_轻量单目标跟踪基准模型交付与工程链路跑通方案.md)，状态为代码接入完成、待整机实机验证；
-     - 原 RK3588 边缘端量化移植顺延为 [方案 06](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/06_光电跟踪系统RK3588边缘端量化与工程移植实操方案.md)，状态为规划待执行；
-     - 原后续创新规划顺延为 [方案 07](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/07_后续创新规划.md)，状态为规划储备、尚未实现。
-  2. **LightTrack 工程实施规范归档**：
-     - 确认 `Qt上位机嵌入LightTrack轻量单目标跟踪算法执行方案.md` 涉及的 WP0~WP5 代码、ONNX 静态模型、离线评测工具与主工程双内核分派已全部实现落地；
-     - 整理其完成结论与落地产物，归档至 [待执行方案/archive/Qt上位机嵌入LightTrack轻量单目标跟踪算法执行方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/archive/Qt上位机嵌入LightTrack轻量单目标跟踪算法执行方案.md)，保持主方案目录清晰聚焦。
-- **下一步**：推进方案 05（LightTrack 深度跟踪）整机闭环验证；开展外场变焦联调（方案 04 真机检验）；筹备方案 06（RK3588 边缘端量化）与方案 07（自研网络重训消融）。
-     - 刷新 [课题/sot_ablation_summary.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/sot_ablation_summary.md)，明确学术消融矩阵的设计规划属性。
-- **下一步**：推进 LightTrack 深度跟踪整机闭环验证（方案 04）；开展外场变焦联调；筹备 RK3588 边缘端量化部署（方案 05）与自研网络重训消融（方案 06）。
+  1. **初始目标不可变模板与外观锚点固化**：
+     - [ISotTracker.h](file:///d:/PyProjects/RGB_PTZ_Integrated/ISotTracker.h) 与 [onnxsottracker.h](file:///d:/PyProjects/RGB_PTZ_Integrated/onnxsottracker.h) / [onnxsottracker.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/onnxsottracker.cpp) 新增 `m_anchorTemplateFeat` 与 `peekBox()`，在 `init()` 时固化 `1×96×8×8` 初始模板特征；
+     - [dsstcore.h](file:///d:/PyProjects/RGB_PTZ_Integrated/dsstcore.h) / [dsstcore.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/dsstcore.cpp) 新增 `detectOnlyBackup()` 与 `setScale()`，利用 `m_hfNumBackup`/`m_hfDenBackup` 支持任意尺度锚点探测；
+     - [objecttracker.h](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.h) / [objecttracker.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp) 在 `init()` 时固化 HSV 色彩-亮度直方图与 `24×24` ZNCC 模板 `m_anchor`，全程保持不可变。
+  2. **实时异常监测、瞬时冻结与非破坏性重捕恢复**：
+     - 在 `TRACK_NORMAL` 中引入内核置信底线（DSST `PSR >= 7.0`、LightTrack `score >= 0.70`）与初始外观一致性监测（`histSim` / `zncc`），在首个异常帧即刻冻结 DSST 学习；
+     - `tryDetectAndRecover()` 对每个 YOLO 候选框强制执行 `verifyRecoveryCandidate()`（外观直方图 + ZNCC + 内核锚点探测），拦截异物劫持；`TRACK_LOST` 双帧确认增加空间连续性约束；
+     - 命中原目标后通过 `recoverWithAnchorState()` 恢复状态（LightTrack 调用 `setState()`，DSST 调用 `blendBackup(0.85f)` + `setPosition()` + `setScale()`），严禁覆写初始模板；丢失期间对 KF 速度施加阻尼并将预测位置钳制在图像边界内。
+  3. **编译与回归测试验收**：
+     - 主工程 `RGB_PTZ_Integrated.exe`、`test_sot_tracker.exe`、`test_amft.exe` Release 编译通过；
+     - [tools/test_amft.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/test_amft.cpp) 新增第 5 项测试（DSST 与 LightTrack 丢失保持、异物 B 劫持拦截、原目标 A 远端回归锁定），实跑 5/5 PASS（序列均值误差 `2.68 px`，DSST 回归误差 `0.00 px`，LightTrack 回归误差 `1.17 px`）。
+- **下一步**：推进方案 05（LightTrack 深度跟踪）整机实机闭环验证；开展外场变焦与抗遮挡实机联调；筹备方案 06（RK3588 边缘端量化）与方案 07（自研网络重训消融）。

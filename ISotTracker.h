@@ -47,6 +47,13 @@ public:
     // 以给定候选中心执行一次前向探针评估，不修改内部跟踪状态
     virtual SotResult peek(const cv::Mat& bgr, cv::Point2f center) = 0;
 
+    // 以给定候选框与初始锚点模板执行前向一致性探针评估，不修改内部跟踪状态
+    virtual SotResult peekBox(const cv::Mat& bgr, const cv::Rect2f& bbox, bool useAnchorTemplate = true)
+    {
+        Q_UNUSED(useAnchorTemplate);
+        return peek(bgr, cv::Point2f(bbox.x + bbox.width * 0.5f, bbox.y + bbox.height * 0.5f));
+    }
+
     // 重置目标位置与尺寸（保留已提取模板特征）
     virtual void setState(cv::Point2f center, cv::Size2f size) = 0;
 

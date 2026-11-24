@@ -31,6 +31,9 @@ public:
     // 重检测用：以 center 为中心只做一次平移检测，不更新模型、不改内部状态
     cv::Rect detectOnly(const cv::Mat& image, cv::Point2f center, cv::Mat* response = nullptr);
 
+    // 锚点验证用：使用 init 时刻备份的初始滤波器在指定中心与尺度做检测，不修改内部状态
+    cv::Rect detectOnlyBackup(const cv::Mat& image, cv::Point2f center, float scale, cv::Mat* response = nullptr) const;
+
     void setLearningFrozen(bool frozen);            // 遮挡期冻结模型滑动平均（检测/位置/尺度照常）
     void blendBackup(float backupWeight);           // 模型 = w*备份(init时刻) + (1-w)*当前
     void setScaleEstimateEveryOtherFrame(bool on);  // 性能开关，默认 false（=reference 每帧都做）
@@ -39,6 +42,7 @@ public:
     bool isInitialized() const;
     cv::Point2f position() const;
     void setPosition(const cv::Point2f& p) { m_pos = p; }  // 外壳重检测成功后回同步位置
+    void setScale(float scale);                            // 外壳重检测成功后回同步尺度
     float currentScale() const;
     cv::Size targetSize() const;
     cv::Size modelSize() const;
@@ -89,9 +93,9 @@ private:
     std::vector<cv::Mat> getTranslationSample(const cv::Mat& im, cv::Point2f pos, float scale) const;
     cv::Mat getScaleSample(const cv::Mat& im, cv::Point2f pos, const std::vector<float>& factors) const;
 
-    // reference update() 前半段（平移检测）抽出的公共实现，update/detectOnly 共用
+    // reference update() 前半段（平移检测）抽出的公共实现，update/detectOnly/detectOnlyBackup 共用
     bool detectAt(const cv::Mat& image, cv::Point2f center, float scale,
-                  cv::Point* maxLoc, cv::Mat* outResponse) const;
+                  cv::Point* maxLoc, cv::Mat* outResponse, bool useBackup = false) const;
     // 由中心点+尺度算目标框（含 R1 边界修复）
     cv::Rect makeRect(const cv::Mat& image, cv::Point2f pos, float scale) const;
 

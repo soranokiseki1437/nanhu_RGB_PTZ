@@ -17,6 +17,7 @@
 #include "../objecttracker.h"
 #include "../amftevaluator.h"
 #include "../onnxdetector.h"
+#include "../onnxsottracker.h"
 #include "../imagematconvert.h"
 
 // 读取 Ground Truth 标注列表 (1-indexed 对齐：gts[1] 对应第 1 帧 00001.jpg)
@@ -256,6 +257,141 @@ int main(int argc, char* argv[])
     std::cout << ">> 判定结果: " << (pass4 ? "[通过 PASS]" : "[未达标 FAIL]") << std::endl;
 
     // =========================================================================
+    // [体检 5/5] 抗相似异物劫持与原目标回归重捕验证 (DSST & LightTrack)
+    // =========================================================================
+    std::cout << "\n------------------------------------------------------------------------" << std::endl;
+    std::cout << " [体检 5/5] 丢失过程确认、异物劫持拦截与原目标回归重捕验证" << std::endl;
+    std::cout << "------------------------------------------------------------------------" << std::endl;
+
+    class MockSwitchDetector : public IDetector {
+    public:
+        bool loadModel(const QString&, const DetectorConfig& = DetectorConfig()) override { return true; }
+        bool isLoaded() const override { return true; }
+        float getInferenceTimeMs() const override { return 1.0f; }
+        cv::Size getInputSize() const override { return cv::Size(640, 640); }
+        std::vector<DetectionBox> detect(const cv::Mat&) override { return nextBoxes; }
+        std::vector<DetectionBox> nextBoxes;
+    };
+
+    // 构造清晰纹理目标 A（蓝底黄十字+纹理）与异物 B（纯红黑条纹，尺寸相近但外观迥异）
+    auto drawTargetA = [](cv::Mat& canvas, cv::Point center) {
+        cv::Rect r(center.x - 30, center.y - 24, 60, 48);
+        cv::rectangle(canvas, r, cv::Scalar(200, 120, 30), -1);
+        cv::line(canvas, cv::Point(r.x + 6, center.y), cv::Point(r.x + r.width - 6, center.y), cv::Scalar(40, 230, 250), 4);
+        cv::line(canvas, cv::Point(center.x, r.y + 6), cv::Point(center.x, r.y + r.height - 6), cv::Scalar(40, 230, 250), 4);
+        cv::circle(canvas, center, 10, cv::Scalar(255, 255, 255), 2);
+    };
+    auto drawDistractorB = [](cv::Mat& canvas, cv::Point center) {
+        cv::Rect r(center.x - 30, center.y - 24, 60, 48);
+        cv::rectangle(canvas, r, cv::Scalar(30, 40, 210), -1);
+        cv::rectangle(canvas, cv::Rect(r.x + 8, r.y + 8, r.width - 16, r.height - 16), cv::Scalar(20, 20, 20), -1);
+    };
+
+    auto runAntiHijackTest = [&](TrackingKernel kernel, const char* kernelName) -> bool {
+        auto mockDet = std::make_shared<MockSwitchDetector>();
+        ObjectTracker t;
+        t.setTrackingKernel(kernel);
+        if (kernel == TrackingKernel::KERNEL_LIGHTTRACK) {
+            SotTrackerConfig scfg;
+            scfg.templateModel = "models/lighttrack_template.onnx";
+            scfg.searchModelSmall = "models/lighttrack_search_256.onnx";
+            scfg.searchModelBig = "models/lighttrack_search_288.onnx";
+            scfg.useGpu = true;
+            auto sot = std::make_shared<OnnxSotTracker>(scfg);
+            if (!sot->ensureLoaded()) {
+                std::cout << ">> [" << kernelName << "] LightTrack 模型未就绪，跳过\n";
+                return false;
+            }
+            t.setSotEngine(sot);
+        }
+        t.setRedetectionEnabled(true);
+        t.setDetector(mockDet);
+
+        cv::Mat bg(720, 1280, CV_8UC3, cv::Scalar(140, 145, 150));
+        cv::Mat f0 = bg.clone();
+        drawTargetA(f0, cv::Point(300, 300));
+        if (!t.init(MatToQImage(f0), QRectF(270, 276, 60, 48))) return false;
+
+        // 1) 正常跟踪 8 帧
+        for (int i = 1; i <= 8; ++i) {
+            cv::Mat f = bg.clone();
+            drawTargetA(f, cv::Point(300 + i * 3, 300));
+            TrackResult r = t.update(MatToQImage(f));
+            if (r.state != AMFTTrackingState::TRACK_NORMAL) {
+                std::cout << ">> [" << kernelName << "] 正常阶段异常触发 state=" << static_cast<int>(r.state) << "\n";
+                return false;
+            }
+        }
+
+        // 2) 目标 A 消失，临近位置出现尺寸相近的异物 B（持续 22 帧，YOLO 报出高置信度异物 B）
+        bool enteredOccluded = false;
+        bool enteredLost = false;
+        bool hijackedB = false;
+        for (int i = 0; i < 22; ++i) {
+            cv::Mat f = bg.clone();
+            drawDistractorB(f, cv::Point(340, 305));
+            DetectionBox boxB;
+            boxB.rect = QRectF(310, 281, 60, 48);
+            boxB.confidence = 0.90f;
+            boxB.className = "distractor";
+            mockDet->nextBoxes = {boxB};
+
+            TrackResult r = t.update(MatToQImage(f));
+            if (r.state == AMFTTrackingState::TRACK_OCCLUDED) enteredOccluded = true;
+            if (r.state == AMFTTrackingState::TRACK_LOST) enteredLost = true;
+            if (r.state == AMFTTrackingState::TRACK_REACQUIRED ||
+                (i >= 6 && r.state == AMFTTrackingState::TRACK_NORMAL)) {
+                hijackedB = true;
+            }
+        }
+
+        // 3) 原目标 A 在远端 (820, 240) 重新出现（异物 B 仍在画面且 YOLO 置信度更高），连续检出验证回归
+        bool recoveredA = false;
+        float finalErrA = 999.0f;
+        for (int i = 0; i < 25; ++i) {
+            cv::Mat f = bg.clone();
+            drawDistractorB(f, cv::Point(340, 305));
+            drawTargetA(f, cv::Point(820, 240));
+
+            DetectionBox boxB;
+            boxB.rect = QRectF(310, 281, 60, 48);
+            boxB.confidence = 0.92f;
+            boxB.className = "distractor";
+
+            DetectionBox boxA;
+            boxA.rect = QRectF(790, 216, 60, 48);
+            boxA.confidence = 0.78f;
+            boxA.className = "target_A";
+
+            mockDet->nextBoxes = {boxB, boxA};
+
+            TrackResult r = t.update(MatToQImage(f));
+            if (r.state == AMFTTrackingState::TRACK_REACQUIRED) {
+                recoveredA = true;
+            }
+            if (recoveredA && r.state == AMFTTrackingState::TRACK_NORMAL) {
+                float dx = static_cast<float>(r.bbox.center().x() - 820.0);
+                float dy = static_cast<float>(r.bbox.center().y() - 240.0);
+                finalErrA = std::sqrt(dx * dx + dy * dy);
+                break;
+            }
+        }
+
+        const bool ok = enteredOccluded && enteredLost && !hijackedB && recoveredA && (finalErrA < 15.0f);
+        std::cout << ">> [" << kernelName << "] enteredOccluded=" << enteredOccluded
+                  << " enteredLost=" << enteredLost
+                  << " hijackedB=" << hijackedB
+                  << " recoveredA=" << recoveredA
+                  << " finalErrA=" << finalErrA << "px => "
+                  << (ok ? "[PASS]" : "[FAIL]") << "\n";
+        return ok;
+    };
+
+    const bool pass5Dsst = runAntiHijackTest(TrackingKernel::KERNEL_DSST, "DSST");
+    const bool pass5Lt   = runAntiHijackTest(TrackingKernel::KERNEL_LIGHTTRACK, "LightTrack");
+    const bool pass5 = pass5Dsst && pass5Lt;
+
+    // =========================================================================
     // 总结报告
     // =========================================================================
     std::cout << "\n========================================================================" << std::endl;
@@ -265,9 +401,10 @@ int main(int argc, char* argv[])
     std::cout << " 2. 瞬态干扰平滑压制 (S_mot 连续性保护)     : " << (pass2 ? "PASS 达成" : "FAIL") << std::endl;
     std::cout << " 3. 严重遮挡单次唤醒与下一帧强制回归铁律   : " << (pass3 ? "PASS 达成 (REACQUIRED ──► NORMAL)" : "FAIL") << std::endl;
     std::cout << " 4. 全长调用率与精度 (CallRate < 5%, Err<3px): " << (pass4 ? "PASS 达成 (调用率 " + std::to_string(callRate).substr(0,4) + "%, 误差 " + std::to_string(meanErr).substr(0,4) + "px)" : "FAIL") << std::endl;
+    std::cout << " 5. 丢失状态保持与防异物劫持 (DSST+LT)     : " << (pass5 ? "PASS 达成 (拒绝异物B，原目标A回归锁定)" : "FAIL") << std::endl;
     std::cout << "------------------------------------------------------------------------" << std::endl;
 
-    bool allSuccess = pass1 && pass2 && pass3 && pass4;
+    bool allSuccess = pass1 && pass2 && pass3 && pass4 && pass5;
     if (allSuccess) {
         std::cout << ">> 综合验收结论: [方案 02 协同闭环全面达标 🟢 PASS] - 成功取代九宫格盲试！" << std::endl;
     } else {

@@ -38,6 +38,7 @@ void ObjectTracker::reset()
     m_zoomCalibRetries = 0;
     m_reacquireConsecutiveHits = 0;
     m_candidateBox = DetectionBox();
+    m_anchor = TargetAnchor();
     m_evaluator.reset();
     m_lastScore = AMFTScore();
 }
@@ -174,6 +175,14 @@ bool ObjectTracker::init(const QImage& frame, const QRectF& targetRect)
                                 m_posY - m_targetH * 0.5f,
                                 m_targetW, m_targetH));
 
+    // 固化初始目标不可变外观锚点（全程禁止被重捕流程覆写）
+    m_anchor = TargetAnchor();
+    m_anchor.initBbox = cv::Rect2f(static_cast<float>(left), static_cast<float>(top),
+                                   static_cast<float>(clippedW), static_cast<float>(clippedH));
+    m_anchor.valid = extractPatchAppearance(image, m_anchor.initBbox,
+                                            m_anchor.histHS, m_anchor.histV, m_anchor.patchNorm,
+                                            m_anchor.hasTexture, m_anchor.isColor, m_anchor.meanSat);
+
     m_initialized = true;
     m_trackingState = AMFTTrackingState::TRACK_NORMAL;
     qCDebug(trackerLog) << "[ObjectTracker] 初始化成功, 模型尺寸:" << modelSize()
@@ -238,6 +247,12 @@ void ObjectTracker::kfPredict()
     const bool inLoss = (m_trackingState == AMFTTrackingState::TRACK_OCCLUDED ||
                          m_trackingState == AMFTTrackingState::TRACK_LOST ||
                          m_inOcclusion);
+    if (inLoss) {
+        // 遮挡/丢失期间对推算速度施加阻尼，防止长期失锁时预测坐标飞出画面
+        const float damp = (m_trackingState == AMFTTrackingState::TRACK_LOST) ? 0.0f : 0.85f;
+        m_kf.x[2] *= damp;
+        m_kf.x[3] *= damp;
+    }
     const cv::Matx44f& activeQ = inLoss ? m_kfQLost : m_kfQ;
     m_kf.P = A * m_kf.P * A.t() + activeQ;
 }
@@ -303,6 +318,244 @@ void ObjectTracker::kfUpdate(float measX, float measY)
             }
         }
     }
+}
+
+// ========================
+// 初始目标外观特征提取与锚点校验（防止丢失后被异物永久劫持）
+// ========================
+bool ObjectTracker::extractPatchAppearance(const cv::Mat& image, const cv::Rect2f& box,
+                                           cv::Mat& outHistHS, cv::Mat& outHistV, cv::Mat& outPatchNorm,
+                                           bool& outHasTexture, bool& outIsColor, float& outMeanSat) const
+{
+    if (image.empty() || box.width < 4.0f || box.height < 4.0f) {
+        return false;
+    }
+
+    const cv::Rect imgBounds(0, 0, image.cols, image.rows);
+    cv::Rect roi(static_cast<int>(std::round(box.x)),
+                 static_cast<int>(std::round(box.y)),
+                 static_cast<int>(std::round(box.width)),
+                 static_cast<int>(std::round(box.height)));
+    roi &= imgBounds;
+    if (roi.width < 4 || roi.height < 4) {
+        return false;
+    }
+
+    // 直方图采用适度内缩ROI，降低框边缘背景像素渗入干扰
+    cv::Rect histRoi = roi;
+    if (roi.width >= 12 && roi.height >= 12) {
+        const int insetX = std::max(1, roi.width / 10);
+        const int insetY = std::max(1, roi.height / 10);
+        cv::Rect inner(roi.x + insetX, roi.y + insetY,
+                       roi.width - 2 * insetX, roi.height - 2 * insetY);
+        if (inner.width >= 4 && inner.height >= 4) {
+            histRoi = inner;
+        }
+    }
+
+    const cv::Mat histPatch = image(histRoi);
+    if (image.channels() >= 3) {
+        outIsColor = true;
+        cv::Mat hsv;
+        cv::cvtColor(histPatch, hsv, cv::COLOR_BGR2HSV);
+        outMeanSat = static_cast<float>(cv::mean(hsv)[1]);
+
+        int hsSizes[] = {16, 8};
+        float hRange[] = {0.0f, 180.0f};
+        float sRange[] = {0.0f, 256.0f};
+        const float* hsRanges[] = {hRange, sRange};
+        const int hsCh[] = {0, 1};
+        cv::calcHist(&hsv, 1, hsCh, cv::Mat(), outHistHS, 2, hsSizes, hsRanges, true, false);
+        cv::normalize(outHistHS, outHistHS, 1.0, 0.0, cv::NORM_L1);
+
+        int vSize = 16;
+        float vRange[] = {0.0f, 256.0f};
+        const float* vRanges[] = {vRange};
+        const int vCh[] = {2};
+        cv::calcHist(&hsv, 1, vCh, cv::Mat(), outHistV, 1, &vSize, vRanges, true, false);
+        cv::normalize(outHistV, outHistV, 1.0, 0.0, cv::NORM_L1);
+    } else {
+        outIsColor = false;
+        outMeanSat = 0.0f;
+        outHistHS.release();
+
+        int gSize = 16;
+        float gRange[] = {0.0f, 256.0f};
+        const float* gRanges[] = {gRange};
+        const int gCh[] = {0};
+        cv::calcHist(&histPatch, 1, gCh, cv::Mat(), outHistV, 1, &gSize, gRanges, true, false);
+        cv::normalize(outHistV, outHistV, 1.0, 0.0, cv::NORM_L1);
+    }
+
+    // 24x24 零均值单位范数灰度模板（用于 ZNCC 结构纹理比对）
+    cv::Mat grayRoi;
+    if (image.channels() >= 3) {
+        cv::cvtColor(image(roi), grayRoi, cv::COLOR_BGR2GRAY);
+    } else {
+        grayRoi = image(roi);
+    }
+    cv::Mat resized;
+    const int interp = (roi.width > 24 || roi.height > 24) ? cv::INTER_AREA : cv::INTER_LINEAR;
+    cv::resize(grayRoi, resized, cv::Size(24, 24), 0, 0, interp);
+    resized.convertTo(outPatchNorm, CV_32F);
+    outPatchNorm -= cv::mean(outPatchNorm)[0];
+    const double normVal = cv::norm(outPatchNorm, cv::NORM_L2);
+    if (normVal > 1e-3) {
+        outPatchNorm /= static_cast<float>(normVal);
+        outHasTexture = true;
+    } else {
+        outPatchNorm = cv::Mat::zeros(24, 24, CV_32F);
+        outHasTexture = false;
+    }
+    return true;
+}
+
+ObjectTracker::AnchorMatchScore ObjectTracker::evaluateAnchorSimilarity(
+    const cv::Mat& image, const cv::Rect2f& candBox, bool runKernelCheck) const
+{
+    AnchorMatchScore res;
+    if (!m_anchor.valid) {
+        res.histSim = 1.0f;
+        res.zncc = 1.0f;
+        return res;
+    }
+
+    cv::Mat candHS, candV, candPatch;
+    bool candTex = false, candColor = true;
+    float candSat = 0.0f;
+    if (!extractPatchAppearance(image, candBox, candHS, candV, candPatch, candTex, candColor, candSat)) {
+        return res;
+    }
+
+    auto bhattSim = [](const cv::Mat& h1, const cv::Mat& h2) -> float {
+        if (h1.empty() || h2.empty()) return 0.0f;
+        const double d = cv::compareHist(h1, h2, cv::HISTCMP_BHATTACHARYYA);
+        if (std::isnan(d) || std::isinf(d)) return 0.0f;
+        return std::clamp(static_cast<float>(1.0 - d * d), 0.0f, 1.0f);
+    };
+
+    const float bcV = bhattSim(m_anchor.histV, candV);
+    if (m_anchor.isColor && candColor) {
+        const float bcHS = bhattSim(m_anchor.histHS, candHS);
+        // 低饱和度（黑白灰目标）自动提高亮度权重，避免色相噪声误伤
+        const float satWeight = std::clamp((m_anchor.meanSat - 15.0f) / 45.0f, 0.25f, 0.65f);
+        res.histSim = satWeight * bcHS + (1.0f - satWeight) * bcV;
+    } else {
+        res.histSim = bcV;
+    }
+
+    if (m_anchor.hasTexture && candTex) {
+        res.zncc = std::clamp(static_cast<float>(m_anchor.patchNorm.dot(candPatch)), -1.0f, 1.0f);
+    } else {
+        res.zncc = 0.5f;
+    }
+
+    if (runKernelCheck) {
+        const cv::Point2f candCenter(candBox.x + candBox.width * 0.5f,
+                                     candBox.y + candBox.height * 0.5f);
+        if (m_kernel == TrackingKernel::KERNEL_LIGHTTRACK) {
+            if (m_sot && m_sot->isInitialized()) {
+                const SotResult probe = m_sot->peekBox(image, candBox, true);
+                if (probe.valid) {
+                    const float dist = static_cast<float>(cv::norm(probe.center - candCenter));
+                    const float maxShift = std::max(candBox.width, candBox.height) * 0.75f + 12.0f;
+                    if (dist <= maxShift) {
+                        res.kernelScore = probe.score;
+                    }
+                }
+            }
+        } else {
+            const float baseArea = std::max(16.0f, static_cast<float>(m_core.targetSize().area()));
+            const float candArea = std::max(16.0f, candBox.width * candBox.height);
+            const float candScale = std::sqrt(candArea / baseArea);
+            cv::Mat resp;
+            const cv::Rect r = m_core.detectOnlyBackup(image, candCenter, candScale, &resp);
+            if (r.width > 0 && !resp.empty()) {
+                const cv::Point2f rCenter(r.x + r.width * 0.5f, r.y + r.height * 0.5f);
+                const float dist = static_cast<float>(cv::norm(rCenter - candCenter));
+                const float maxShift = std::max(candBox.width, candBox.height) * 0.85f + 12.0f;
+                if (dist <= maxShift) {
+                    res.kernelScore = const_cast<ObjectTracker*>(this)->computePSR(resp);
+                }
+            }
+        }
+    }
+
+    return res;
+}
+
+bool ObjectTracker::verifyRecoveryCandidate(const cv::Mat& image, const cv::Rect2f& candBox,
+                                            bool isTotalLost, float& outMatchScore) const
+{
+    const AnchorMatchScore ms = evaluateAnchorSimilarity(image, candBox, true);
+
+    const float minHistSim = isTotalLost ? 0.45f : 0.40f;
+    if (ms.histSim < minHistSim) {
+        return false;
+    }
+
+    if (m_kernel == TrackingKernel::KERNEL_LIGHTTRACK) {
+        const float minSotAnchor = isTotalLost ? 0.68f : 0.60f;
+        if (ms.kernelScore < minSotAnchor) {
+            return false;
+        }
+        if (ms.zncc < 0.20f && ms.histSim < 0.62f) {
+            return false;
+        }
+        outMatchScore = 0.45f * ms.histSim + 0.35f * ms.kernelScore
+                      + 0.20f * std::clamp(ms.zncc, 0.0f, 1.0f);
+    } else {
+        const float minBackupPsr = isTotalLost ? 6.0f : 5.0f;
+        if (ms.kernelScore < minBackupPsr) {
+            return false;
+        }
+        if (ms.zncc < 0.20f && ms.histSim < 0.60f && ms.kernelScore < 9.0f) {
+            return false;
+        }
+        const float psrNorm = std::clamp((ms.kernelScore - 4.0f) / 16.0f, 0.0f, 1.0f);
+        outMatchScore = 0.45f * ms.histSim + 0.35f * psrNorm
+                      + 0.20f * std::clamp(ms.zncc, 0.0f, 1.0f);
+    }
+
+    return true;
+}
+
+bool ObjectTracker::recoverWithAnchorState(const cv::Mat& image, const cv::Rect& newRoi)
+{
+    Q_UNUSED(image);
+    const float cx = newRoi.x + newRoi.width * 0.5f;
+    const float cy = newRoi.y + newRoi.height * 0.5f;
+
+    if (m_kernel == TrackingKernel::KERNEL_LIGHTTRACK) {
+        if (!m_sot || !m_sot->isInitialized()) {
+            return false;
+        }
+        // 仅重设位置与尺寸，保留原始目标模板特征 m_templateFeat / m_anchorTemplateFeat
+        m_sot->setState(cv::Point2f(cx, cy),
+                        cv::Size2f(static_cast<float>(newRoi.width), static_cast<float>(newRoi.height)));
+        m_posX = cx;
+        m_posY = cy;
+        m_targetW = static_cast<float>(newRoi.width);
+        m_targetH = static_cast<float>(newRoi.height);
+        m_currentScale = 1.0f;
+        return true;
+    }
+
+    // DSST：从 init 备份高比重恢复滤波器，禁止销毁初始模板备份
+    const float baseArea = std::max(16.0f, static_cast<float>(m_core.targetSize().area()));
+    const float newArea = std::max(16.0f, static_cast<float>(newRoi.width * newRoi.height));
+    const float candScale = std::sqrt(newArea / baseArea);
+    m_core.blendBackup(0.85f);
+    m_core.setPosition(cv::Point2f(cx, cy));
+    m_core.setScale(candScale);
+    m_core.setLearningFrozen(false);
+
+    m_posX = cx;
+    m_posY = cy;
+    m_targetW = static_cast<float>(m_core.targetSize().width);
+    m_targetH = static_cast<float>(m_core.targetSize().height);
+    m_currentScale = m_core.currentScale();
+    return true;
 }
 
 // ========================
@@ -394,32 +647,39 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
         const float aspectDiff = std::abs(detAspect - currentAspect) / std::max(currentAspect, 0.1f);
         if (aspectDiff > 1.5f) continue;
 
-        // 面积与几何比率校验（全图丢失态放宽面积约束至 0.05x ~ 20.0x）
+        // 面积与几何比率校验（全图丢失态约束至 0.15x ~ 6.0x，防止极端大小异物劫持）
         const float detArea = static_cast<float>(det.rect.width() * det.rect.height());
         const float areaRatio = detArea / origArea;
-        const float minAreaRatio = isTotalLost ? 0.05f : 0.20f;
-        const float maxAreaRatio = isTotalLost ? 20.0f : 5.00f;
+        const float minAreaRatio = isTotalLost ? 0.15f : 0.20f;
+        const float maxAreaRatio = isTotalLost ? 6.00f : 5.00f;
         if (areaRatio < minAreaRatio || areaRatio > maxAreaRatio) continue;
+
+        // 核心防劫持门禁：候选框必须通过初始目标锚点外观 + 内核特征一致性校验
+        const cv::Rect2f candBox(static_cast<float>(det.rect.x()),
+                                 static_cast<float>(det.rect.y()),
+                                 static_cast<float>(det.rect.width()),
+                                 static_cast<float>(det.rect.height()));
+        float anchorMatchScore = 0.0f;
+        if (!verifyRecoveryCandidate(image, candBox, isTotalLost, anchorMatchScore)) {
+            qCDebug(trackerLog) << "[ReDetect] 候选#" << i << QString::fromStdString(det.className)
+                                << "未通过原始锚点一致性校验，已拦截";
+            continue;
+        }
 
         float candidateScore = 0.0f;
         if (!isTotalLost) {
-            // 时空局部打分：置信度 × 空间近邻惩罚 × 面积相似度
             const float distNorm = dist / maxRadius;
             const float distPenalty = std::max(0.0f, 1.0f - distNorm * distNorm);
             const float areaPenalty = std::min(areaRatio, 1.0f / areaRatio);
-            candidateScore = det.confidence * distPenalty * areaPenalty;
+            candidateScore = 0.50f * anchorMatchScore + 0.50f * (det.confidence * distPenalty * areaPenalty);
         } else {
-            // 全图重捕打分：置信度 (60%) + 长宽比一致性 (25%) + 画面中心近邻度 (15%)
-            const float centerX = image.cols * 0.5f;
-            const float centerY = image.rows * 0.5f;
-            const float distCenter = std::sqrt((cx - centerX) * (cx - centerX) + (cy - centerY) * (cy - centerY));
-            const float centerWeight = 1.0f - (distCenter / frameDiag);
             const float aspectWeight = std::max(0.0f, 1.0f - aspectDiff * 0.5f);
-            candidateScore = det.confidence * 0.60f + aspectWeight * 0.25f + centerWeight * 0.15f;
+            candidateScore = 0.55f * anchorMatchScore + 0.30f * det.confidence + 0.15f * aspectWeight;
         }
 
         qCDebug(trackerLog) << "[ReDetect] 候选#" << i << QString::fromStdString(det.className)
                             << "pos=(" << cx << "," << cy << ") conf=" << det.confidence
+                            << "anchor=" << anchorMatchScore
                             << "dist=" << dist << "maxR=" << maxRadius
                             << "score=" << candidateScore;
 
@@ -430,7 +690,7 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
         }
     }
 
-    const float scoreThreshold = isTotalLost ? 0.35f : 0.20f;
+    const float scoreThreshold = isTotalLost ? 0.40f : 0.30f;
     if (!found || bestCandidateScore < scoreThreshold) {
         m_reacquireConsecutiveHits = 0;
         qCDebug(trackerLog) << "[ReDetect] 未找到合格候选目标 (最高分=" << bestCandidateScore
@@ -438,12 +698,29 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
         return false;
     }
 
-    // 全图检索增加时序双帧确认（防止单帧杂波突发劫持）
+    // 全图检索增加时序双帧空间一致性确认（防止单帧杂波或跳变误劫持）
     if (isTotalLost) {
-        m_reacquireConsecutiveHits++;
-        if (m_reacquireConsecutiveHits < 2) {
+        if (m_reacquireConsecutiveHits == 0) {
+            m_reacquireConsecutiveHits = 1;
             m_candidateBox = bestBox;
-            qCDebug(trackerLog) << "[ReDetect] 全图首帧捕获候选，等待下一帧时序确认...";
+            qCDebug(trackerLog) << "[ReDetect] 全图首帧捕获锚点候选，等待下一帧空间连续确认...";
+            return false;
+        }
+        const float bx = static_cast<float>(bestBox.rect.x() + bestBox.rect.width() * 0.5f);
+        const float by = static_cast<float>(bestBox.rect.y() + bestBox.rect.height() * 0.5f);
+        const float px = static_cast<float>(m_candidateBox.rect.x() + m_candidateBox.rect.width() * 0.5f);
+        const float py = static_cast<float>(m_candidateBox.rect.y() + m_candidateBox.rect.height() * 0.5f);
+        const float stepDist = std::sqrt((bx - px) * (bx - px) + (by - py) * (by - py));
+        const float maxConsistDist = std::max({
+            static_cast<float>(bestBox.rect.width()),
+            static_cast<float>(bestBox.rect.height()),
+            static_cast<float>(m_candidateBox.rect.width()),
+            static_cast<float>(m_candidateBox.rect.height())
+        }) * 2.5f + 150.0f;
+        if (stepDist > maxConsistDist) {
+            m_candidateBox = bestBox;
+            m_reacquireConsecutiveHits = 1;
+            qCDebug(trackerLog) << "[ReDetect] 双帧候选空间跳变过大(" << stepDist << "px)，重新计数确认";
             return false;
         }
     }
@@ -454,7 +731,6 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
                         << (bestBox.rect.y() + bestBox.rect.height() * 0.5f)
                         << ") score=" << bestCandidateScore;
 
-    // 命中目标：以全新高精检测框重置跟踪内核
     cv::Rect newRoi(static_cast<int>(std::round(bestBox.rect.x())),
                     static_cast<int>(std::round(bestBox.rect.y())),
                     static_cast<int>(std::round(bestBox.rect.width())),
@@ -465,18 +741,10 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
         return false;
     }
 
-    if (!reinitKernel(image, newRoi)) {
+    // 使用初始锚点恢复跟踪状态，严禁覆写原始目标模板
+    if (!recoverWithAnchorState(image, newRoi)) {
         return false;
     }
-
-    if (m_kernel == TrackingKernel::KERNEL_DSST) {
-        m_core.setLearningFrozen(false);
-    }
-    m_posX = newRoi.x + newRoi.width * 0.5f;
-    m_posY = newRoi.y + newRoi.height * 0.5f;
-    m_targetW = static_cast<float>(newRoi.width);
-    m_targetH = static_cast<float>(newRoi.height);
-    m_currentScale = 1.0f;
 
     // 机电伺服平稳软启动机制：
     // 若从 TRACK_LOST 恢复，强制清零卡尔曼速度并重置协方差，杜绝超大速度跳变
@@ -487,9 +755,11 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
         kfUpdate(m_posX, m_posY);
     }
 
-    m_evaluator.init(cv::Rect2f(m_posX - m_targetW * 0.5f,
-                                m_posY - m_targetH * 0.5f,
-                                m_targetW, m_targetH));
+    const float evalW = m_targetW * m_currentScale;
+    const float evalH = m_targetH * m_currentScale;
+    m_evaluator.init(cv::Rect2f(m_posX - evalW * 0.5f,
+                                m_posY - evalH * 0.5f,
+                                evalW, evalH));
 
     return true;
 }
@@ -538,7 +808,15 @@ bool ObjectTracker::calibrateScaleOnZoom(const cv::Mat& image)
 
         const float spatialWeight = 1.0f - (dist / zoomSearchRadius);
         const float aspectWeight = std::max(0.1f, 1.0f - aspectDiff * 0.6f);
-        const float score = det.confidence * spatialWeight * aspectWeight;
+        const cv::Rect2f candBox(static_cast<float>(det.rect.x()),
+                                 static_cast<float>(det.rect.y()),
+                                 static_cast<float>(det.rect.width()),
+                                 static_cast<float>(det.rect.height()));
+        const AnchorMatchScore am = evaluateAnchorSimilarity(image, candBox, false);
+        if (m_anchor.valid && am.histSim < 0.35f) {
+            continue;
+        }
+        const float score = det.confidence * spatialWeight * aspectWeight * std::max(0.4f, am.histSim);
 
         if (score > bestScore) {
             bestScore = score;
@@ -908,17 +1186,19 @@ TrackResult ObjectTracker::update(const QImage& frame)
             result.occluded = false;
             emit trackingRecovered();
             emit trackingStateChanged(m_trackingState);
-            qCDebug(trackerLog) << "[Tracker] AMFT 协同唤醒: YOLO 重捕成功! 目标位置=("
-                                << m_posX << "," << m_posY << ") 模板已强制重置";
+            qCDebug(trackerLog) << "[Tracker] AMFT 协同唤醒: 锚点核验重捕成功! 目标位置=("
+                                << m_posX << "," << m_posY << ")";
         } else {
-            // 未重捕，保持 KF 速度外推预测
-            m_posX = kfPredX;
-            m_posY = kfPredY;
+            // 未重捕，保持钳制后的 KF 预测位置并维持遮挡/丢失态
+            m_posX = std::clamp(kfPredX, 0.0f, static_cast<float>(image.cols));
+            m_posY = std::clamp(kfPredY, 0.0f, static_cast<float>(image.rows));
             result.occluded = true;
             result.recovered = false;
 
             if (m_lostCount >= 15 && m_trackingState != AMFTTrackingState::TRACK_LOST) {
                 m_trackingState = AMFTTrackingState::TRACK_LOST;
+                m_kf.x[2] = 0.0f;
+                m_kf.x[3] = 0.0f;
                 emit trackingLost();
                 emit trackingStateChanged(m_trackingState);
                 qCDebug(trackerLog) << "[Tracker] 连续 15 帧重捕未果，转入 TRACK_LOST 态势";
@@ -952,43 +1232,53 @@ TrackResult ObjectTracker::update(const QImage& frame)
             }
         }
 
-        // 构建当前目标框供 AMFT 评估
+        // 构建当前目标框供 AMFT 评估与初始锚点一致性监测
         const float currentW = m_targetW * m_currentScale;
         const float currentH = m_targetH * m_currentScale;
         cv::Rect2f evalBox(detX - currentW * 0.5f, detY - currentH * 0.5f, currentW, currentH);
 
-        // === AMFT 三维特征评估 + 动态滑动阈值 ===
+        // === AMFT 三维特征评估 + 内核置信底线 + 初始外观锚点守护 ===
         m_lastScore = m_evaluator.evaluate(ko.psrForAmft, detValid, evalBox, image);
+        const AnchorMatchScore anchorCheck = evaluateAnchorSimilarity(image, evalBox, false);
+        const bool lowKernelConf = !detValid ||
+            ((m_kernel == TrackingKernel::KERNEL_LIGHTTRACK) ? (psr < 0.70f) : (psr < 7.0f));
+        const bool anchorMismatch = m_anchor.valid &&
+            (anchorCheck.histSim < 0.32f || (anchorCheck.histSim < 0.45f && anchorCheck.zncc < 0.10f));
+        const bool frameReliable = m_lastScore.isReliable && !lowKernelConf && !anchorMismatch;
+
         result.amftScore = m_lastScore.rTotal;
         result.amftTau = m_lastScore.dynamicTau;
         result.confidence = m_lastScore.rTotal;
 
-        if (m_lastScore.isReliable) {
-            // --- 跟踪稳健 (R_t >= tau_t) ---
+        if (frameReliable) {
+            // --- 跟踪稳健 ---
+            if (m_kernel == TrackingKernel::KERNEL_DSST) {
+                m_core.setLearningFrozen(false);
+            }
             m_posX = detX;
             m_posY = detY;
             kfUpdate(m_posX, m_posY);
             m_lostCount = 0;
             result.occluded = false;
         } else {
-            // --- 可靠度异常 (R_t < tau_t) ---
+            // --- 可靠度异常或外观漂移：首帧即刻冻结 DSST 学习，防异物污染模板 ---
+            if (m_kernel == TrackingKernel::KERNEL_DSST) {
+                m_core.setLearningFrozen(true);
+            }
             m_lostCount++;
-            qCDebug(trackerLog) << "[Tracker] AMFT 警告: R_t=" << m_lastScore.rTotal
-                                << " < tau_t=" << m_lastScore.dynamicTau
-                                << " (conf=" << m_lastScore.sConf
-                                << ", mot=" << m_lastScore.sMot
-                                << ", bg=" << m_lastScore.sBg << ")";
+            qCDebug(trackerLog) << "[Tracker] 异常预警: R_t=" << m_lastScore.rTotal
+                                << " tau_t=" << m_lastScore.dynamicTau
+                                << " psr/cls=" << psr
+                                << " histSim=" << anchorCheck.histSim
+                                << " zncc=" << anchorCheck.zncc;
 
             if (m_lostCount >= 4) {
-                // 确认进入遮挡/微失锁态 (连续 4 帧低于阈值，约 130ms，防瞬态误判)
+                // 确认进入遮挡/失锁态 (连续 4 帧异常，约 130ms，防瞬态误判)
                 m_trackingState = AMFTTrackingState::TRACK_OCCLUDED;
-                if (m_kernel == TrackingKernel::KERNEL_DSST) {
-                    m_core.setLearningFrozen(true);
-                }
                 emit trackingLost();
                 emit trackingStateChanged(m_trackingState);
 
-                // 立即触发单次检测重捕
+                // 立即触发单次检测重捕（需通过原始锚点校验）
                 if (tryDetectAndRecover(image)) {
                     m_trackingState = AMFTTrackingState::TRACK_REACQUIRED;
                     m_lostCount = 0;
@@ -997,14 +1287,19 @@ TrackResult ObjectTracker::update(const QImage& frame)
                     emit trackingRecovered();
                     emit trackingStateChanged(m_trackingState);
                 } else {
-                    m_posX = kfPredX;
-                    m_posY = kfPredY;
+                    m_posX = std::clamp(kfPredX, 0.0f, static_cast<float>(image.cols));
+                    m_posY = std::clamp(kfPredY, 0.0f, static_cast<float>(image.rows));
                     result.occluded = true;
                 }
             } else {
-                // 瞬时过渡态：暂用当前检测位置但不更新 KF 协方差
-                m_posX = detValid ? detX : kfPredX;
-                m_posY = detValid ? detY : kfPredY;
+                // 瞬时过渡态：暂用当前检测位置但不更新 KF 协方差（若外观已显著偏离则跟随 KF 预测）
+                if (detValid && !anchorMismatch && !lowKernelConf) {
+                    m_posX = detX;
+                    m_posY = detY;
+                } else {
+                    m_posX = std::clamp(kfPredX, 0.0f, static_cast<float>(image.cols));
+                    m_posY = std::clamp(kfPredY, 0.0f, static_cast<float>(image.rows));
+                }
                 result.occluded = false;
             }
         }

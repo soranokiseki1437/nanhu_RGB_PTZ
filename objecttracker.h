@@ -180,6 +180,31 @@ private:
     DetectionBox m_candidateBox;
     bool m_redetectionEnabled = false;
 
+    // === 初始目标不可变外观锚点（防止丢失后被相似物/背景永久劫持）===
+    struct TargetAnchor {
+        bool valid = false;
+        cv::Rect2f initBbox;
+        cv::Mat histHS;       // 16x8 H-S 颜色直方图（CV_32F，L1 归一化）
+        cv::Mat histV;        // 16x1 V/灰度直方图（CV_32F，L1 归一化）
+        cv::Mat patchNorm;    // 24x24 零均值单位范数灰度模板（用于 ZNCC）
+        bool hasTexture = false;
+        bool isColor = true;
+        float meanSat = 0.0f;
+    } m_anchor;
+
+    struct AnchorMatchScore {
+        float histSim = 0.0f;     // [0, 1] 色彩+亮度直方图巴氏相似度
+        float zncc = 0.0f;        // [-1, 1] 归一化互相关
+        float kernelScore = 0.0f; // LightTrack sigmoid(cls) 或 DSST backup PSR
+    };
+
+    bool extractPatchAppearance(const cv::Mat& image, const cv::Rect2f& box,
+                                cv::Mat& outHistHS, cv::Mat& outHistV, cv::Mat& outPatchNorm,
+                                bool& outHasTexture, bool& outIsColor, float& outMeanSat) const;
+    AnchorMatchScore evaluateAnchorSimilarity(const cv::Mat& image, const cv::Rect2f& candBox, bool runKernelCheck) const;
+    bool verifyRecoveryCandidate(const cv::Mat& image, const cv::Rect2f& candBox, bool isTotalLost, float& outMatchScore) const;
+    bool recoverWithAnchorState(const cv::Mat& image, const cv::Rect& newRoi);
+
     // === 旧版纯 SOT 稳态基线相关 ===
     bool m_inOcclusion = false;
     float m_psrBaseline = 0.0f;

@@ -357,6 +357,7 @@ bool OnnxSotTracker::loadModel(const SotTrackerConfig& cfg)
     }
 
     m_templateFeat.resize(TEMPLATE_FEAT_ELEMS, 0.0f);
+    m_anchorTemplateFeat.resize(TEMPLATE_FEAT_ELEMS, 0.0f);
     m_loaded = true;
     qInfo().noquote() << QString("OnnxSotTracker: Loaded successfully! Backend: %1")
                              .arg(m_usingGpu ? "DirectML (GPU)" : "CPU");
@@ -508,18 +509,24 @@ bool OnnxSotTracker::init(const cv::Mat& bgr, const cv::Rect2f& bbox)
     }
 
     std::memcpy(m_templateFeat.data(), featData, TEMPLATE_FEAT_ELEMS * sizeof(float));
+    std::memcpy(m_anchorTemplateFeat.data(), featData, TEMPLATE_FEAT_ELEMS * sizeof(float));
     m_api->ReleaseValue(outVal);
 
     m_initialized = true;
     return true;
 }
 
-SotResult OnnxSotTracker::forwardSearch(const cv::Mat& bgr, cv::Point2d pos, cv::Size2d sz, bool updateState)
+SotResult OnnxSotTracker::forwardSearch(const cv::Mat& bgr, cv::Point2d pos, cv::Size2d sz, bool updateState,
+                                        const std::vector<float>* overrideTemplateFeat)
 {
     SotResult res;
     res.valid = false;
 
-    if (!m_initialized || !m_active || bgr.empty() || bgr.type() != CV_8UC3) {
+    const std::vector<float>& activeFeat = (overrideTemplateFeat && overrideTemplateFeat->size() == TEMPLATE_FEAT_ELEMS)
+                                               ? *overrideTemplateFeat
+                                               : m_templateFeat;
+    if (!m_initialized || !m_active || bgr.empty() || bgr.type() != CV_8UC3 ||
+        sz.width < 2.0 || sz.height < 2.0 || activeFeat.size() != TEMPLATE_FEAT_ELEMS) {
         return res;
     }
 
@@ -556,7 +563,7 @@ SotResult OnnxSotTracker::forwardSearch(const cv::Mat& bgr, cv::Point2d pos, cv:
         m_memoryInfo, searchTensor.data(), searchTensor.size() * sizeof(float),
         in0Dims, 4, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, &inVal0);
     m_api->CreateTensorWithDataAsOrtValue(
-        m_memoryInfo, m_templateFeat.data(), m_templateFeat.size() * sizeof(float),
+        m_memoryInfo, const_cast<float*>(activeFeat.data()), activeFeat.size() * sizeof(float),
         in1Dims, 4, ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT, &inVal1);
 
     if (!inVal0 || !inVal1) {
@@ -738,6 +745,15 @@ SotResult OnnxSotTracker::peek(const cv::Mat& bgr, cv::Point2f center)
 {
     std::lock_guard<std::recursive_mutex> lock(m_mutex);
     return forwardSearch(bgr, cv::Point2d(center.x, center.y), m_sz, false);
+}
+
+SotResult OnnxSotTracker::peekBox(const cv::Mat& bgr, const cv::Rect2f& bbox, bool useAnchorTemplate)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    cv::Point2d center(bbox.x + bbox.width * 0.5, bbox.y + bbox.height * 0.5);
+    cv::Size2d sz(std::max(4.0f, bbox.width), std::max(4.0f, bbox.height));
+    const std::vector<float>* featPtr = useAnchorTemplate ? &m_anchorTemplateFeat : &m_templateFeat;
+    return forwardSearch(bgr, center, sz, false, featPtr);
 }
 
 void OnnxSotTracker::setState(cv::Point2f center, cv::Size2f size)

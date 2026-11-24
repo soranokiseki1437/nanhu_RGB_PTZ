@@ -193,17 +193,21 @@ cv::Mat DsstCore::getScaleSample(const cv::Mat& im, cv::Point2f pos, const std::
 // response 输出 CV_32F、m_modelSz 尺寸的相关响应图
 // =====================================================================================
 bool DsstCore::detectAt(const cv::Mat& image, cv::Point2f center, float scale,
-                        cv::Point* maxLoc, cv::Mat* outResponse) const
+                        cv::Point* maxLoc, cv::Mat* outResponse, bool useBackup) const
 {
     std::vector<cv::Mat> xt = getTranslationSample(image, center, scale);
     if (xt.empty()) return false;
+
+    const std::vector<cv::Mat>& activeNum = useBackup ? m_hfNumBackup : m_hfNum;
+    const cv::Mat& activeDen = useBackup ? m_hfDenBackup : m_hfDen;
+    if (activeDen.empty()) return false;
 
     cv::Mat response = cv::Mat::zeros(m_modelSz, CV_32F);
     int usedChannels = 0;
 
     for (int d = 0; d < m_numFeatures; d++) {
         if (d >= (int)xt.size()) break;
-        if (d >= (int)m_hfNum.size() || m_hfNum[d].empty()) break;
+        if (d >= (int)activeNum.size() || activeNum[d].empty()) break;
 
         cv::Mat xtf;
         try {
@@ -214,11 +218,11 @@ bool DsstCore::detectAt(const cv::Mat& image, cv::Point2f center, float scale,
 
         // reference: complex_multiply(hf_num[d], xtf) —— 频域相乘，不取共轭
         cv::Mat responsef;
-        cv::mulSpectrums(m_hfNum[d], xtf, responsef, 0, false);
+        cv::mulSpectrums(activeNum[d], xtf, responsef, 0, false);
         if (responsef.empty()) break;
 
         cv::Mat denominator;
-        m_hfDen.convertTo(denominator, CV_32F);
+        activeDen.convertTo(denominator, CV_32F);
         denominator += m_lambda;
 
         cv::Mat response_d_complex(responsef.size(), CV_32FC2);
@@ -657,6 +661,30 @@ cv::Rect DsstCore::detectOnly(const cv::Mat& image, cv::Point2f center, cv::Mat*
     cv::Point2f p = center + m_scale * offset;
 
     return makeRect(image, p, m_scale);
+}
+
+cv::Rect DsstCore::detectOnlyBackup(const cv::Mat& image, cv::Point2f center, float scale, cv::Mat* response) const
+{
+    if (response) response->release();
+    if (!m_initialized) return cv::Rect();
+
+    const float clampedScale = std::max(m_minScale, std::min(m_maxScale, scale));
+    cv::Point max_loc;
+    cv::Mat trResponse;
+    if (!detectAt(image, center, clampedScale, &max_loc, &trResponse, true)) return cv::Rect();
+
+    if (response) *response = trResponse;
+
+    cv::Point2f offset(-m_modelSz.width / 2.0f + max_loc.x,
+                       -m_modelSz.height / 2.0f + max_loc.y);
+    cv::Point2f p = center + clampedScale * offset;
+
+    return makeRect(image, p, clampedScale);
+}
+
+void DsstCore::setScale(float scale)
+{
+    m_scale = std::max(m_minScale, std::min(m_maxScale, scale));
 }
 
 void DsstCore::setLearningFrozen(bool frozen)

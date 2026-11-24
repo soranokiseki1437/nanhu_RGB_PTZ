@@ -52,6 +52,7 @@ public:
     bool init(const cv::Mat& bgr, const cv::Rect2f& bbox) override;
     SotResult track(const cv::Mat& bgr) override;
     SotResult peek(const cv::Mat& bgr, cv::Point2f center) override;
+    SotResult peekBox(const cv::Mat& bgr, const cv::Rect2f& bbox, bool useAnchorTemplate = true) override;
     void setState(cv::Point2f center, cv::Size2f size) override;
     bool isInitialized() const override { return m_initialized; }
     float lastModelMs() const override { return m_lastModelMs; }
@@ -75,7 +76,8 @@ private:
     void releaseAll();
     bool initializeTemplateSession(const QString& modelPath);
     bool initializeSearchSession(SearchNet& net, const QString& modelPath, int expectedInSize, int expectedScoreSize);
-    SotResult forwardSearch(const cv::Mat& bgr, cv::Point2d pos, cv::Size2d sz, bool updateState);
+    SotResult forwardSearch(const cv::Mat& bgr, cv::Point2d pos, cv::Size2d sz, bool updateState,
+                            const std::vector<float>* overrideTemplateFeat = nullptr);
 
     // 辅助前处理与几何计算
     static cv::Mat cropPatch(const cv::Mat& rgb, cv::Point2d pos, int patchSz, int modelSz,
@@ -101,8 +103,9 @@ private:
     SearchNet m_big;
     SearchNet* m_active = nullptr;
 
-    // 模板特征缓存 [1, 96, 8, 8] -> 6144 float
+    // 模板特征缓存 [1, 96, 8, 8] -> 6144 float（init 时同步固化原始锚点特征）
     std::vector<float> m_templateFeat;
+    std::vector<float> m_anchorTemplateFeat;
 
     // 内部连续跟踪状态（统一使用 double 保证累加无精度损失）
     bool m_loaded = false;
