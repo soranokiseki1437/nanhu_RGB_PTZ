@@ -559,7 +559,7 @@ bool ObjectTracker::recoverWithAnchorState(const cv::Mat& image, const cv::Rect&
 }
 
 // ========================
-// 单次唤醒全局检测重捕（替换旧版九宫格盲试）
+// 事件驱动全局检测重捕
 // ========================
 bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
 {
@@ -897,7 +897,7 @@ void ObjectTracker::initSlot(const QImage& frame, const QRectF& targetRect)
 }
 
 // ========================
-// 遮挡局部重检测 (旧版纯 SOT 局部重捕：DSST 九宫格检测 / LightTrack peek 重捕)
+// 纯局部跟踪模式遮挡重检测 (DSST 邻域采样 / LightTrack peek)
 // ========================
 bool ObjectTracker::reDetect(const cv::Mat& image)
 {
@@ -1030,7 +1030,7 @@ TrackResult ObjectTracker::update(const QImage& frame)
         }
     }
 
-    // === 2. 纯单目标框选模式分流 (回归旧版稳定处理，绝不触发 YOLO 劫持) ===
+    // === 2. 纯局部跟踪分支 (m_redetectionEnabled == false) ===
     if (!m_redetectionEnabled) {
         result.occluded = m_inOcclusion;
         result.recovered = false;
@@ -1169,7 +1169,7 @@ TrackResult ObjectTracker::update(const QImage& frame)
         m_lostCount++;
 
         // 在 OCCLUDED 态每帧尝试单次重捕（至多持续 15 帧）
-        // 在 LOST 态降频每 10 帧尝试一次 (3 FPS 待机检索，彻底杜绝算力浪费)
+        // 在 LOST 态降频每 10 帧尝试一次 (3 FPS 待机检索，降低计算负载)
         bool shouldScan = (m_trackingState == AMFTTrackingState::TRACK_OCCLUDED)
                        || (m_lostCount % 10 == 0);
 
@@ -1206,7 +1206,7 @@ TrackResult ObjectTracker::update(const QImage& frame)
         }
     } else {
         // --- 正常局部跟踪态 (TRACK_NORMAL) 或刚重捕态 (TRACK_REACQUIRED) ---
-        // 铁律执行：如果前一帧是 TRACK_REACQUIRED，本帧强制回归 TRACK_NORMAL！
+        // 如果前一帧是 TRACK_REACQUIRED，本帧回归 TRACK_NORMAL
         if (m_trackingState == AMFTTrackingState::TRACK_REACQUIRED) {
             m_trackingState = AMFTTrackingState::TRACK_NORMAL;
             emit trackingStateChanged(m_trackingState);

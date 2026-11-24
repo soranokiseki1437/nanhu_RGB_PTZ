@@ -131,7 +131,7 @@ private:
     std::shared_ptr<ISotTracker> m_sotEngine;
     QString resolveModelPath(const QString& modelName) const;
 
-    bool m_redetectionEnabled = false;  // 重检测控制：false=纯SOT(无YOLO劫持)，true=允许AI协同重捕
+    bool m_redetectionEnabled = false;  // 重检测控制：false=纯局部跟踪，true=启用 AI 协同重捕
 
     TrackingState m_state;
     TrackResult m_lastResult;

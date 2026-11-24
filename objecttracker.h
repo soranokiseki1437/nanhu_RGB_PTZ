@@ -66,7 +66,7 @@ Q_DECLARE_METATYPE(TrackResult)
  * 1. 局部高频内核：DsstCore (满速 30 FPS，单帧 < 1ms)；
  * 2. 状态与可靠度评估：AMFTEvaluator (三维融合 S_conf, S_mot, S_bg + 滑动窗口动态阈值 tau_t)；
  * 3. 全局重捕引擎：IDetector (零频休眠，异常时单次事件驱动唤醒，3.06ms 极速找回)；
- * 4. 彻底剔除旧版九宫格盲试，下一帧强制回归局部跟踪。
+ * 4. 异常触发重捕后，下一帧强制回归局部跟踪。
  */
 class ObjectTracker : public QObject
 {
@@ -102,7 +102,7 @@ public:
     void setSotEngine(const std::shared_ptr<ISotTracker>& e) { m_sot = e; }
     std::shared_ptr<ISotTracker> sotEngine() const { return m_sot; }
 
-    // 跟踪模式与重检测开关（单目标框选模式下默认禁用，杜绝 YOLO 误重置）
+    // 重检测开关：true=启用 YOLO 协同重捕；false=纯局部滤波跟踪
     void setRedetectionEnabled(bool enabled) { m_redetectionEnabled = enabled; }
     bool isRedetectionEnabled() const { return m_redetectionEnabled; }
 
@@ -205,13 +205,13 @@ private:
     bool verifyRecoveryCandidate(const cv::Mat& image, const cv::Rect2f& candBox, bool isTotalLost, float& outMatchScore) const;
     bool recoverWithAnchorState(const cv::Mat& image, const cv::Rect& newRoi);
 
-    // === 旧版纯 SOT 稳态基线相关 ===
+    // === 纯局部跟踪模式稳态基线 ===
     bool m_inOcclusion = false;
     float m_psrBaseline = 0.0f;
     bool m_baselineLocked = false;
     std::deque<float> m_psrHistory;
 
-    // 旧版九宫格局部模板重捕（仅基于已学习的 DSST 原生模板）
+    // 局部邻域模板重捕（基于 DSST 原生模板或 LightTrack peek）
     bool reDetect(const cv::Mat& image);
 
     // === 内部方法 ===
@@ -224,7 +224,7 @@ private:
     // 卡尔曼滤波更新（仅使用位置测量，速度由KF内部通过状态转移隐式估计）
     void kfUpdate(float measX, float measY);
 
-    // 单次唤醒全局检测重捕（替换旧版九宫格盲试）
+    // 事件驱动全局检测重捕
     bool tryDetectAndRecover(const cv::Mat& image);
 
     // 变焦联动：执行定向尺度校准与模板自适应重置

@@ -242,20 +242,20 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #75）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_75.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_75.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #76）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_76.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_76.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-24 #76
+### Checkpoint 2026-11-24 #77
 - **记录人**：Antigravity (Gemini 3.8 Flash High)
-- **类型**：两份临时方案审查修正闭环 + 手动框选模式传统保底重检测算法真实数据实测打点论证
+- **类型**：重检测架构误导性注释治理 + AGENTS.md 规范强化 + 编译回归闭环
 - **核心内容**：
-  1. **临时方案规范对齐与归档沉淀**（Commit `2ebcacf`、`6d9c312`）：
-     - 审查并修正《临时方案_YOLO检测类别标签映射自适应修复.md》，标注 Checkpoint #75 闭环状态并客观化第四节实测记录，确认代码已在主线闭环后归档至 [待执行方案/archive/临时方案_YOLO检测类别标签映射自适应修复.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/archive/临时方案_YOLO检测类别标签映射自适应修复.md)；
-     - 审查并修正《临时方案_基于金字塔多尺度ZNCC模板匹配的无类别保底重捕方案.md》，修复拓扑图分支控制、结构体注释对齐、步骤 1 `roi` 变量复用、步骤 5 软启动状态对齐，并依据实测打点结论增补模板平坦度安全阻断（`stddev < 5.0`）、弱小目标自适应降采样（$s=0.50$）与背景假峰双重防御逻辑，补全调用集成入口后归档至 [待执行方案/archive/临时方案_基于金字塔多尺度ZNCC模板匹配的无类别保底重捕方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/archive/临时方案_基于金字塔多尺度ZNCC模板匹配的无类别保底重捕方案.md)；`待执行方案/` 目录恢复纯净正式方案集（00~07）；
-  2. **传统重检测算法极限实测与机理论证**（基于真实 1080P 相机捕获帧与 Anti-UAV 序列，落盘脚本 `scripts/benchmark_*.py`）：
-     - **姿态偏转物理实测**：像素级灰度 ZNCC 在目标偏转 4° 时相关度从 1.0000 暴跌至 0.3238（跌破 0.50 门限），8° 跌至 0.0472，直接发生漏检；而单元格梯度特征（HOG, cell=4）在 4° 仍为 0.8002、15° 为 0.6129，优势显著；
-     - **全图背景伪峰分析**：1080P 全图真实背景次大假峰达到 0.5705（超过 0.50 门限），证明单一 ZNCC 门限必然被背景杂波劫持，必须依赖 `verifyRecoveryCandidate` 的 HSV 色彩直方图（旋转 15° 时巴氏相似度仍达 0.9309）进行二次拦截；
-     - **CPU 耗时实测**：原图 1080P 全图 3 尺度 ZNCC 耗时 101.94ms（严重超标），金字塔 480P（s=0.25）3 尺度仅需 10.48ms（满足 3 FPS 降频重捕要求）；
-  3. **编译构建与全景回归体检**：
-     - `run_test.ps1`（`test_detector.exe`）：5/5 PASS 全项达标（GPU DirectML 3.85ms，IoU 99.0%，中心误差 0.64px，200 轮内存净增 -1.55MB 零泄漏）；
-     - `test_amft.exe`：5/5 PASS 全项达标（1050 帧真实序列，调用率 0.00%，均值误差 2.68px，严重遮挡单次极速拉回，DSST 与 LightTrack 丢失保持与原目标回归验证通过）。
-- **下一步**：推进方案 05（LightTrack 深度跟踪）整机实机闭环验证；开展外场变焦与抗遮挡实机联调；筹备方案 06（RK3588 边缘端量化）与方案 07（自研网络重训消融）。
+  1. **重检测架构事实澄清与方案定性**：
+     - 查证并确认：上位机 UI 在手动框选（`on_radioModeManual_toggled`）与启动跟踪（`on_btnTrackStart_clicked`）时，运行时均 100% 显式使能 `setRedetectionEnabled(true)` 并由 YOLO 协同重捕；
+     - 确认《临时方案_基于金字塔多尺度ZNCC模板匹配的无类别保底重捕方案.md》无需执行，其基于像素级 ZNCC 的全图粗搜索在物理实测中已证实姿态敏感（偏转 4° 漏检）且背景假峰高达 0.57，方案维持归档状态，不合入生产代码；
+  2. **代码注释历史修订痕迹清理**：
+     - 剔除 `objecttracker.h`、`objecttracker.cpp` 与 `trackingcontroller.h` 中“回归旧版稳定处理，绝不触发 YOLO 劫持”、“默认禁用，杜绝 YOLO 误重置”、“单次唤醒全局检测重捕（替换旧版九宫格盲试）”等与当前系统事实冲突的过渡性/辩解性误导注释，改用纯粹客观的功能定义描述；
+  3. **规范强化与行为准则升级**：
+     - 更新 [AGENTS.md](file:///d:/PyProjects/RGB_PTZ_Integrated/AGENTS.md) 第一章第 2 条，增加“代码注释铁律（严防误导开发）”，明文严禁在代码注释中遗留任何历史修订痕迹、与过去版本的对比或与当前运行时调用事实脱节的旧版辩解词；
+  4. **编译构建与回归验收**：
+     - Release 重新构建 0 错误 0 告警，`RGB_PTZ_Integrated.exe` 生成完好；
+     - 执行 `.\run_test.ps1`（`test_detector.exe`），5/5 PASS 全项通过（DirectML 纯推理 3.36ms，IoU 99.0%，中心误差 0.64px，200 轮内存零泄漏）。
+- **下一步**：继续按主线推进方案 05（LightTrack 深度跟踪整机闭环实机验证）；筹备方案 06（RK3588 边缘端量化移植）与方案 07（自研网络重训消融）。
