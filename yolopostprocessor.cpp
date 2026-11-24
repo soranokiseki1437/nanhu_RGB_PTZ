@@ -73,7 +73,9 @@ std::vector<DetectionBox> YoloPostProcessor::process(
     }
 
     int numClasses = tensorChannels - 4;
-    const std::vector<std::string>& labels = classNames.empty() ? s_cocoNames : classNames;
+    static const std::vector<std::string> s_uavDefault = {"UAV"};
+    const std::vector<std::string>& labels = !classNames.empty() ? classNames
+        : (numClasses == 1 ? s_uavDefault : s_cocoNames);
 
     candidates.reserve(128);
 

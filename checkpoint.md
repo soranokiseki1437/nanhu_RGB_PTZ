@@ -242,21 +242,24 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #73）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_73.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_73.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #74）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_74.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_74.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-24 #74
+### Checkpoint 2026-11-24 #75
 - **记录人**：Antigravity (Gemini 3.8 Flash High)
-- **类型**：修复目标丢失（Lost/Occluded）状态下帧投递阻断缺陷，打通遮挡重捕多帧连续检索链路
+- **类型**：执行临时修复方案，彻底修复反无人机 YOLO 专属模型类别标签映射缺陷（person -> UAV）
 - **核心内容**：
-  1. **排查实机运行最新日志（20261124.log）**：
-     - 在 19:16:44.299~44.385 目标发生遮挡，连续 4 帧异常触发 `m_lostCount >= 4`，进入 `TRACK_OCCLUDED` 并触发首次重捕 `tryDetectAndRecover()`；
-     - YOLO 检出 3 个候选目标（"chair", "backpack", "tv"），均未通过外观锚点核验而被拦截，返回重捕未果；
-     - 随后发出 `trackingLost()`，`TrackingController` 状态转为 `Lost`；
-     - 此时 `MainWindow::onFrameReady` 中 `if (m_trackingController->isTracking())` 因 `isTracking()` 仅判断 `m_state == Tracking` 而变为 `false`，导致后续解码帧被阻断，未再向 `processFrame()` 投递任何新帧，算法状态机断流；
-  2. **修复 `TrackingController::isTracking()` 判定准则**：
-     - 将 [trackingcontroller.h](file:///d:/PyProjects/RGB_PTZ_Integrated/trackingcontroller.h) 中 `isTracking()` 扩展为 `m_state == Tracking || m_state == Lost`，确保在目标丢失/遮挡的尝试重捕阶段，视频流持续喂入算法工作线程；
-     - 与 `TrackingController::processFrame()` 中的 `if ((m_state != Tracking && m_state != Lost) || !m_tracker) return;` 保护逻辑完全对称契合；
-  3. **编译与回归验证**：
-     - MinGW 64-bit Release 增量编译通过，`RGB_PTZ_Integrated.exe` 成功更新；
-     - 执行 `test_amft.exe` 回归测试，5/5 项全部 PASS 通过。
+  1. **定位并归因缺陷根因**：
+     - 反无人机专属模型（`yolo11n_uav_ft.onnx` 等）基于单类别 $nc=1$ 训练，输出张量通道为 5（4 坐标 + 1 UAV 置信度），`maxClassId` 恒为 0；
+     - 上位机调用 `loadModel()` 时未设置 `DetectorConfig.classNames`；
+     - `yolopostprocessor.cpp` 缺省无条件回退为 COCO 80 类别，`s_cocoNames[0]` 对应为 `"person"`，导致识别标签被覆写为 `"person"`；
+  2. **工程落地三级自适应防御体系**：
+     - **优先级 1（显式传参）**：调用方若在 `DetectorConfig.classNames` 指定，优先使用；
+     - **优先级 2（动态元数据解析）**：在 `OnnxDetector::initializeSession` 中通过 ONNX Runtime C API 读取 `OrtModelMetadata` 中的 `names` 键，正则解析 `{0: 'UAV'}` 或 COCO 80 类映射表；
+     - **优先级 3（张量拓扑通道保底）**：无元数据时，根据 $channels == 5$ 自动判定 $numClasses == 1$ 并映射为 `{"UAV"}`，若 $channels == 84$ 映射为 COCO 80 类；并在 `YoloPostProcessor::process` 同步单类防御；
+  3. **编译与全项客观论证验证**：
+     - MinGW 64-bit Release 全量构建通过，`RGB_PTZ_Integrated.exe` 与 `test_detector.exe` 更新就位；
+     - 实测真实地对空图像（`video01/00001.jpg`）：
+       - `models/yolo11n_uav_ft.onnx`：输出 `[1] 类别: UAV | 置信度: 0.868`，IoU=88.2%，中心误差=2.81px，标签修复成功；
+       - `models/yolov8n.onnx`：输出 `[1] 类别: airplane | 置信度: 0.906`，IoU=99.0%，COCO 模型零退化；
+       - `test_amft.exe` 协同回归：5/5 PASS 全部通过。
 - **下一步**：推进方案 05（LightTrack 深度跟踪）整机实机闭环验证；开展外场变焦与抗遮挡实机联调；筹备方案 06（RK3588 边缘端量化）与方案 07（自研网络重训消融）。

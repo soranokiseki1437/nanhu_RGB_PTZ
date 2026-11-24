@@ -2,7 +2,9 @@
 #include "yolopostprocessor.h"
 #include <QDebug>
 #include <QFileInfo>
+#include <QRegularExpression>
 #include <chrono>
+#include <map>
 #include <opencv2/imgproc.hpp>
 #include <string.h>
 
@@ -187,6 +189,55 @@ bool OnnxDetector::initializeSession(const QString& modelPath, const DetectorCon
             if (outDims[2] > 0) m_tensorAnchors = static_cast<int>(outDims[2]);
         }
         m_api->ReleaseTypeInfo(outTypeInfo);
+    }
+
+    // 类别名称自适应提取（元数据解析 -> 通道数拓扑兜底）
+    if (m_config.classNames.empty()) {
+        bool metadataParsed = false;
+        OrtModelMetadata* modelMetadata = nullptr;
+        if (m_api->SessionGetModelMetadata(m_session, &modelMetadata) == nullptr && modelMetadata) {
+            char* customNames = nullptr;
+            if (m_api->ModelMetadataLookupCustomMetadataMap(modelMetadata, allocator, "names", &customNames) == nullptr && customNames) {
+                QString namesStr = QString::fromUtf8(customNames);
+                allocator->Free(allocator, customNames);
+
+                static const QRegularExpression rx("(\\d+)\\s*:\\s*['\"]([^'\"]+)['\"]");
+                QRegularExpressionMatchIterator it = rx.globalMatch(namesStr);
+                std::map<int, std::string> classMap;
+                int maxId = -1;
+                while (it.hasNext()) {
+                    QRegularExpressionMatch match = it.next();
+                    int cid = match.captured(1).toInt();
+                    std::string cname = match.captured(2).toStdString();
+                    classMap[cid] = cname;
+                    if (cid > maxId) maxId = cid;
+                }
+                if (maxId >= 0) {
+                    std::vector<std::string> parsedClasses(maxId + 1);
+                    for (int i = 0; i <= maxId; ++i) {
+                        auto found = classMap.find(i);
+                        parsedClasses[i] = (found != classMap.end()) ? found->second : ("class_" + std::to_string(i));
+                    }
+                    m_config.classNames = std::move(parsedClasses);
+                    metadataParsed = true;
+                }
+            }
+            m_api->ReleaseModelMetadata(modelMetadata);
+        }
+
+        if (!metadataParsed) {
+            int numClasses = m_tensorChannels - 4;
+            if (numClasses == 1) {
+                m_config.classNames = {"UAV"};
+            } else if (numClasses == 80) {
+                m_config.classNames = YoloPostProcessor::getCocoNames();
+            } else {
+                m_config.classNames.clear();
+                for (int i = 0; i < numClasses; ++i) {
+                    m_config.classNames.push_back("class_" + std::to_string(i));
+                }
+            }
+        }
     }
 
     // 创建 CPU 内存信息描述符
