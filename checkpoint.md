@@ -242,24 +242,20 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #74）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_74.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_74.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #75）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_75.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_75.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-24 #75
+### Checkpoint 2026-11-24 #76
 - **记录人**：Antigravity (Gemini 3.8 Flash High)
-- **类型**：执行临时修复方案，彻底修复反无人机 YOLO 专属模型类别标签映射缺陷（person -> UAV）
+- **类型**：两份临时方案审查修正闭环 + 手动框选模式传统保底重检测算法真实数据实测打点论证
 - **核心内容**：
-  1. **定位并归因缺陷根因**：
-     - 反无人机专属模型（`yolo11n_uav_ft.onnx` 等）基于单类别 $nc=1$ 训练，输出张量通道为 5（4 坐标 + 1 UAV 置信度），`maxClassId` 恒为 0；
-     - 上位机调用 `loadModel()` 时未设置 `DetectorConfig.classNames`；
-     - `yolopostprocessor.cpp` 缺省无条件回退为 COCO 80 类别，`s_cocoNames[0]` 对应为 `"person"`，导致识别标签被覆写为 `"person"`；
-  2. **工程落地三级自适应防御体系**：
-     - **优先级 1（显式传参）**：调用方若在 `DetectorConfig.classNames` 指定，优先使用；
-     - **优先级 2（动态元数据解析）**：在 `OnnxDetector::initializeSession` 中通过 ONNX Runtime C API 读取 `OrtModelMetadata` 中的 `names` 键，正则解析 `{0: 'UAV'}` 或 COCO 80 类映射表；
-     - **优先级 3（张量拓扑通道保底）**：无元数据时，根据 $channels == 5$ 自动判定 $numClasses == 1$ 并映射为 `{"UAV"}`，若 $channels == 84$ 映射为 COCO 80 类；并在 `YoloPostProcessor::process` 同步单类防御；
-  3. **编译与全项客观论证验证**：
-     - MinGW 64-bit Release 全量构建通过，`RGB_PTZ_Integrated.exe` 与 `test_detector.exe` 更新就位；
-     - 实测真实地对空图像（`video01/00001.jpg`）：
-       - `models/yolo11n_uav_ft.onnx`：输出 `[1] 类别: UAV | 置信度: 0.868`，IoU=88.2%，中心误差=2.81px，标签修复成功；
-       - `models/yolov8n.onnx`：输出 `[1] 类别: airplane | 置信度: 0.906`，IoU=99.0%，COCO 模型零退化；
-       - `test_amft.exe` 协同回归：5/5 PASS 全部通过。
+  1. **临时方案规范对齐与修正**（Commit `2ebcacf`）：
+     - 审查并修正《临时方案_YOLO检测类别标签映射自适应修复.md》，标注 Checkpoint #75 闭环状态并客观化第四节实测记录；
+     - 审查并修正《临时方案_基于金字塔多尺度ZNCC模板匹配的无类别保底重捕方案.md》，修复拓扑图分支控制、结构体注释对齐、步骤 1 `roi` 变量复用、步骤 5 软启动状态对齐，并补充两处调用集成代码入口与单元回归规范；
+  2. **传统重检测算法极限实测与机理论证**（基于真实 1080P 相机捕获帧与 Anti-UAV 序列，落盘脚本 `scripts/benchmark_*.py`）：
+     - **姿态偏转物理实测**：像素级灰度 ZNCC 在目标偏转 4° 时相关度从 1.0000 暴跌至 0.3238（跌破 0.50 门限），8° 跌至 0.0472，直接发生漏检；而单元格梯度特征（HOG, cell=4）在 4° 仍为 0.8002、15° 为 0.6129，优势显著；
+     - **全图背景伪峰分析**：1080P 全图真实背景次大假峰达到 0.5705（超过 0.50 门限），证明单一 ZNCC 门限必然被背景杂波劫持，必须依赖 `verifyRecoveryCandidate` 的 HSV 色彩直方图（旋转 15° 时巴氏相似度仍达 0.9309）进行二次拦截；
+     - **CPU 耗时实测**：原图 1080P 全图 3 尺度 ZNCC 耗时 101.94ms（严重超标），金字塔 480P（s=0.25）3 尺度仅需 10.48ms（满足 3 FPS 降频重捕要求）；
+  3. **编译构建与全景回归体检**：
+     - `run_test.ps1`（`test_detector.exe`）：5/5 PASS 全项达标（GPU DirectML 3.85ms，IoU 99.0%，中心误差 0.64px，200 轮内存净增 -1.55MB 零泄漏）；
+     - `test_amft.exe`：5/5 PASS 全项达标（1050 帧真实序列，调用率 0.00%，均值误差 2.68px，严重遮挡单次极速拉回，DSST 与 LightTrack 丢失保持与原目标回归验证通过）。
 - **下一步**：推进方案 05（LightTrack 深度跟踪）整机实机闭环验证；开展外场变焦与抗遮挡实机联调；筹备方案 06（RK3588 边缘端量化）与方案 07（自研网络重训消融）。
