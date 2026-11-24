@@ -41,7 +41,7 @@ flowchart LR
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
 | **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 交付 5 款标准静态 ONNX)；目标跟踪：双内核 (DSST 滤波闭环 + LightTrack ONNX)；协同大脑：AMFT 状态机 + 初始锚点防劫持校验** | 1. 目标检测：YOLO 多模型领域微调与免重启动态热切换（方案 03）已闭环；<br>2. 协同大脑：AMFT 三维评估状态机（方案 02）与不可变初始目标外观锚点守护机制已闭环；<br>3. 控制与状态机强化：变焦双触发尺度校准、分级防误劫持重捕与伺服软启动（方案 04）代码已实施落地；<br>4. 深度跟踪基线：LightTrack 原版纯静态 ONNX 与 C++ DirectML 双内核分派已接入主工程（方案 05），待整机实机闭环验证；<br>5. 后续演进：推进 RK3588 边缘端量化移植（方案 06）与硕士课题算法深度创新及重训消融（方案 07，规划储备/尚未实现）。 |
-| **最新进展** | 🟢 **目标丢失保持与防异物劫持机制落地；主工程、`test_amft` 与 `test_sot_tracker` Release 编译通过；`test_amft` 5/5 PASS（DSST/LightTrack 防劫持与原目标回归闭环验证通过）** | 固化初始目标 HSV 色彩-亮度直方图与 `24×24` ZNCC 模板及内核原始特征（`OnnxSotTracker::m_anchorTemplateFeat`、`DsstCore::detectOnlyBackup`）；实现丢失首帧即时冻结学习、重捕候选框锚点一致性校验、`TRACK_LOST` 双帧空间连续确认与非破坏性状态恢复；主工程 `RGB_PTZ_Integrated.exe`、`test_sot_tracker.exe`、`test_amft.exe` 编译通过；`test_amft.exe` 5/5 PASS（序列均值误差 `2.68 px`，DSST 回归误差 `0.00 px`，LightTrack 回归误差 `1.17 px`）。 |
+| **最新进展** | 🟢 **完成无类别保底重捕路线 A (金字塔 ZNCC + 颜色锚点) 与路线 B (LightTrack ONNX 6 分块平铺) 在 Anti-UAV 1080P 数据集上的全维度客观评测；归档基准流水线与测试数据** | 在 Anti-UAV 7 组典型光电长焦序列（925 采样有效帧 + 64 目标出视野缺失帧）上完成全量实测：路线 A（金字塔 ZNCC + 颜色锚点）Success AUC 23.78%、DP@20 25.73%、时延 4.99ms、背景误报率 1.56%；路线 B（LightTrack 6 分块平铺）Success AUC 21.15%、DP@20 18.81%、时延 43.17ms、背景误报率 100.0%；客观归因 SOT 全图平铺在无负样本标定与弱小目标特征退化缺陷，形成工程选型依据。 |
 | **编译状态** | 🟢 **通过（0 错误）** | Release 构建已通过，主工程、`test_sot_tracker` 与 `test_amft` 基于 Qt 6.12.0 / C++17 / MinGW 13.1 64-bit 完好编译链接，全部 DLL 与 ONNX 模型自动同步 |
 | **GPU 推理基准** | 🟢 **DirectML 硬件加速：YOLO 检测 2.7~5.8ms；LightTrack 纯前向 1.83ms (0.58 GFLOPs)** | NVIDIA RTX 5070 Laptop GPU：满足 <=5ms 机电伺服硬实时要求；当前处于待整机实机闭环验证阶段 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
@@ -242,20 +242,29 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #76）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_76.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_76.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #77）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_77.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_77.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-24 #77
+### Checkpoint 2026-11-25 #78
 - **记录人**：Antigravity (Gemini 3.8 Flash High)
-- **类型**：重检测架构误导性注释治理 + AGENTS.md 规范强化 + 编译回归闭环
+- **类型**：无类别保底重捕双路线（路线 A VS 路线 B）Anti-UAV 真机数据集全维度实测对比与归因
 - **核心内容**：
-  1. **重检测架构事实澄清与方案定性**：
-     - 查证并确认：上位机 UI 在手动框选（`on_radioModeManual_toggled`）与启动跟踪（`on_btnTrackStart_clicked`）时，运行时均 100% 显式使能 `setRedetectionEnabled(true)` 并由 YOLO 协同重捕；
-     - 确认《临时方案_基于金字塔多尺度ZNCC模板匹配的无类别保底重捕方案.md》无需执行，其基于像素级 ZNCC 的全图粗搜索在物理实测中已证实姿态敏感（偏转 4° 漏检）且背景假峰高达 0.57，方案维持归档状态，不合入生产代码；
-  2. **代码注释历史修订痕迹清理**：
-     - 剔除 `objecttracker.h`、`objecttracker.cpp` 与 `trackingcontroller.h` 中“回归旧版稳定处理，绝不触发 YOLO 劫持”、“默认禁用，杜绝 YOLO 误重置”、“单次唤醒全局检测重捕（替换旧版九宫格盲试）”等与当前系统事实冲突的过渡性/辩解性误导注释，改用纯粹客观的功能定义描述；
-  3. **规范强化与行为准则升级**：
-     - 更新 [AGENTS.md](file:///d:/PyProjects/RGB_PTZ_Integrated/AGENTS.md) 第一章第 2 条，增加“代码注释铁律（严防误导开发）”，明文严禁在代码注释中遗留任何历史修订痕迹、与过去版本的对比或与当前运行时调用事实脱节的旧版辩解词；
-  4. **编译构建与回归验收**：
-     - Release 重新构建 0 错误 0 告警，`RGB_PTZ_Integrated.exe` 生成完好；
-     - 执行 `.\run_test.ps1`（`test_detector.exe`），5/5 PASS 全项通过（DirectML 纯推理 3.36ms，IoU 99.0%，中心误差 0.64px，200 轮内存零泄漏）。
-- **下一步**：继续按主线推进方案 05（LightTrack 深度跟踪整机闭环实机验证）；筹备方案 06（RK3588 边缘端量化移植）与方案 07（自研网络重训消融）。
+  1. **测试平台与实验协议构建**：
+     - 构建全自动基准测试脚本 [scripts/benchmark_routes_ab.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/benchmark_routes_ab.py)，测试结果归档至 [scripts/benchmark_results.json](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/benchmark_results.json)；
+     - 测试选型涵盖 Anti-UAV 7 个典型光电长焦序列（`video01`、`video03`、`video04`、`video05`、`video07`、`video11`、`video16`），测试 925 采样有效帧 + 64 目标出视野缺失帧；
+     - 仅在 Frame 0 提供一次初始标注框，后续所有测试帧均在 1080P 全图无先验（Zero Prior）条件下独立执行全局重捕，严禁利用前后帧运动先验；
+  2. **客观多维测试数据**：
+     - **综合成功率 (Success AUC)**：路线 A (金字塔 ZNCC + 颜色锚点) 为 **23.78%**，路线 B (LightTrack ONNX 6 分块平铺) 为 **21.15%**；
+     - **距离精度 (DP@20)**：路线 A 为 **25.73%**，路线 B 为 **18.81%**；
+     - **平均中心误差 (CLE, 命中帧)**：路线 A 为 **300.66 px**，路线 B 为 **355.98 px**；
+     - **全图推理时延**：路线 A 为 **4.99 ms** (~200 FPS)，路线 B 为 **43.17 ms** (~23 FPS)；
+     - **目标出视野误报率 (False Alarm Rate on Absent Targets)**：
+       - 路线 A：**1.56% (1/64)**，颜色锚点与峰值门限有效拦截了 **98.44%** 的背景杂波；
+       - 路线 B：**100.0% (64/64)**，在目标完全离开视场后全部对背景杂波（树木/屋顶边缘）产生虚警假峰。
+  3. **深层物理与算法机理归因**：
+     - **SOT 缺乏绝对负样本锚点**：深度单目标跟踪器本质是相对相似度匹配器，未经过全局负样本（负类/空背景）绝对概率校准，全图分块遍历时极易在杂波纹理上产生极值假峰；
+     - **弱小目标空间尺度坍缩**：在 `video03` (42x40) 与 `video16` (45x36) 上，路线 B 分块缩放至 288 导致弱小目标缩小至 ~15px，经骨干网络 16 倍降采样后特征坍塌，导致 DP@20 为 0.0%；路线 A 凭借自适应金字塔分辨率分支（弱小目标切换至 s=0.50）保留了边缘轮廓，在 `video03` 保持 30.0% 精度；
+     - **大尺度与复杂纹理场景**：在 `video01` (129x63) 与 `video04` 复杂地物场景中，路线 B 的深度特征鲁棒性显著优于传统 ZNCC（AUC 30.8% vs 18.8%）；
+  4. **工程决策依据**：
+     - 在云台光电伺服系统中，重捕机制的第一铁律是“宁可漏检维持 LOST，绝不将云台引向地面建筑物造成失控甩头”；
+     - 路线 A 具备极低的误报率（1.56%）、毫秒级低时延（4.99ms）与弱小目标保底能力，更契合作为无类别丢失保底的工程防线；若引入深度 SOT 平铺，必须前置或后置外观锚点强滤波以阻断 100% 的误报劫持。
+- **下一步**：将客观测试数据与选型建议汇报用户，依据决策闭环最终保底方案实施。
