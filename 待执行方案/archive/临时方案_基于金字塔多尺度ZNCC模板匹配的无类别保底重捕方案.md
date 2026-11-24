@@ -83,19 +83,35 @@ if (cropRoi.width >= 4 && cropRoi.height >= 4) {
 > 注意：此处的 `roi` 变量（L162~L163）已经过边界钳制，直接复用；`image` 为 BGR 格式 `cv::Mat`（L156 由 `QImageToMat` 转换而来）。
 
 ### 步骤 2：金字塔粗搜索（`matchTemplateRecovery`）
-1. **输入降采样**：
-   - 降采样尺度因子设为 $s = 0.25$（$1920\times 1080 \to 480\times 270$）；
-   - `cv::resize(graySearch, graySmall, cv::Size(), s, s, cv::INTER_AREA);`
-2. **多尺度模板循环**：
+
+1. **模板平坦度安全阻断（防纯天空除零假峰）**：
+   在执行空间滑窗前，检查模板灰度标准差：
+   ```cpp
+   cv::Scalar meanVal, stdVal;
+   cv::meanStdDev(m_anchor.origPatchGray, meanVal, stdVal);
+   if (stdVal[0] < 5.0) {
+       // 框选图块为纯平坦低对比度区域（如纯蓝天/白云），ZNCC 必出数值假峰，直接放弃匹配
+       return false;
+   }
+   ```
+
+2. **自适应降采样尺度决策**：
+   为避免远距离弱小目标降采样后因尺寸过小丢失空间结构：
+   - 若 $\min(w_{\text{orig}}, h_{\text{orig}}) \ge 32$：降采样因子设为 $s = 0.25$（$1080P \to 270P$）；
+   - 若 $\min(w_{\text{orig}}, h_{\text{orig}}) < 32$：降采样因子调整为 $s = 0.50$（保留至少 $12\times 12$ 模板分辨率）；
+   - 执行降采样：`cv::resize(graySearch, graySmall, cv::Size(), s, s, cv::INTER_AREA);`
+
+3. **多尺度模板循环**：
    - 设定 3 组尺度：$scale \in \{0.85, 1.00, 1.15\}$；
    - 对每个尺度缩放模板：
-     $$w_t = \text{clamp}(w_{\text{orig}} \cdot s \cdot scale, 12, \text{graySmall.cols}-2)$$
-     $$h_t = \text{clamp}(h_{\text{orig}} \cdot s \cdot scale, 12, \text{graySmall.rows}-2)$$
+     $$w_t = \text{clamp}(w_{\text{orig}} \cdot s \cdot scale, 8, \text{graySmall.cols}-2)$$
+     $$h_t = \text{clamp}(h_{\text{orig}} \cdot s \cdot scale, 8, \text{graySmall.rows}-2)$$
    - 调用 `cv::matchTemplate(graySmall, tplScale, resMap, cv::TM_CCOEFF_NORMED);`；
    - 提取各尺度响应图的最大值 `maxVal` 与极值位置 `maxLoc`。
-3. **最优尺度决策**：
+
+4. **最优尺度决策**：
    - 选取 3 个尺度中全局响应最大者 $(bestScore, bestLoc, bestScale)$；
-   - 粗搜索阈值设定为 $bestScore \ge 0.50$（若低于此值直接返回 `false`，判定无目标）。
+   - 粗搜索阈值设定为 $bestScore \ge 0.50$（若低于此值直接返回 `false`，判定无候选）。
 
 ### 步骤 3：原图映射与候选框还原
 将低分辨率下的极值点映射回原图坐标空间：
@@ -105,8 +121,10 @@ $$W_{\text{recov}} = w_{\text{orig}} \cdot bestScale, \quad H_{\text{recov}} = h
 构建候选框：
 $$B_{\text{cand}} = \text{Rect2f}\big(c_x - W_{\text{recov}}\cdot 0.5,\; c_y - H_{\text{recov}}\cdot 0.5,\; W_{\text{recov}},\; H_{\text{recov}}\big)$$
 
-### 步骤 4：不可变锚点一致性核验（防异物劫持）
-将候选框 $B_{\text{cand}}$ 传入既有的 `verifyRecoveryCandidate`（[objecttracker.cpp L487~L521](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp#L487-L521)）：
+### 步骤 4：不可变锚点一致性核验（防背景杂波假峰劫持）
+
+实测表明，在真实 1080P 空域画面中，高对比度建筑轮廓或反光杂波的次大假峰可达 $0.5705$（已超过 $0.50$ 粗选门限）。因此，候选框必须无条件通过既有的 `verifyRecoveryCandidate`（[objecttracker.cpp L487~L521](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp#L487-L521)）进行严格二次防御：
+
 ```cpp
 float anchorScore = 0.0f;
 if (!verifyRecoveryCandidate(image, candBox, true, anchorScore)) {
@@ -114,7 +132,11 @@ if (!verifyRecoveryCandidate(image, candBox, true, anchorScore)) {
     return false;
 }
 ```
-HSV 色彩直方图巴氏距离 + 灰度 ZNCC + 内核特征三重校验全部通过后，才确认重捕成功。
+
+* **双重防御机理**：
+  1. **色彩防御**：真实目标发生偏转时 HSV 色彩直方图巴氏相似度仍达 $0.93$，而背景杂波色彩与初始目标差异显著，可直接将其拦截（门限 $\ge 0.45$）；
+  2. **结构复核**：通过 $24\times 24$ 归一化小图与内核特征打分；
+  3. 只有 HSV 色彩直方图、灰度结构与初始模板高度一致时，才确认重捕成功。
 
 ### 步骤 5：状态机复位与伺服软启动
 核验通过后，复用既有的 `recoverWithAnchorState(image, newRoi)`（[L523~L558](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp#L523-L558)）：
