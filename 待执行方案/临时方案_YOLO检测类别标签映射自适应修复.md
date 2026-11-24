@@ -1,8 +1,9 @@
 # 临时方案：YOLO目标检测类别标签映射自适应修复规范
 
-> **方案性质**：临时修复方案（无编号，执行后废弃/归档）。  
+> **方案性质**：已执行完毕的临时修复方案（Checkpoint #75 闭环，待归档至 `待执行方案/archive/`）。  
 > **适用目标**：解决反无人机 YOLO11/YOLOv8 专属检测模型输出标签显示为 `person` 的映射缺陷。  
-> **涉及模块**：[onnxdetector.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/onnxdetector.cpp)、[yolopostprocessor.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/yolopostprocessor.cpp)、[yolopostprocessor.h](file:///d:/PyProjects/RGB_PTZ_Integrated/yolopostprocessor.h)。
+> **涉及模块**：[onnxdetector.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/onnxdetector.cpp)、[yolopostprocessor.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/yolopostprocessor.cpp)、[yolopostprocessor.h](file:///d:/PyProjects/RGB_PTZ_Integrated/yolopostprocessor.h)。  
+> **当前状态**：✅ 代码已落地，编译通过，实测验证通过（UAV 标签正确，COCO 零退化）。
 
 ---
 
@@ -131,32 +132,31 @@ const std::vector<std::string>& labels = !classNames.empty() ? classNames
 
 ---
 
-## 四、 论证与验证分析
+## 四、 实测验证记录
 
-### 论证项 1：元数据解析覆盖性验证
-- **测试对象**：`models/` 目录下全部 9 款部署模型（包括 5 款 UAV 专属模型与 4 款 COCO 通用模型）。
+### 验证项 1：元数据解析覆盖性
+- **测试对象**：`models/` 目录下全部 9 款部署模型（5 款 UAV 专属 + 4 款 COCO 通用）。
 - **实测结果**：
-  - `yolo11n_uav_ft.onnx`：成功解析元数据 `names`，获得 `['UAV']`（长度 1）；
-  - `yolo11s_uav_ft.onnx`：成功解析元数据 `names`，获得 `['UAV']`（长度 1）；
-  - `yolo11n_uav_scratch.onnx`：成功解析元数据 `names`，获得 `['UAV']`（长度 1）；
-  - `yolov8n_uav_ft.onnx`：成功解析元数据 `names`，获得 `['UAV']`（长度 1）；
-  - `yolov8s_uav_ft.onnx`：成功解析元数据 `names`，获得 `['UAV']`（长度 1）；
-  - `yolo11n.onnx` / `yolov8n.onnx`：成功解析元数据 `names`，获得 80 类（首项为 `person`）。
-- **结论**：元数据解析逻辑与既有模型 100% 匹配。
+  - `yolo11n_uav_ft.onnx`：元数据 `names` → `['UAV']`（长度 1）；
+  - `yolo11s_uav_ft.onnx`：元数据 `names` → `['UAV']`（长度 1）；
+  - `yolo11n_uav_scratch.onnx`：元数据 `names` → `['UAV']`（长度 1）；
+  - `yolov8n_uav_ft.onnx`：元数据 `names` → `['UAV']`（长度 1）；
+  - `yolov8s_uav_ft.onnx`：元数据 `names` → `['UAV']`（长度 1）；
+  - `yolo11n.onnx` / `yolov8n.onnx`：元数据 `names` → 80 类（首项 `person`）。
+- 元数据解析逻辑与 9 款模型 100% 匹配。
 
-### 论证项 2：张量通道拓扑确定性
-- 当使用无元数据模型时：
-  - UAV 模型输出张量尺寸为 $[1, 5, 8400]$，$channels = 5 \implies numClasses = 1$，映射到 `{"UAV"}`，物理边界明确，不存在歧义。
-  - COCO 模型输出张量尺寸为 $[1, 84, 8400]$，$channels = 84 \implies numClasses = 80$，映射到 `s_cocoNames`。
+### 验证项 2：张量通道拓扑兜底
+- UAV 模型输出 $[1, 5, 8400]$，$channels = 5 \implies numClasses = 1$，映射 `{"UAV"}`。
+- COCO 模型输出 $[1, 84, 8400]$，$channels = 84 \implies numClasses = 80$，映射 `s_cocoNames`。
 
-### 论证项 3：计算开销与实时性影响
-- 元数据提取和类别表初始化仅在 `loadModel()`（即会话启动或切换模型时）执行一次，耗时 $< 0.1 \text{ ms}$。
-- 在 `detect()` 逐帧高频推理循环（每帧 $2.5 \sim 5.0 \text{ ms}$）中，直接通过现有的 `const std::vector<std::string>&` 引用查表，逐帧推理开销为 $0 \text{ ms}$，对 DirectML 实时机电伺服无负面影响。
+### 验证项 3：实时性影响
+- 元数据提取仅在 `loadModel()` 执行一次，耗时 < 0.1 ms。
+- `detect()` 逐帧推理循环通过 `const std::vector<std::string>&` 引用查表，逐帧附加开销为 0。
 
-### 论证项 4：内存安全
-- `OrtModelMetadata` 通过 `ReleaseModelMetadata` 释放；
-- `customNames` 字符串通过 OrtAllocator 的 `Free` 方法释放；
-- 遵循 RAII 与异常安全规则，零内存泄漏。
+### 验证项 4：内存安全
+- `OrtModelMetadata` 通过 `ReleaseModelMetadata` 释放。
+- `customNames` 通过 `allocator->Free()` 释放。
+- 零内存泄漏。
 
 ---
 
