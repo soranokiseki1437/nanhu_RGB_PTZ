@@ -143,6 +143,6 @@ win32 {
 
     # Models ONNX 文件自动同步到输出目录
     MODELS_DIR = $$shell_path($$PWD/models)
-    QMAKE_POST_LINK += if not exist $$quote($$DESTDIR_WIN\\models) mkdir $$quote($$DESTDIR_WIN\\models) &
+    QMAKE_POST_LINK += (if not exist $$quote($$DESTDIR_WIN\\models) mkdir $$quote($$DESTDIR_WIN\\models)) &
     QMAKE_POST_LINK += copy /Y $$quote($$MODELS_DIR\\*.onnx) $$quote($$DESTDIR_WIN\\models)
 }
