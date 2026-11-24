@@ -46,8 +46,8 @@ public:
     // 获取当前状态
     TrackingState state() const { return m_state; }
 
-    // 是否正在跟踪
-    bool isTracking() const { return m_state == Tracking; }
+    // 是否处于跟踪会话中（含目标丢失尝试重捕阶段，确保帧数据持续喂入算法状态机）
+    bool isTracking() const { return m_state == Tracking || m_state == Lost; }
 
     // 获取当前跟踪结果
     TrackResult currentResult() const { return m_lastResult; }
