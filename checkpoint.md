@@ -36,12 +36,12 @@ flowchart LR
 
 ---
 
-## 二、当前项目状态快照（2026-11-24 最新）
+## 二、当前项目状态快照（2026-11-25 最新）
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
 | **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 交付 5 款标准静态 ONNX)；目标跟踪：双内核 (DSST 滤波闭环 + LightTrack ONNX)；协同大脑：AMFT 状态机 + 初始锚点防劫持校验** | 1. 目标检测：YOLO 多模型领域微调与免重启动态热切换（方案 03）已闭环；<br>2. 协同大脑：AMFT 三维评估状态机（方案 02）与不可变初始目标外观锚点守护机制已闭环；<br>3. 控制与状态机强化：变焦双触发尺度校准、分级防误劫持重捕与伺服软启动（方案 04）代码已实施落地；<br>4. 深度跟踪基线：LightTrack 原版纯静态 ONNX 与 C++ DirectML 双内核分派已接入主工程（方案 05），待整机实机闭环验证；<br>5. 后续演进：推进 RK3588 边缘端量化移植（方案 06）与硕士课题算法深度创新及重训消融（方案 07，规划储备/尚未实现）。 |
-| **最新进展** | 🟢 **完成无类别保底重捕路线 A (金字塔 ZNCC + 颜色锚点) 与路线 B (LightTrack ONNX 6 分块平铺) 在 Anti-UAV 1080P 数据集上的全维度客观评测；归档基准流水线与测试数据** | 在 Anti-UAV 7 组典型光电长焦序列（925 采样有效帧 + 64 目标出视野缺失帧）上完成全量实测：路线 A（金字塔 ZNCC + 颜色锚点）Success AUC 23.78%、DP@20 25.73%、时延 4.99ms、背景误报率 1.56%；路线 B（LightTrack 6 分块平铺）Success AUC 21.15%、DP@20 18.81%、时延 43.17ms、背景误报率 100.0%；客观归因 SOT 全图平铺在无负样本标定与弱小目标特征退化缺陷，形成工程选型依据。 |
+| **最新进展** | 🟢 **完成现有 YOLO 重检测链路与路线 A 在 Anti-UAV 1080P 数据集上的 C++ DirectML 全维度对比评测，定位现有过滤阈值与传统保底方案的量化收益与误劫持代价** | 基于 C++ Release 工具 [bench_redetect.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/bench_redetect.cpp) 在 Anti-UAV 7 组序列（925 有效帧 + 64 缺失帧）实测：UAV 专用模型 (`yolo11n_uav_ft.onnx`) 结合 LightTrack 锚点校验取得 AUC 53.15%、DP@20 62.59%、有效帧劫持率 3.46%、缺失帧误报率 3.1%（单帧 7.35ms）；DSST 校验分支受大角度姿态变化与 `areaRatio < 0.15` 约束限制，AUC 降至 38.20%；路线 A (`RouteA_ZNCC_Color`) AUC 24.07%、DP@20 26.38%，有效帧背景劫持率 21.19%（7.34ms），串联于 UAV YOLO 后仅带来 +0.09%~+0.99% AUC 增益但引入 9.08%~14.82% 背景误劫持增幅；在无 UAV 类别先验的默认 COCO (`yolov8n.onnx`) 场景下，DSST 分支 AUC 17.10%，串联路线 A 后 AUC 升至 29.88%，同步伴随劫持率从 0.86% 升至 20.43%。 |
 | **编译状态** | 🟢 **通过（0 错误）** | Release 构建已通过，主工程、`test_sot_tracker` 与 `test_amft` 基于 Qt 6.12.0 / C++17 / MinGW 13.1 64-bit 完好编译链接，全部 DLL 与 ONNX 模型自动同步 |
 | **GPU 推理基准** | 🟢 **DirectML 硬件加速：YOLO 检测 2.7~5.8ms；LightTrack 纯前向 1.83ms (0.58 GFLOPs)** | NVIDIA RTX 5070 Laptop GPU：满足 <=5ms 机电伺服硬实时要求；当前处于待整机实机闭环验证阶段 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
@@ -242,29 +242,27 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #77）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_77.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_77.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #78）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_78.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_78.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-25 #78
-- **记录人**：Antigravity (Gemini 3.8 Flash High)
-- **类型**：无类别保底重捕双路线（路线 A VS 路线 B）Anti-UAV 真机数据集全维度实测对比与归因
+### Checkpoint 2026-11-25 #79
+- **记录人**：Antigravity (Gemini 4 Hydrogen XHigh)
+- **类型**：现有 YOLO 重检测链路 (`tryDetectAndRecover`) 与路线 A (金字塔 ZNCC) C++ 端到端基准对比与门限归因
 - **核心内容**：
-  1. **测试平台与实验协议构建**：
-     - 构建全自动基准测试脚本 [scripts/benchmark_routes_ab.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/benchmark_routes_ab.py)，测试结果归档至 [scripts/benchmark_results.json](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/benchmark_results.json)；
-     - 测试选型涵盖 Anti-UAV 7 个典型光电长焦序列（`video01`、`video03`、`video04`、`video05`、`video07`、`video11`、`video16`），测试 925 采样有效帧 + 64 目标出视野缺失帧；
-     - 仅在 Frame 0 提供一次初始标注框，后续所有测试帧均在 1080P 全图无先验（Zero Prior）条件下独立执行全局重捕，严禁利用前后帧运动先验；
-  2. **客观多维测试数据**：
-     - **综合成功率 (Success AUC)**：路线 A (金字塔 ZNCC + 颜色锚点) 为 **23.78%**，路线 B (LightTrack ONNX 6 分块平铺) 为 **21.15%**；
-     - **距离精度 (DP@20)**：路线 A 为 **25.73%**，路线 B 为 **18.81%**；
-     - **平均中心误差 (CLE, 命中帧)**：路线 A 为 **300.66 px**，路线 B 为 **355.98 px**；
-     - **全图推理时延**：路线 A 为 **4.99 ms** (~200 FPS)，路线 B 为 **43.17 ms** (~23 FPS)；
-     - **目标出视野误报率 (False Alarm Rate on Absent Targets)**：
-       - 路线 A：**1.56% (1/64)**，颜色锚点与峰值门限有效拦截了 **98.44%** 的背景杂波；
-       - 路线 B：**100.0% (64/64)**，在目标完全离开视场后全部对背景杂波（树木/屋顶边缘）产生虚警假峰。
-  3. **深层物理与算法机理归因**：
-     - **SOT 缺乏绝对负样本锚点**：深度单目标跟踪器本质是相对相似度匹配器，未经过全局负样本（负类/空背景）绝对概率校准，全图分块遍历时极易在杂波纹理上产生极值假峰；
-     - **弱小目标空间尺度坍缩**：在 `video03` (42x40) 与 `video16` (45x36) 上，路线 B 分块缩放至 288 导致弱小目标缩小至 ~15px，经骨干网络 16 倍降采样后特征坍塌，导致 DP@20 为 0.0%；路线 A 凭借自适应金字塔分辨率分支（弱小目标切换至 s=0.50）保留了边缘轮廓，在 `video03` 保持 30.0% 精度；
-     - **大尺度与复杂纹理场景**：在 `video01` (129x63) 与 `video04` 复杂地物场景中，路线 B 的深度特征鲁棒性显著优于传统 ZNCC（AUC 30.8% vs 18.8%）；
-  4. **工程决策依据**：
-     - 在云台光电伺服系统中，重捕机制的第一铁律是“宁可漏检维持 LOST，绝不将云台引向地面建筑物造成失控甩头”；
-     - 路线 A 具备极低的误报率（1.56%）、毫秒级低时延（4.99ms）与弱小目标保底能力，更契合作为无类别丢失保底的工程防线；若引入深度 SOT 平铺，必须前置或后置外观锚点强滤波以阻断 100% 的误报劫持。
-- **下一步**：将客观测试数据与选型建议汇报用户，依据决策闭环最终保底方案实施。
+  1. **C++ DirectML 实机链路基准搭建与复现验证**：
+     - 编写独立离线评测工具 [tools/bench_redetect.pro](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/bench_redetect.pro) 与 [tools/bench_redetect.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/bench_redetect.cpp)，直接调用生产组件 `OnnxDetector` (DirectML RTX 5070)、`DsstCore::detectOnlyBackup`、`OnnxSotTracker::peekBox` 与路线 A OpenCV 链路，结果归档至 [scripts/benchmark_yolo_vs_route_a.json](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/benchmark_yolo_vs_route_a.json)；
+     - 评测集与协议：Anti-UAV 7 组序列（925 采样有效帧 + 64 目标出视野缺失帧，Frame 0 初始锚点，零位置先验全图冷重捕，单帧候选验收）。
+  2. **核心实测对比指标**：
+     - `YOLO11n_UAV_Raw` (`yolo11n_uav_ft.onnx` + 几何滤波)：AUC **56.57%**、DP@20 **67.78%**、mIoU **0.5614**、有效帧劫持 **3.03%**、缺失帧误报 **9.4% (6/64)**、耗时 **4.87 ms**；
+     - `YOLO11n_UAV_Exist_LT` (结合 LightTrack `peekBox >= 0.68` 锚点校验)：AUC **53.15%**、DP@20 **62.59%**、mIoU **0.5240**、HitCLE **55.4 px**、有效帧劫持 **3.46%**、缺失帧误报 **3.1% (2/64)**、耗时 **7.35 ms**；
+     - `YOLO11n_UAV_Exist_DSST` (结合 DSST `PSR >= 6.0` 锚点校验)：AUC **38.20%**、DP@20 **42.81%**、mIoU **0.3616**、HitCLE **22.0 px**、有效帧劫持 **0.86%**、缺失帧误报 **0.0% (0/64)**、耗时 **11.68 ms**；
+     - `YOLOv8n_COCO_Exist_LT` / `Exist_DSST` (默认 COCO-80 权重)：AUC **22.05% / 17.10%**、DP@20 **21.95% / 15.78%**、有效帧劫持 **3.68% / 0.86%**、缺失帧误报 **0.0%**、耗时 **7.43 / 9.98 ms**；
+     - `RouteA_ZNCC_Color` (金字塔 ZNCC + 颜色锚点)：AUC **24.07%**、DP@20 **26.38%**、mIoU **0.2096**、HitCLE **292.0 px**、有效帧劫持 **21.19%**、缺失帧误报 **0.0%**、耗时 **7.34 ms**；
+     - `RouteA_ZNCC_ExistVerify_DSST` (金字塔 ZNCC + 完整 DSST 锚点校验)：AUC **22.91%**、DP@20 **24.22%**、HitCLE **262.2 px**、有效帧劫持 **14.70%**、耗时 **11.03 ms**；
+     - **串联路线 A 保底效果**：
+       - `Hybrid_YOLO11n_UAV_LT_RouteA`：AUC 从 53.15% 升至 **53.24% (+0.09%)**，DP@20 从 62.59% 升至 **62.81% (+0.22%)**，但有效帧误劫持率由 3.46% 恶化至 **12.54% (+9.08%)**，HitCLE 由 55.4 px 升至 **134.0 px**；
+       - `Hybrid_YOLO11n_UAV_DSST_RouteA`：AUC 由 38.20% 升至 **39.19% (+0.99%)**，有效帧误劫持率由 0.86% 恶化至 **15.68% (+14.82%)**；
+       - `Hybrid_YOLOv8n_COCO_DSST_RouteA`：AUC 由 17.10% 升至 **29.88% (+12.78%)**，有效帧误劫持率由 0.86% 恶化至 **20.43%**。
+  3. **既有链路损耗根因定位**：
+     - **`areaRatio >= 0.15` 截断远距缩放目标**：在 `video01` 中，`yolo11n_uav_ft.onnx` 在 700/1040 帧置信度达 0.78~0.79（中心误差 <5px），但因目标面积相对 Frame 0 缩至 `0.08~0.12`，被 `objecttracker.cpp` `areaRatio < 0.15` 门限直接过滤；
+     - **DSST 静态备份对 3D 旋转过严**：在 `video05` 机动转向序列中，`YOLO11n_UAV_Raw` 取得 **94.69%** DP@20（LightTrack 锚点分支保留 **78.76%**），而 DSST 锚点分支因 `PSR < 6.0` 截断导致 DP@20 降至 **0.00%**。
+- **下一步**：待用户依据上述实测对比决策是否维持不合入路线 A、是否放宽现有 YOLO 重检的尺度/内核拦截门限，及无类别目标场景下的后续处理方案。
