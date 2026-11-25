@@ -1,102 +1,94 @@
-# SOT 重训数据集下载与本地组织规范指南
+# SOT 重训与抗虚警评估数据集下载与准备指南
 
 > **归属工程**：[RGB_PTZ_Integrated](file:///d:/PyProjects/RGB_PTZ_Integrated)  
-> **归属规划**：[06_后续创新规划.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/06_后续创新规划.md)（专项规划 06-A 自研跟踪网络深度重训）  
-> **面向任务**：自研轻量单目标跟踪网络（LightUAV-SOT）两阶段预训练与地对空领域微调  
-> **核心算力支撑**：RTX 4080 Super 台式机（16GB GDDR6X 显存，10,240 CUDA 核心）  
-> **目标存储建议**：固态硬盘（SSD）分区，预留 $\ge 120\text{ GB}$ 空间  
+> **覆盖数据集**：`Drone-vs-Bird`（地对空飞鸟干扰与抗虚警校验集）、`LaSOT`（大规模长时单目标跟踪通用基准）
 
 ---
 
-## 一、 核心数据集下载链接与镜像索引
+## 一、 Drone-vs-Bird Detection Challenge 数据集
 
-### 1.1 核心一号库：中科院 GOT-10k（通用单目标跟踪基准数据集）
-* **学术定位**：单目标跟踪领域权威全视频基准（9,335 段视频，140 万帧手工标注），用于训练 MFFN 细节融合层、DAC-Head 匹配层与边界框尺度几何标尺；
-* **数据体量**：压缩包约 **66 GB**（拆分为多个分卷，解压后约 68 GB）；
-* **下载途径**：
-  1. **中科院自动化所（CASIA）官方直连**：
-     - 官网主页：[http://got-10k.aitestunion.com/](http://got-10k.aitestunion.com/)
-     - 下载专属页：[http://got-10k.aitestunion.com/downloads](http://got-10k.aitestunion.com/downloads)
-     - 说明：使用邮箱注册学术账号登录，下载 `train_data.zip` 分卷；
-  2. **NanoTrack 作者官方国内百度网盘镜像**：
-     - 数据集链接：`https://pan.baidu.com/s/10crE2uKR182fA93XRB3jyg`（提取码：`5ebm`）
-     - 预裁剪与标注辅助包：`https://pan.baidu.com/s/1yzXnRUqjreSeojEQOmluQg`（提取码：`un47`）
+### 1.1 数据集规格与用途
+* **学术出处**：WOSDETC *Drone-vs-Bird Detection Grand Challenge*（IEEE AVSS / ICASSP / IJCNN 挑战赛基准）
+* **数据体量与特征**：包含 **77 段**训练视频序列（平均每段约 **1,384 帧**），分辨率覆盖标清至 **4K（3840×2160）**；画面包含多型号旋翼/固定翼无人机、远距离弱小目标（低对比度、强逆光、复杂地表与天空背景）及大量飞鸟群干扰；仅对无人机目标进行边界框标注（飞鸟作为纯负样本干扰存在）。
+* **工程定位**：用于验证条件式二级抗虚警校验模块（`VaL_CNN`）及检测重捕链路在复杂飞鸟干扰下的虚警抑制能力（FP/frame）。
 
----
+### 1.2 获取途径与官方资源
+* **官方 GitHub 仓库（标注文件、评测工具与目录规范）**：  
+  `https://github.com/wosdetc/challenge`
+* **原始视频序列申请流程（受科研使用协议 DUA 保护，需邮件申请）**：
+  1. 从官方仓库获取并填写签署 **Data Usage Agreement（DUA，数据使用协议）**；
+  2. 将签字后的 DUA 发送至官方竞赛组委会邮箱：**`wosdetc@googlegroups.com`**；
+  3. 审核通过后，组委会将通过邮件回复训练与测试视频序列的下载链接。
+* **辅助标注与格式转换开源工具参考**：
+  * 辅助标签规范与帧转换说明：`https://raysonlaroca.github.io/supp/drone-vs-bird/`
+  * 竞赛数据加载参考仓库：`https://github.com/yjwong1999/IJCNN2025-DvB`、`https://github.com/i-sahajmistry/BvD-ICASSP-2023`
 
-### 1.2 核心二号库：CASIA Anti-UAV300（地对空长焦连续视频微调）
-* **定位**：CVPR / IEEE TPAMI / IEEE T-MM 反无人机基准连续视频序列，用于方案 06-A 阶段三地对空领域微调；
-* **数据体量**：
-  - **原始 MP4 视频压缩包**：约 **5 GB**（以 H.264 编码的 `.mp4` 高清视频存储，300 段序列）；
-  - **解压抽帧后散图体量**：约 **30~45 GB**（共计约 28~30 万帧 1080p/720p 高清图，每段包含 1~2 分钟连续飞行航迹）；
-* **下载途径**：
-  1. **中科院自动化所（CASIA / UCAS-VG）官方全量百度网盘**：
-     - 链接：`https://pan.baidu.com/s/1A1-ynecLWfkEetRsPnh6rw`（提取码：`u4ca`）
-     - 说明：包含全量视频序列与逐帧 JSON 边界框真值标注；
-  2. **Kaggle 全量开源镜像（海外/高校高速通道）**：
-     - 主页：`https://www.kaggle.com/datasets/mahdimoalla/anti-uav-dataset-300`
-     - 说明：包含 300 段完整序列，支持直接下载或 `kaggle datasets download`；
-  3. **官方 Google Drive 全量大包**：
-     - 链接：`https://drive.google.com/file/d/1NPYaop35ocVTYWHOYQQHn8YHsM9jmLGr/view?usp=sharing`
-  4. **挑战赛打榜子集（用户此前截图的 test-dev）**：
-     - 链接：`https://pan.baidu.com/s/1dJR0VKyLyiXBNB_qfa2ZrA`（提取码：`sagx`，仅包含 `test-dev.tar` 1.97 GB，无训练真值，不用于训练）。
-
----
-
-### 1.3 辅助尺度增强库：MS-COCO 2017（静态多尺度扩增）
-* **学术定位**：提供极端目标长宽比与多尺度形变扩增，防范单一视频序列过拟合；
-* **数据体量**：图像包约 **18 GB**，标注包约 **241 MB**；
-* **下载途径（清华大学 TUNA 开源镜像站，千兆满速直链）**：
-  - **训练图像大包（train2017.zip，18 GB）**：
-    [https://mirrors.tuna.tsinghua.edu.cn/coco/zips/train2017.zip](https://mirrors.tuna.tsinghua.edu.cn/coco/zips/train2017.zip)
-  - **训练标注包（annotations_trainval2017.zip，241 MB）**：
-    [https://mirrors.tuna.tsinghua.edu.cn/coco/annotations/annotations_trainval2017.zip](https://mirrors.tuna.tsinghua.edu.cn/coco/annotations/annotations_trainval2017.zip)
+### 1.3 标注格式与本地目录组织
+* **官方逐帧文本标注格式**（每个视频对应一份 `.txt` 文件，仅记录存在无人机目标的帧）：
+  ```text
+  <framenum> <num_objs> <top_x_1> <top_y_1> <width_1> <height_1> [<top_x_2> <top_y_2> <width_2> <height_2> ...]
+  ```
+* **本地建议目录结构**：
+  ```text
+  d:\PyProjects\RGB_PTZ_Integrated\datasets\Drone-vs-Bird\
+  ├── videos\                # 原始视频序列文件
+  ├── annotations\           # 逐序列官方 txt 标注文件
+  └── frames_yolo\           # 按需抽帧转换后的图像与 YOLO 格式标签（可选）
+  ```
+* **完整性校验**：核对 `annotations/` 与 `videos/` 中 **77 段**训练序列一一对应，确保无空文件或损坏视频流。
 
 ---
 
-## 二、 台式机本地目录组织规范
+## 二、 LaSOT（Large-scale Single Object Tracking）数据集
 
-为保障训练数据加载效率与数据管理规范，建议在 RTX 4080 Super 台式机的固态硬盘（SSD）上建立如下目录层级：
+### 2.1 数据集规格与用途
+* **学术出处**：Heng Fan 等人提出的大规模长时单目标跟踪基准（CVPR 2019 / IJCV 2021）
+* **数据体量与版本划分**：
+  * **会议版（LaSOT，70 类 / 1,400 段视频）**：体积约 **227 GB**，覆盖长时连续跟踪、全遮挡重现、视野出界与显著尺度变化；
+  * **期刊扩展子集（LaSOT-ext，新增 15 类 / 150 段视频）**：体积约 **59 GB**，包含高难度相似干扰物与小尺度运动目标。
+* **工程定位**：用于自研轻量 SOT 网络（`Rep-LightTrack`）的长时表观表征、尺度回归与抗遮挡能力预训练及长时跟踪评测。
 
-```text
-D:\Datasets_SOT\
-├── GOT-10k\                        # 中科院 GOT-10k 解压根目录
-│   ├── train\                      # 包含 9,335 个视频序列目录 (GOT-10k_Train_000001 ...)
-│   │   ├── GOT-10k_Train_000001\
-│   │   │   ├── 00000001.jpg
-│   │   │   ├── groundtruth.txt
-│   │   │   └── ...
-│   │   └── ...
-│   └── val\                        # 官方验证集目录 (包含 GOT-10k_Val_000001 ...)
-│
-├── CASIA-Anti-UAV300\             # CASIA 官方 Anti-UAV300 全量地对空连续长视频航迹
-│   ├── train\                      # 官方 100 段全量连续长视频序列 (visible.mp4 + visible.json)
-│   └── ...
-│
-└── DUT-Anti-UAV-Val\               # 本地已就绪的 DUT Anti-UAV 20 组真机跟踪验证序列
-    ├── Anti-UAV-Tracking-V0\       # video01 ~ video20 图像帧 (24,784 帧)
-    └── Anti-UAV-Tracking-V0GT\     # video01_gt.txt ~ video20_gt.txt 逐帧真值标注
-│
-└── COCO2017\                       # MS-COCO 2017 静态数据集
-    ├── train2017\                  # 11.8 万张图片
-    └── annotations\                # instances_train2017.json
-```
+### 2.2 下载途径与命令行拉取
+* **官方项目主页与评测工具**：
+  * 官方网站：`https://vision.cs.stonybrook.edu/~lasot/`
+  * 镜像汇总页（含 **Google Drive / OneDrive / 百度网盘** 全量及分类别分卷下载链接）：`https://hengfan2010.github.io/LaSOT/`
+  * 官方评测工具库：`https://github.com/HengLan/LaSOT_Evaluation_Toolkit`
+* **Hugging Face 开源镜像直拉（支持断点续传）**：
+  ```python
+  from huggingface_hub import snapshot_download
 
----
+  # 1. 拉取 LaSOT 主集（70 类 / 1,400 序列，约 227 GB）
+  snapshot_download(
+      repo_id="l-lt/LaSOT",
+      repo_type="dataset",
+      local_dir=r"D:\Datasets_SOT\LaSOT",
+  )
 
-## 三、 数据完整性与校验
+  # 2. 按需拉取 LaSOT-ext 扩展集（15 类 / 150 序列，约 59 GB）
+  snapshot_download(
+      repo_id="l-lt/LaSOT-ext",
+      repo_type="dataset",
+      local_dir=r"D:\Datasets_SOT\LaSOT-ext",
+  )
+  ```
 
-1. **GOT-10k 校验**：解压完成后，确认 `train/` 目录下子文件夹数量为 `9335`；
-2. **COCO 2017 校验**：解压完成后，确认 `train2017/` 目录下图片数量为 `118287`；
-3. **CASIA Anti-UAV300 校验**：确认解压后包含对应的视频与标注文件。
-
----
-
-## 四、 前沿可选扩展数据源规范（LRDDv3 4K可见光子集）
-
-* **数据集名称**：LRDDv3 (*High-Resolution Long-Range Drone Detection Dataset*, IEEE ICRA 2026 / arXiv:2605.25942)
-* **数据集定位**：可选的超远距离弱小目标泛化与极限测距扩展测试集（按需下载验证，不阻塞主航道）
-* **官方开源地址**：`https://github.com/iMAPLE-Lab/LRDD`
-* **建议本地存放路径**：`D:\Datasets_SOT\LRDDv3\`
-* **使用准则**：仅抽取其 102,532 张 4K 分辨率纯可见光（RGB）静态图像子集，用于超远距离微小尺度（$\le 50\text{ px}$）极限召回与泛化验证。
-
+### 2.3 本地目录组织与完整性校验
+* **本地建议目录结构（预留 $\ge 320\text{ GB}$ SSD 空间）**：
+  ```text
+  D:\Datasets_SOT\
+  ├── LaSOT\
+  │   ├── airplane\
+  │   │   ├── airplane-1\
+  │   │   │   ├── img\               # 连续视频帧 (*.jpg)
+  │   │   │   ├── groundtruth.txt    # 逐帧 [x, y, w, h] 标注
+  │   │   │   ├── full_occlusion.txt # 全遮挡属性标志
+  │   │   │   ├── out_of_view.txt    # 出视野属性标志
+  │   │   │   └── nlp.txt            # 文本描述
+  │   │   └── ...
+  │   └── ... (共 70 个类别目录)
+  └── LaSOT-ext\                     # 扩展集 15 个类别目录（可选）
+  ```
+* **完整性校验**：
+  1. 确认 `LaSOT\` 根目录下共包含 **70** 个类别文件夹，累计 **1,400** 个子序列目录；
+  2. 每个序列目录下均包含 `img\` 帧目录与行数一致的 `groundtruth.txt`、`full_occlusion.txt`、`out_of_view.txt`；
+  3. 若拉取 `LaSOT-ext\`，确认包含 **15** 个类别目录、累计 **150** 个子序列。

@@ -1,0 +1,8 @@
+# Merged UAV Detection Dataset (DUT Anti-UAV + Deterministic CASIA-Anti-UAV300 Keyframes)
+path: d:/PyProjects/RGB_PTZ_Integrated/datasets/Anti-UAV-Merged
+train: train/images
+val: val/images
+test: val/images
+
+nc: 1
+names: ['UAV']
