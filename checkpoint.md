@@ -41,12 +41,12 @@ flowchart LR
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
 | **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 交付 5 款标准静态 ONNX)；目标跟踪：双内核 (DSST 滤波闭环 + LightTrack ONNX)；协同大脑：AMFT 状态机 + 初始锚点防劫持校验** | 1. 目标检测：YOLO 多模型领域微调与免重启动态热切换（方案 03）已闭环；<br>2. 协同大脑：AMFT 三维评估状态机（方案 02）与不可变初始目标外观锚点守护机制已闭环；<br>3. 控制与状态机强化：变焦双触发尺度校准、分级防误劫持重捕与伺服软启动（方案 04）代码已实施落地；<br>4. 深度跟踪基线：LightTrack 原版纯静态 ONNX 与 C++ DirectML 双内核分派已接入主工程（方案 05），待整机实机闭环验证；<br>5. 后续演进：推进 RK3588 边缘端量化移植（方案 06）与硕士课题算法深度创新及重训消融（方案 07，规划储备/尚未实现）。 |
-| **最新进展** | 🟢 **完成现有 YOLO 重检测链路与路线 A 在 Anti-UAV 1080P 数据集上的 C++ DirectML 全维度对比评测，定位现有过滤阈值与传统保底方案的量化收益与误劫持代价** | 基于 C++ Release 工具 [bench_redetect.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/bench_redetect.cpp) 在 Anti-UAV 7 组序列（925 有效帧 + 64 缺失帧）实测：UAV 专用模型 (`yolo11n_uav_ft.onnx`) 结合 LightTrack 锚点校验取得 AUC 53.15%、DP@20 62.59%、有效帧劫持率 3.46%、缺失帧误报率 3.1%（单帧 7.35ms）；DSST 校验分支受大角度姿态变化与 `areaRatio < 0.15` 约束限制，AUC 降至 38.20%；路线 A (`RouteA_ZNCC_Color`) AUC 24.07%、DP@20 26.38%，有效帧背景劫持率 21.19%（7.34ms），串联于 UAV YOLO 后仅带来 +0.09%~+0.99% AUC 增益但引入 9.08%~14.82% 背景误劫持增幅；在无 UAV 类别先验的默认 COCO (`yolov8n.onnx`) 场景下，DSST 分支 AUC 17.10%，串联路线 A 后 AUC 升至 29.88%，同步伴随劫持率从 0.86% 升至 20.43%。 |
+| **最新进展** | 🟢 **完成工作区过时文件集中清理与分级归档（保留既有在研训练/评测未提交改动）** | 将 `思考工作区/`（#70 异机微调排查报告）归档至 `_archive/思考工作区_20261116/`；已闭环方案 01~04 统一归档至 `待执行方案/archive/`；早期脚本、对拍工具、docx 依赖及中期草稿分别归档至 `scripts/_archive/`、`tools/_archive/`、`课题/_archive/` 与 `_archive/`，并同步校准全库引用链接。 |
 | **编译状态** | 🟢 **通过（0 错误）** | Release 构建已通过，主工程、`test_sot_tracker` 与 `test_amft` 基于 Qt 6.12.0 / C++17 / MinGW 13.1 64-bit 完好编译链接，全部 DLL 与 ONNX 模型自动同步 |
 | **GPU 推理基准** | 🟢 **DirectML 硬件加速：YOLO 检测 2.7~5.8ms；LightTrack 纯前向 1.83ms (0.58 GFLOPs)** | NVIDIA RTX 5070 Laptop GPU：满足 <=5ms 机电伺服硬实时要求；当前处于待整机实机闭环验证阶段 |
 | **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
 | **待执行核心任务** | 🟡 **推进 LightTrack 深度跟踪整机闭环验证（方案 05）、外场变焦联调、RK3588 边缘移植（方案 06）与学术创新重训实验准备（方案 07）** | 推进方案 05 序列与外场整机跟踪验证；连接相机与云台开展外场实机长焦变焦飞行跟踪测试；筹备方案 06 边缘端量化部署与方案 07 自研架构重训消融 |
-| **Git 工作区状态** | 🟢 **良好** | 生产代码、YOLO 部署模型、LightTrack 纯静态 ONNX、按实施顺序排列的方案规范均完整归档就位 |
+| **Git 工作区状态** | 🟢 **良好** | 过时文档与历史工具已完成归档清理；另有在研合并数据集与检测重训脚本保留于工作区待后续验证提交 |
 
 ---
 
@@ -242,27 +242,20 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #78）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_78.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_78.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #79）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_79.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_79.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-25 #79
-- **记录人**：Antigravity (Gemini 4 Hydrogen XHigh)
-- **类型**：现有 YOLO 重检测链路 (`tryDetectAndRecover`) 与路线 A (金字塔 ZNCC) C++ 端到端基准对比与门限归因
+### Checkpoint 2026-11-25 #80
+- **记录人**：Antigravity (Gemini 4 Hydrogen High)
+- **类型**：工作区过时文件分级归档与引用链接统一校准
 - **核心内容**：
-  1. **C++ DirectML 实机链路基准搭建与复现验证**：
-     - 编写独立离线评测工具 [tools/bench_redetect.pro](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/bench_redetect.pro) 与 [tools/bench_redetect.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/bench_redetect.cpp)，直接调用生产组件 `OnnxDetector` (DirectML RTX 5070)、`DsstCore::detectOnlyBackup`、`OnnxSotTracker::peekBox` 与路线 A OpenCV 链路，结果归档至 [scripts/benchmark_yolo_vs_route_a.json](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/benchmark_yolo_vs_route_a.json)；
-     - 评测集与协议：Anti-UAV 7 组序列（925 采样有效帧 + 64 目标出视野缺失帧，Frame 0 初始锚点，零位置先验全图冷重捕，单帧候选验收）。
-  2. **核心实测对比指标**：
-     - `YOLO11n_UAV_Raw` (`yolo11n_uav_ft.onnx` + 几何滤波)：AUC **56.57%**、DP@20 **67.78%**、mIoU **0.5614**、有效帧劫持 **3.03%**、缺失帧误报 **9.4% (6/64)**、耗时 **4.87 ms**；
-     - `YOLO11n_UAV_Exist_LT` (结合 LightTrack `peekBox >= 0.68` 锚点校验)：AUC **53.15%**、DP@20 **62.59%**、mIoU **0.5240**、HitCLE **55.4 px**、有效帧劫持 **3.46%**、缺失帧误报 **3.1% (2/64)**、耗时 **7.35 ms**；
-     - `YOLO11n_UAV_Exist_DSST` (结合 DSST `PSR >= 6.0` 锚点校验)：AUC **38.20%**、DP@20 **42.81%**、mIoU **0.3616**、HitCLE **22.0 px**、有效帧劫持 **0.86%**、缺失帧误报 **0.0% (0/64)**、耗时 **11.68 ms**；
-     - `YOLOv8n_COCO_Exist_LT` / `Exist_DSST` (默认 COCO-80 权重)：AUC **22.05% / 17.10%**、DP@20 **21.95% / 15.78%**、有效帧劫持 **3.68% / 0.86%**、缺失帧误报 **0.0%**、耗时 **7.43 / 9.98 ms**；
-     - `RouteA_ZNCC_Color` (金字塔 ZNCC + 颜色锚点)：AUC **24.07%**、DP@20 **26.38%**、mIoU **0.2096**、HitCLE **292.0 px**、有效帧劫持 **21.19%**、缺失帧误报 **0.0%**、耗时 **7.34 ms**；
-     - `RouteA_ZNCC_ExistVerify_DSST` (金字塔 ZNCC + 完整 DSST 锚点校验)：AUC **22.91%**、DP@20 **24.22%**、HitCLE **262.2 px**、有效帧劫持 **14.70%**、耗时 **11.03 ms**；
-     - **串联路线 A 保底效果**：
-       - `Hybrid_YOLO11n_UAV_LT_RouteA`：AUC 从 53.15% 升至 **53.24% (+0.09%)**，DP@20 从 62.59% 升至 **62.81% (+0.22%)**，但有效帧误劫持率由 3.46% 恶化至 **12.54% (+9.08%)**，HitCLE 由 55.4 px 升至 **134.0 px**；
-       - `Hybrid_YOLO11n_UAV_DSST_RouteA`：AUC 由 38.20% 升至 **39.19% (+0.99%)**，有效帧误劫持率由 0.86% 恶化至 **15.68% (+14.82%)**；
-       - `Hybrid_YOLOv8n_COCO_DSST_RouteA`：AUC 由 17.10% 升至 **29.88% (+12.78%)**，有效帧误劫持率由 0.86% 恶化至 **20.43%**。
-  3. **既有链路损耗根因定位**：
-     - **`areaRatio >= 0.15` 截断远距缩放目标**：在 `video01` 中，`yolo11n_uav_ft.onnx` 在 700/1040 帧置信度达 0.78~0.79（中心误差 <5px），但因目标面积相对 Frame 0 缩至 `0.08~0.12`，被 `objecttracker.cpp` `areaRatio < 0.15` 门限直接过滤；
-     - **DSST 静态备份对 3D 旋转过严**：在 `video05` 机动转向序列中，`YOLO11n_UAV_Raw` 取得 **94.69%** DP@20（LightTrack 锚点分支保留 **78.76%**），而 DSST 锚点分支因 `PSR < 6.0` 截断导致 DP@20 降至 **0.00%**。
-- **下一步**：待用户依据上述实测对比决策是否维持不合入路线 A、是否放宽现有 YOLO 重检的尺度/内核拦截门限，及无类别目标场景下的后续处理方案。
+  1. **顶层临时排查目录与已闭环方案归档**：
+     - 将 2026-11-16 遗留的 [思考工作区/](file:///d:/PyProjects/RGB_PTZ_Integrated/_archive/思考工作区_20261116) 迁入 `_archive/思考工作区_20261116/`（通过 `.gitignore` 白名单保留版本跟踪）；
+     - 将已全面闭环的方案 01~04 移入 [待执行方案/archive/](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/archive)，使 `待执行方案/` 主目录仅保留总览规范 `00` 与待推进方案 `05~07`。
+  2. **根目录、工具与脚本清理归档**：
+     - 移除根目录历史 `docx` 生成器遗留配置 `package.json` / `package-lock.json`、临时图 `test_detection_vis.png` 及空目录 `日志/`；
+     - 清理 `tools/` 下旧版未跟踪可执行文件（`runner_port.exe`、`runner_ref.exe`、`test_amft.exe`），将早期 DSST 对拍工具 `offline_runner.cpp`、`compare_csv.py`、`ocv_stub/` 归档至 `tools/_archive/`；
+     - 将 15 份已完成或被 C++ 替代的历史脚本归档至 [scripts/_archive/](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/_archive/README.md) 并更新归档清单。
+  3. **课题、说明与导出素材归档及链接校准**：
+     - 将早期 `课题/sot_ablation_*` 试训结果移入 `课题/_archive/sot_ablation_20261110/`；将旧版 `RGB_PTZ_Integrated项目说明.docx`、`draft_20a5ead5_folder/` 与 `导出材料/20261026/` 迁入 `_archive/` 并删除 `.bkp` 临时备份；
+     - 同步更新 [README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/README.md)、[00_方案总览与执行推进管理规范.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/00_方案总览与执行推进管理规范.md)、[05](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/05_轻量单目标跟踪基准模型交付与工程链路跑通方案.md)、[06](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/06_光电跟踪系统RK3588边缘端量化与工程移植实操方案.md) 及 [datasets/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/README.md) 中的引用路径。
+- **下一步**：继续按方案 05 推进整机闭环验证，并依据 Checkpoint #79 评测结论决策后续重检测阈值调整与合并数据集检测重训工作。

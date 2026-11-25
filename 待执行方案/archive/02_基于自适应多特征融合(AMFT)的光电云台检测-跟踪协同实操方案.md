@@ -3,7 +3,7 @@
 > **方案编号**：02（核心前置推进方案）  
 > **归属工程**：[RGB_PTZ_Integrated](file:///d:/PyProjects/RGB_PTZ_Integrated)  
 > **理论支撑**：海军工程大学 & 空军预警学院 2025 IEEE 顶会论文《*Adaptive Multi-Feature Fusion-Based UAV Detection and Tracking Collaboration Framework Trigger Mechanism*》(AMFT)  
-> **前置依赖**：[01_Windows平台深度学习目标检测与跟踪集成实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/01_Windows平台深度学习目标检测与跟踪集成实操方案.md) 阶段一（OnnxDetector 3.06ms 推理底座已验收打通）  
+> **前置依赖**：[01_Windows平台深度学习目标检测与跟踪集成实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/archive/01_Windows平台深度学习目标检测与跟踪集成实操方案.md) 阶段一（OnnxDetector 3.06ms 推理底座已验收打通）  
 > **当前状态**：🟢 **已闭环 (Completed - 闭环验收 4/4 项全部 PASS)**  
 > **核心目标**：吸收 AMFT 论文精髓，构建**“三维可靠度评估 ($S_{conf}, S_{mot}, S_{bg}$) + 滑动窗口动态阈值 ($\tau_t$) + 零频待机单次唤醒 + 遮挡恢复自动重置”**的工业级闭环状态机，实现高能效、高精度的自适应检测-跟踪协同。
 

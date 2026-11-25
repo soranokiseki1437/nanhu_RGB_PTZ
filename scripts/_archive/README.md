@@ -16,3 +16,9 @@
 | **`export_thesis_md.py`** | 一次性将上述课题规划 docx 导出为同名 Markdown 文档 | 对应 `.md` 文件已就位 |
 | **`gen_doc.py`** | 2026年9月基于 Python-docx 生成工程说明文档的旧脚本 | 项目文档体系已全面转为 Markdown 检查点体系 |
 | **`generate_docx.js`** | 2026年9月基于 Node.js docx 库生成早期文档的旧脚本 | 同上，已不再维护 |
+| **`setup_miniconda_env.py`** | 初始化 `anti_uav_yolo` Python 3.11 + CUDA 13.0 训练环境的一次性配置脚本 | 环境已固化就位，无需重复运行 |
+| **`download_anti_uav.py` / `download_uav123.py`** | 自动化拉取 DUT Anti-UAV 与 UAV123 数据集的一次性下载脚本 | 本地标准数据集已就绪 |
+| **`convert_anti_uav_voc_to_yolo.py`** | DUT Anti-UAV 7,800 份 XML 标注转标准 YOLO 格式的一次性转换脚本 | 数据集转换与缓存已固化 |
+| **`init_tracking_benchmark_workspace.py`** | 异机基准仓库 `SOT_Tracking_Baselines` 初始化脚本 | 异机仓库已独立演进维护 |
+| **`train_sot.py` / `dataset_sot_pair.py` / `eval_sot.py` / `run_sot_ablation.py` / `export_sot_onnx.py`** | 2026-11 上旬早期 LightUAV 试训与消融脚本 | 基准链路已切换至 LightTrack 官方权重，后续自研重训由方案 07 统筹 |
+| **`benchmark_hog_vs_zncc.py` / `benchmark_cascade.py` / `benchmark_traditional_reacquisition.py` / `benchmark_routes_ab.py` / `benchmark_results.json`** | 2026-11-24 无类别保底重检 Python 端预研对比脚本与输出 | 已被 C++ DirectML 实测工具 `tools/bench_redetect.cpp` 替代并记入 Checkpoint #79 |

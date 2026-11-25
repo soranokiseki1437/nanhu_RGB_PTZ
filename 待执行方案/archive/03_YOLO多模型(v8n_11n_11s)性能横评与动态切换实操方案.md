@@ -2,7 +2,7 @@
 
 > **方案编号**：03  
 > **归属工程**：[RGB_PTZ_Integrated](file:///d:/PyProjects/RGB_PTZ_Integrated)  
-> **依赖前置**：[02_基于自适应多特征融合(AMFT)的光电云台检测-跟踪协同实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/02_基于自适应多特征融合(AMFT)的光电云台检测-跟踪协同实操方案.md) (已闭环)  
+> **依赖前置**：[02_基于自适应多特征融合(AMFT)的光电云台检测-跟踪协同实操方案.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/archive/02_基于自适应多特征融合(AMFT)的光电云台检测-跟踪协同实操方案.md) (已闭环)  
 > **理论支撑**：  
 > 1. IEEE T-ITS 2022 顶刊论文 *《Vision-Based Anti-UAV Detection and Tracking》* (DOI: 10.1109/TITS.2022.3177627)  
 > 2. IEEE Access 2026 顶刊论文 *《DeTrAck: UAV Detection and Tracking Using Neural Networks Ensemble on Surveillance Systems》* (DOI: 10.1109/ACCESS.2025.3649960)  
@@ -191,7 +191,7 @@ bool OnnxDetector::loadModel(const QString& modelPath, const DetectorConfig& con
 - [x] **1. C++ OnnxDetector 互斥锁加固与动态热切换接入**：
   - 在 `OnnxDetector` 内部落实 `m_detectMutex` 读写安全互斥，支持界面即时免重启热重载。
 - [x] **2. DUT Anti-UAV 7,800 张检测样本 VOC ➔ YOLO 格式批量转换与环境验证**：
-  - 编写并运行 [scripts/convert_anti_uav_voc_to_yolo.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/convert_anti_uav_voc_to_yolo.py) 与 [scripts/_archive/fix_dataset_dirs.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/_archive/fix_dataset_dirs.py)；
+  - 编写并运行 [scripts/_archive/convert_anti_uav_voc_to_yolo.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/_archive/convert_anti_uav_voc_to_yolo.py) 与 [scripts/_archive/fix_dataset_dirs.py](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/_archive/fix_dataset_dirs.py)；
   - 完成 7,800 份 XML 标注到标准 YOLO `.txt` 的批量转换与单类别 (`0: UAV`) 归一化；
   - 重构物理目录结构（`train/images` 与 `val/images` 原生落盘，`img` 保持兼容软链接），生成 [datasets/anti_uav.yaml](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/anti_uav.yaml)，验证集加载校验通过；
   - 部署 [D:\miniconda3](file:///d:/miniconda3) 专属环境 `anti_uav_yolo`（Python 3.11 + PyTorch 2.14.1 + CUDA 13.0），完全打通 RTX 5070 Blackwell `sm_120` 硬件级加速。
