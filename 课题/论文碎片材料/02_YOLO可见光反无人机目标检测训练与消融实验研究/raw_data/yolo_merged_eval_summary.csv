@@ -1,6 +1,3 @@
 模型ID,训练数据源,训练模式,轮数,Merged_P(%),Merged_R(%),Merged_mAP50(%),Merged_mAP50_95(%),DUT_P(%),DUT_R(%),DUT_mAP50(%),DUT_mAP50_95(%),冷重捕RawBase_AUC(%),冷重捕Area03_SoftLT_AUC(%),冷重捕Area03_SoftLT_DP20(%),冷重捕Hijack(%),冷重捕HitCLE(px),冷重捕Lag1_AbsentFP,权重文件(.pt),静态部署ONNX
-yolo11n_uav_ft,DUT Anti-UAV,finetune,80,92.76,73.72,81.52,45.91,95.20,83.17,88.00,52.72,56.57,70.07,84.86,4.22,47.8,1/64(1.6%),weights/finetuned/yolo11n_uav_ft.pt,models/yolo11n_uav_ft.onnx
-yolo11s_uav_ft,DUT Anti-UAV,finetune,80,93.46,77.69,84.53,48.99,95.95,87.02,91.22,56.74,57.45,70.89,86.81,7.78,70.9,2/64(3.1%),weights/finetuned/yolo11s_uav_ft.pt,models/yolo11s_uav_ft.onnx
-yolo11n_uav_scratch,DUT Anti-UAV,scratch,300,91.40,71.90,78.68,43.98,96.12,82.37,88.50,53.44,54.50,68.59,84.32,3.03,36.3,1/64(1.6%),weights/scratch/yolo11n_uav_scratch.pt,models/yolo11n_uav_scratch.onnx
 yolo11n_merged_scratch,Anti-UAV-Merged,scratch,300,96.89,89.67,93.27,60.40,94.95,81.34,87.02,53.91,53.35,68.38,83.24,0.00,4.6,3/64(4.7%),weights/scratch/yolo11n_merged_scratch.pt,models/yolo11n_merged_scratch.onnx
 yolo11s_merged_scratch,Anti-UAV-Merged,scratch,300,97.15,91.94,94.68,62.27,95.38,85.85,90.19,57.38,56.96,69.75,85.41,0.11,4.9,3/64(4.7%),weights/scratch/yolo11s_merged_scratch.pt,models/yolo11s_merged_scratch.onnx

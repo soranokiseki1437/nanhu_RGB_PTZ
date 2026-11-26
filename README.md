@@ -62,7 +62,7 @@ RGB_PTZ_Integrated/
 ├── logmanager.h/.cpp               # 分类分级统一日志管理器
 ├── datatypes.h                     # TrackResult / DetectionBox / PTZData 等公共结构体
 ├── IDetector.h                     # 目标检测器面向对象统一纯虚抽象接口
-├── models/                         # ★ 4 款标准可见光静态 ONNX 模型库 (v8n/s, 11n/s)
+├── models/                         # ★ 可见光静态 ONNX 模型库 (COCO 基线 + Anti-UAV-Merged 重训模型 + LightTrack)
 ├── datasets/                       # ★ 对空可见光数据集库 (DUT Anti-UAV)
 ├── tools/                          # 阶段全景质量体检与闭环验收工具链源码
 │   ├── test_detector.cpp           # 检测引擎速度、精度、内存长稳等 5 项体检工具
@@ -119,7 +119,7 @@ RGB_PTZ_Integrated/
 | :---: | :--- | :---: | :--- |
 | **01** | [Windows平台深度学习目标检测引擎接入方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/archive/01_Windows平台深度学习目标检测与跟踪集成实操方案.md) | 🟢 **已全面闭环（已归档）** | DirectML 3.06ms 极速底座打通，5/5 项全景体检全部 PASS |
 | **02** | [基于自适应多特征融合(AMFT)的协同实操方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/archive/02_基于自适应多特征融合(AMFT)的光电云台检测-跟踪协同实操方案.md) | 🟢 **已全面闭环（已归档）** | AMFT 状态机落地，0 FPS 冷态待机与单次唤醒闭环验收 PASS |
-| **03** | [基于DUT Anti-UAV的YOLO多模型空域微调与动态切换实操方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/archive/03_YOLO多模型(v8n_11n_11s)性能横评与动态切换实操方案.md) | 🟢 **已全面闭环（已归档）** | 7,800 份标注标准化，4 款模型微调收敛，C++ 免重启动态热切换 |
+| **03** | [YOLO空域检测模型重训与动态切换实操方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/archive/03_YOLO多模型(v8n_11n_11s)性能横评与动态切换实操方案.md) | 🟢 **已全面闭环（已归档）** | `Anti-UAV-Merged` 300 轮重训 YOLO11n/11s 静态 ONNX 交付，C++ 免重启动态热切换 |
 | **04** | [光电云台变焦尺度自适应与目标重捕恢复实操方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/archive/04_光电云台变焦尺度自适应与目标重捕恢复实操方案.md) | 🟢 **已实施闭环（已归档）** | 变焦双触发校准、OCCLUDED/LOST分级重捕、长宽比滤波与伺服软启动代码落地 |
 | **05** | [基于LightTrack原版轻量深度跟踪基准模型交付与工程链路跑通方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/05_轻量单目标跟踪基准模型交付与工程链路跑通方案.md) | 🟡 **进行中 (代码接入就绪，待验证)** | 纯静态双输入 ONNX 导出，C++ ISotTracker/OnnxSotTracker 双内核分派接入主工程 |
 | **06** | [光电跟踪系统RK3588边缘端量化与工程移植实操方案](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/06_光电跟踪系统RK3588边缘端量化与工程移植实操方案.md) | ⚪ **工程落地规划 (Planned)** | INT8 RKNN 模型量化、NPU 三核亲和性调度与 ARM64 闭环 |

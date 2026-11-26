@@ -573,13 +573,13 @@ int main(int argc, char* argv[])
     dcfg.nmsThreshold = 0.45f;
 
     auto detUav11 = std::make_shared<OnnxDetector>();
-    if (!detUav11->loadModel("models/yolo11n_uav_ft.onnx", dcfg)) {
-        std::cerr << "Failed to load models/yolo11n_uav_ft.onnx\n";
+    if (!detUav11->loadModel("models/yolo11n_merged_scratch.onnx", dcfg)) {
+        std::cerr << "Failed to load models/yolo11n_merged_scratch.onnx\n";
         return 1;
     }
     auto detUav8 = std::make_shared<OnnxDetector>();
-    if (!detUav8->loadModel("models/yolov8n_uav_ft.onnx", dcfg)) {
-        std::cerr << "Failed to load models/yolov8n_uav_ft.onnx\n";
+    if (!detUav8->loadModel("models/yolo11s_merged_scratch.onnx", dcfg)) {
+        std::cerr << "Failed to load models/yolo11s_merged_scratch.onnx\n";
         return 1;
     }
     auto detCoco8 = std::make_shared<OnnxDetector>();
@@ -613,17 +613,17 @@ int main(int argc, char* argv[])
     }
 
     const std::vector<std::string> methodOrder = {
-        "YOLO11n_UAV_Raw",
-        "YOLO11n_UAV_Exist_DSST",
-        "YOLO11n_UAV_Exist_LT",
-        "YOLOv8n_UAV_Exist_DSST",
+        "YOLO11n_Merged_Raw",
+        "YOLO11n_Merged_Exist_DSST",
+        "YOLO11n_Merged_Exist_LT",
+        "YOLO11s_Merged_Exist_DSST",
         "YOLOv8n_COCO_Raw",
         "YOLOv8n_COCO_Exist_DSST",
         "YOLOv8n_COCO_Exist_LT",
         "RouteA_ZNCC_Color",
         "RouteA_ZNCC_ExistVerify_DSST",
-        "Hybrid_YOLO11n_UAV_DSST_RouteA",
-        "Hybrid_YOLO11n_UAV_LT_RouteA",
+        "Hybrid_YOLO11n_Merged_DSST_RouteA",
+        "Hybrid_YOLO11n_Merged_LT_RouteA",
         "Hybrid_YOLOv8n_COCO_DSST_RouteA"
     };
 
@@ -748,17 +748,17 @@ int main(int argc, char* argv[])
                 seqStats[name].record(rr, isValid, gt);
                 overall[name].record(rr, isValid, gt);
             };
-            rec("YOLO11n_UAV_Raw", r_u11_raw);
-            rec("YOLO11n_UAV_Exist_DSST", r_u11_dsst);
-            rec("YOLO11n_UAV_Exist_LT", r_u11_lt);
-            rec("YOLOv8n_UAV_Exist_DSST", r_u8_dsst);
+            rec("YOLO11n_Merged_Raw", r_u11_raw);
+            rec("YOLO11n_Merged_Exist_DSST", r_u11_dsst);
+            rec("YOLO11n_Merged_Exist_LT", r_u11_lt);
+            rec("YOLO11s_Merged_Exist_DSST", r_u8_dsst);
             rec("YOLOv8n_COCO_Raw", r_c8_raw);
             rec("YOLOv8n_COCO_Exist_DSST", r_c8_dsst);
             rec("YOLOv8n_COCO_Exist_LT", r_c8_lt);
             rec("RouteA_ZNCC_Color", r_ra_col);
             rec("RouteA_ZNCC_ExistVerify_DSST", r_ra_dsst);
-            rec("Hybrid_YOLO11n_UAV_DSST_RouteA", r_hyb_u11_dsst);
-            rec("Hybrid_YOLO11n_UAV_LT_RouteA", r_hyb_u11_lt);
+            rec("Hybrid_YOLO11n_Merged_DSST_RouteA", r_hyb_u11_dsst);
+            rec("Hybrid_YOLO11n_Merged_LT_RouteA", r_hyb_u11_lt);
             rec("Hybrid_YOLOv8n_COCO_DSST_RouteA", r_hyb_c8_dsst);
         }
 
@@ -772,9 +772,9 @@ int main(int argc, char* argv[])
         }
         perSeqRows.push_back(row);
 
-        const auto& mUavRaw = row.metrics["YOLO11n_UAV_Raw"];
-        const auto& mUavDsst = row.metrics["YOLO11n_UAV_Exist_DSST"];
-        const auto& mUavLt = row.metrics["YOLO11n_UAV_Exist_LT"];
+        const auto& mUavRaw = row.metrics["YOLO11n_Merged_Raw"];
+        const auto& mUavDsst = row.metrics["YOLO11n_Merged_Exist_DSST"];
+        const auto& mUavLt = row.metrics["YOLO11n_Merged_Exist_LT"];
         const auto& mCoco = row.metrics["YOLOv8n_COCO_Exist_DSST"];
         const auto& mRA = row.metrics["RouteA_ZNCC_Color"];
 

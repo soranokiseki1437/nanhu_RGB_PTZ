@@ -573,21 +573,17 @@ bool ObjectTracker::recoverWithAnchorState(const cv::Mat& image, const cv::Rect&
 // ========================
 bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
 {
-    // 如果未外部设置检测器，则尝试懒加载默认模型 (优先 UAV 专属微调模型)
+    // 如果未外部设置检测器，则尝试懒加载默认模型 (优先融合重训模型)
     if (!m_detector || !m_detector->isLoaded()) {
         const QStringList candidatePaths = {
             "models/yolo11s_merged_scratch.onnx",
             "models/yolo11n_merged_scratch.onnx",
-            "models/yolo11n_uav_ft.onnx",
-            "models/yolov8n_uav_ft.onnx",
             "models/yolov8n.onnx",
             QCoreApplication::applicationDirPath() + "/models/yolo11s_merged_scratch.onnx",
             QCoreApplication::applicationDirPath() + "/models/yolo11n_merged_scratch.onnx",
-            QCoreApplication::applicationDirPath() + "/models/yolo11n_uav_ft.onnx",
-            QCoreApplication::applicationDirPath() + "/models/yolov8n_uav_ft.onnx",
             QCoreApplication::applicationDirPath() + "/models/yolov8n.onnx",
             QDir::currentPath() + "/models/yolo11s_merged_scratch.onnx",
-            QDir::currentPath() + "/models/yolo11n_uav_ft.onnx",
+            QDir::currentPath() + "/models/yolo11n_merged_scratch.onnx",
             QDir::currentPath() + "/models/yolov8n.onnx"
         };
         QString foundPath;

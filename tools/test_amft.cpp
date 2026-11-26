@@ -57,7 +57,7 @@ int main(int argc, char* argv[])
     std::cout << "========================================================================" << std::endl;
 
     // 1. 初始化检测器
-    std::string modelPath = (argc > 1) ? argv[1] : "models/yolo11n_uav_ft.onnx";
+    std::string modelPath = (argc > 1) ? argv[1] : "models/yolo11n_merged_scratch.onnx";
     auto detector = std::make_shared<OnnxDetector>();
     DetectorConfig cfg;
     cfg.useGpu = true;

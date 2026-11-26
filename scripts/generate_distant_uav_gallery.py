@@ -22,7 +22,7 @@ SAMPLES_DIR = os.path.join(FIG_DIR, "distant_samples")
 
 os.makedirs(SAMPLES_DIR, exist_ok=True)
 
-MODEL_PATH = os.path.join(BASE_DIR, r"weights\finetuned\yolo11n_uav_ft.pt")
+MODEL_PATH = os.path.join(BASE_DIR, r"weights\scratch\yolo11s_merged_scratch.pt")
 VAL_IMG_DIR = os.path.join(BASE_DIR, r"datasets\Anti-UAV\detection\val\images")
 VAL_LBL_DIR = os.path.join(BASE_DIR, r"datasets\Anti-UAV\detection\val\labels")
 
@@ -37,7 +37,7 @@ SELECTED_STEMS = [
 ]
 
 def render_distant_gallery():
-    print(f"[*] 载入微调模型: {MODEL_PATH}")
+    print(f"[*] 载入检测模型: {MODEL_PATH}")
     model = YOLO(MODEL_PATH)
     
     plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans']

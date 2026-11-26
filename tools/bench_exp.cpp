@@ -612,11 +612,9 @@ static int runMergedBenchmark(const std::vector<SeqSpec>& sequences)
         std::shared_ptr<OnnxDetector> det;
     };
     std::vector<ModelDef> models = {
-        {"U11n_FT", "models/yolo11n_uav_ft.onnx", nullptr},
-        {"U11s_FT", "models/yolo11s_uav_ft.onnx", nullptr},
-        {"U11n_Sc", "models/yolo11n_uav_scratch.onnx", nullptr},
         {"M11n_Sc", "models/yolo11n_merged_scratch.onnx", nullptr},
         {"M11s_Sc", "models/yolo11s_merged_scratch.onnx", nullptr},
+        {"C8n_COCO", "models/yolov8n.onnx", nullptr},
     };
 
     DetectorConfig dcfg;
@@ -781,11 +779,9 @@ static int runMergedBenchmark(const std::vector<SeqSpec>& sequences)
 
         std::cout << "[" << std::left << std::setw(7) << sq.name << " V=" << std::setw(3) << seqValid << "] "
                   << std::fixed << std::setprecision(3)
-                  << "U11n_FT=" << computeSummary(seqStats["U11n_FT_Area03_SoftLT"]).auc
-                  << " | U11s_FT=" << computeSummary(seqStats["U11s_FT_Area03_SoftLT"]).auc
-                  << " | U11n_Sc=" << computeSummary(seqStats["U11n_Sc_Area03_SoftLT"]).auc
-                  << " | M11n_Sc=" << computeSummary(seqStats["M11n_Sc_Area03_SoftLT"]).auc
-                  << " | M11s_Sc=" << computeSummary(seqStats["M11s_Sc_Area03_SoftLT"]).auc << "\n";
+                  << "M11n_Sc=" << computeSummary(seqStats["M11n_Sc_Area03_SoftLT"]).auc
+                  << " | M11s_Sc=" << computeSummary(seqStats["M11s_Sc_Area03_SoftLT"]).auc
+                  << " | C8n_COCO=" << computeSummary(seqStats["C8n_COCO_Area03_SoftLT"]).auc << "\n";
     }
 
     std::cout << "\n=================================================================================================================================\n";
@@ -877,8 +873,8 @@ int main(int argc, char* argv[])
     auto detU11n = std::make_shared<OnnxDetector>();
     auto detU11s = std::make_shared<OnnxDetector>();
     auto detC8n  = std::make_shared<OnnxDetector>();
-    if (!detU11n->loadModel("models/yolo11n_uav_ft.onnx", dcfg) ||
-        !detU11s->loadModel("models/yolo11s_uav_ft.onnx", dcfg) ||
+    if (!detU11n->loadModel("models/yolo11n_merged_scratch.onnx", dcfg) ||
+        !detU11s->loadModel("models/yolo11s_merged_scratch.onnx", dcfg) ||
         !detC8n->loadModel("models/yolov8n.onnx", dcfg)) {
         std::cerr << "Failed to load one or more YOLO models\n";
         return 1;
@@ -968,7 +964,7 @@ int main(int argc, char* argv[])
         p.minConf = 0.25f; p.allowSoftKernelOnHighConf = true; p.highConfBypassThr = 0.65f; p.highConfMinHistSim = 0.50f;
         cases.push_back({p, 0});
     }
-    // P0_E35: Model upgrade yolo11s_uav_ft + minConf=0.35 + AreaRelax + SoftLT (+ Lag1)
+    // P0_E35: Model upgrade yolo11s_merged_scratch + minConf=0.35 + AreaRelax + SoftLT (+ Lag1)
     {
         RedetectPolicy p; p.name = "P0E35_U11s_Area_C35_SoftLT";
         p.kmode = KernelMode::LIGHTTRACK; p.minAreaRatio = 0.03f; p.maxAreaRatio = 16.0f; p.maxAspectDiff = 2.0f;
