@@ -141,8 +141,9 @@ win32 {
     QMAKE_POST_LINK += copy /Y $$quote($$ORT_BIN\\DirectML.dll)                     $$quote($$DESTDIR_WIN) &
     QMAKE_POST_LINK += copy /Y $$quote($$ORT_BIN\\onnxruntime_providers_shared.dll) $$quote($$DESTDIR_WIN) &
 
-    # Models ONNX 文件自动同步到输出目录
+    # Models ONNX 文件镜像同步到输出目录（先清理目标目录过期模型再复制）
     MODELS_DIR = $$shell_path($$PWD/models)
     QMAKE_POST_LINK += (if not exist $$quote($$DESTDIR_WIN\\models) mkdir $$quote($$DESTDIR_WIN\\models)) &
+    QMAKE_POST_LINK += (if exist $$quote($$DESTDIR_WIN\\models\\*.onnx) del /Q $$quote($$DESTDIR_WIN\\models\\*.onnx)) &
     QMAKE_POST_LINK += copy /Y $$quote($$MODELS_DIR\\*.onnx) $$quote($$DESTDIR_WIN\\models)
 }
