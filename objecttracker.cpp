@@ -485,7 +485,7 @@ ObjectTracker::AnchorMatchScore ObjectTracker::evaluateAnchorSimilarity(
 }
 
 bool ObjectTracker::verifyRecoveryCandidate(const cv::Mat& image, const cv::Rect2f& candBox,
-                                            bool isTotalLost, float& outMatchScore) const
+                                            float detConf, bool isTotalLost, float& outMatchScore) const
 {
     const AnchorMatchScore ms = evaluateAnchorSimilarity(image, candBox, true);
 
@@ -494,23 +494,33 @@ bool ObjectTracker::verifyRecoveryCandidate(const cv::Mat& image, const cv::Rect
         return false;
     }
 
+    const bool highConfStrongHist = (detConf >= 0.65f) && (ms.histSim >= 0.50f);
+
     if (m_kernel == TrackingKernel::KERNEL_LIGHTTRACK) {
         const float minSotAnchor = isTotalLost ? 0.68f : 0.60f;
-        if (ms.kernelScore < minSotAnchor) {
-            return false;
-        }
-        if (ms.zncc < 0.20f && ms.histSim < 0.62f) {
-            return false;
+        if (!highConfStrongHist) {
+            if (ms.kernelScore < minSotAnchor) {
+                return false;
+            }
+            if (ms.zncc < 0.20f && ms.histSim < 0.62f) {
+                return false;
+            }
+        } else {
+            if (ms.kernelScore < 0.25f && ms.histSim < 0.65f) {
+                return false;
+            }
         }
         outMatchScore = 0.45f * ms.histSim + 0.35f * ms.kernelScore
                       + 0.20f * std::clamp(ms.zncc, 0.0f, 1.0f);
     } else {
         const float minBackupPsr = isTotalLost ? 6.0f : 5.0f;
-        if (ms.kernelScore < minBackupPsr) {
-            return false;
-        }
-        if (ms.zncc < 0.20f && ms.histSim < 0.60f && ms.kernelScore < 9.0f) {
-            return false;
+        if (!highConfStrongHist) {
+            if (ms.kernelScore < minBackupPsr) {
+                return false;
+            }
+            if (ms.zncc < 0.20f && ms.histSim < 0.60f && ms.kernelScore < 9.0f) {
+                return false;
+            }
         }
         const float psrNorm = std::clamp((ms.kernelScore - 4.0f) / 16.0f, 0.0f, 1.0f);
         outMatchScore = 0.45f * ms.histSim + 0.35f * psrNorm
@@ -566,12 +576,17 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
     // 如果未外部设置检测器，则尝试懒加载默认模型 (优先 UAV 专属微调模型)
     if (!m_detector || !m_detector->isLoaded()) {
         const QStringList candidatePaths = {
+            "models/yolo11s_merged_scratch.onnx",
+            "models/yolo11n_merged_scratch.onnx",
             "models/yolo11n_uav_ft.onnx",
             "models/yolov8n_uav_ft.onnx",
             "models/yolov8n.onnx",
+            QCoreApplication::applicationDirPath() + "/models/yolo11s_merged_scratch.onnx",
+            QCoreApplication::applicationDirPath() + "/models/yolo11n_merged_scratch.onnx",
             QCoreApplication::applicationDirPath() + "/models/yolo11n_uav_ft.onnx",
             QCoreApplication::applicationDirPath() + "/models/yolov8n_uav_ft.onnx",
             QCoreApplication::applicationDirPath() + "/models/yolov8n.onnx",
+            QDir::currentPath() + "/models/yolo11s_merged_scratch.onnx",
             QDir::currentPath() + "/models/yolo11n_uav_ft.onnx",
             QDir::currentPath() + "/models/yolov8n.onnx"
         };
@@ -645,13 +660,13 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
         const float detAspect = (det.rect.height() > 1.0f) ? 
             (static_cast<float>(det.rect.width()) / det.rect.height()) : 1.0f;
         const float aspectDiff = std::abs(detAspect - currentAspect) / std::max(currentAspect, 0.1f);
-        if (aspectDiff > 1.5f) continue;
+        if (aspectDiff > 2.0f) continue;
 
-        // 面积与几何比率校验（全图丢失态约束至 0.15x ~ 6.0x，防止极端大小异物劫持）
+        // 面积与几何比率校验（覆盖远距变焦缩放与近距放大工况，防止极端异物劫持）
         const float detArea = static_cast<float>(det.rect.width() * det.rect.height());
         const float areaRatio = detArea / origArea;
-        const float minAreaRatio = isTotalLost ? 0.15f : 0.20f;
-        const float maxAreaRatio = isTotalLost ? 6.00f : 5.00f;
+        const float minAreaRatio = isTotalLost ? 0.03f : 0.08f;
+        const float maxAreaRatio = isTotalLost ? 16.00f : 8.00f;
         if (areaRatio < minAreaRatio || areaRatio > maxAreaRatio) continue;
 
         // 核心防劫持门禁：候选框必须通过初始目标锚点外观 + 内核特征一致性校验
@@ -660,7 +675,7 @@ bool ObjectTracker::tryDetectAndRecover(const cv::Mat& image)
                                  static_cast<float>(det.rect.width()),
                                  static_cast<float>(det.rect.height()));
         float anchorMatchScore = 0.0f;
-        if (!verifyRecoveryCandidate(image, candBox, isTotalLost, anchorMatchScore)) {
+        if (!verifyRecoveryCandidate(image, candBox, det.confidence, isTotalLost, anchorMatchScore)) {
             qCDebug(trackerLog) << "[ReDetect] 候选#" << i << QString::fromStdString(det.className)
                                 << "未通过原始锚点一致性校验，已拦截";
             continue;

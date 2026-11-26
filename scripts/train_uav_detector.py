@@ -1,24 +1,25 @@
 # -*- coding: utf-8 -*-
 """
-反无人机目标检测模型训练流水线 (面向消融实验、域内微调与全量从零重训)
+反无人机目标检测模型训练流水线 (面向消融实验、域内微调与全量从零重训，跨平台版)
 支持两种训练模式：
   1. finetune: 基于官方 COCO 预训练权重 (.pt) 进行领域微调 (默认 80 轮)
   2. scratch:  不加载任何预训练权重，纯依据网络结构 (.yaml) 随机初始化从零训练 (默认 300 轮)
-环境底座: Python 3.11 + PyTorch 2.14.1 + CUDA 13.0 (RTX 5070 Blackwell sm_120)
+环境底座: Python 3.11 + PyTorch 2.14.1 + CUDA 13.0 (RTX 5070 Blackwell sm_120) / Ubuntu RTX 4080 Super
 默认模型矩阵: yolo11n / yolo11s / yolov8n / yolov8s
 """
 import argparse
 import json
 import os
 import shutil
+import yaml
 from ultralytics import YOLO
 
-BASE_DIR = r"d:\PyProjects\RGB_PTZ_Integrated"
-DEFAULT_DATASET_YAML = os.path.join(BASE_DIR, r"datasets\anti_uav.yaml")
-RUNS_ROOT = os.path.join(BASE_DIR, r"runs\detect_uav")
-WEIGHTS_PRETRAINED_DIR = os.path.join(BASE_DIR, r"weights\pretrained")
-WEIGHTS_FT_DIR = os.path.join(BASE_DIR, r"weights\finetuned")
-WEIGHTS_SCRATCH_DIR = os.path.join(BASE_DIR, r"weights\scratch")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_DATASET_YAML = os.path.join(BASE_DIR, "datasets", "anti_uav_merged.yaml")
+RUNS_ROOT = os.path.join(BASE_DIR, "runs", "detect_uav")
+WEIGHTS_PRETRAINED_DIR = os.path.join(BASE_DIR, "weights", "pretrained")
+WEIGHTS_FT_DIR = os.path.join(BASE_DIR, "weights", "finetuned")
+WEIGHTS_SCRATCH_DIR = os.path.join(BASE_DIR, "weights", "scratch")
 MODELS_DEPLOY_DIR = os.path.join(BASE_DIR, "models")
 
 MODEL_LIST = ["yolo11n", "yolo11s", "yolov8n", "yolov8s"]
@@ -27,6 +28,39 @@ MODEL_LIST = ["yolo11n", "yolo11s", "yolov8n", "yolov8s"]
 def ensure_dirs():
     for d in [WEIGHTS_PRETRAINED_DIR, WEIGHTS_FT_DIR, WEIGHTS_SCRATCH_DIR, MODELS_DEPLOY_DIR]:
         os.makedirs(d, exist_ok=True)
+
+
+def resolve_dataset_yaml(yaml_path: str) -> str:
+    """Resolve relative or cross-OS dataset root paths inside YAML to absolute local paths."""
+    abs_yaml = yaml_path if os.path.isabs(yaml_path) else os.path.join(BASE_DIR, yaml_path)
+    if not os.path.exists(abs_yaml):
+        raise FileNotFoundError(f"未找到数据集配置文件: {abs_yaml}")
+
+    with open(abs_yaml, "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+
+    raw_path = str(cfg.get("path", "")).strip()
+    if raw_path and os.path.isabs(raw_path) and os.path.isdir(raw_path):
+        return abs_yaml
+
+    candidates = []
+    if raw_path:
+        candidates.append(os.path.join(BASE_DIR, raw_path))
+    fname = os.path.basename(abs_yaml).lower()
+    if "merged" in fname or "anti-uav-merged" in raw_path.lower():
+        candidates.append(os.path.join(BASE_DIR, "datasets", "Anti-UAV-Merged"))
+    elif "anti_uav" in fname or "anti-uav" in raw_path.lower():
+        candidates.append(os.path.join(BASE_DIR, "datasets", "Anti-UAV", "detection"))
+
+    resolved_dir = next((os.path.abspath(c) for c in candidates if os.path.isdir(c)), None)
+    if resolved_dir is None:
+        raise FileNotFoundError(f"无法定位数据集目录，请检查 {abs_yaml} 中的 path 字段 (当前为: {raw_path!r})")
+
+    cfg["path"] = resolved_dir.replace("\\", "/")
+    with open(abs_yaml, "w", encoding="utf-8") as f:
+        yaml.safe_dump(cfg, f, sort_keys=False, allow_unicode=True)
+    print(f"[*] 已自动解析数据集路径: {abs_yaml} -> path: {cfg['path']}")
+    return abs_yaml
 
 
 def extract_val_metrics(val_res) -> dict:
@@ -126,6 +160,9 @@ def train_single_model(
     workers: int = 8,
 ):
     ensure_dirs()
+    data_yaml = resolve_dataset_yaml(data_yaml)
+    resolved_extra_vals = [resolve_dataset_yaml(vy) for vy in (extra_val_yamls or [])]
+
     clean_name = model_name.replace(".pt", "").replace(".yaml", "")
     resolved_epochs = epochs if epochs is not None else (300 if mode == "scratch" else 80)
 
@@ -193,7 +230,7 @@ def train_single_model(
     eval_summary = {}
     if os.path.exists(best_pt):
         best_model = YOLO(best_pt)
-        val_targets = [data_yaml] + [y for y in (extra_val_yamls or []) if os.path.abspath(y) != os.path.abspath(data_yaml)]
+        val_targets = [data_yaml] + [y for y in resolved_extra_vals if os.path.abspath(y) != os.path.abspath(data_yaml)]
         for vy in val_targets:
             print(f"\n[+] 正在使用最优权重 {best_pt} 在 {vy} 上执行全量评测...")
             val_res = best_model.val(data=vy, imgsz=imgsz, device=device, workers=workers)
@@ -287,8 +324,13 @@ def main():
         summary_dir = os.path.join(RUNS_ROOT, f"summary_{args.tag}")
         os.makedirs(summary_dir, exist_ok=True)
         summary_path = os.path.join(summary_dir, "eval_summary.json")
+        merged_summary = {}
+        if os.path.exists(summary_path):
+            with open(summary_path, "r", encoding="utf-8") as f:
+                merged_summary = json.load(f)
+        merged_summary.update(all_summaries)
         with open(summary_path, "w", encoding="utf-8") as f:
-            json.dump(all_summaries, f, indent=2, ensure_ascii=False)
+            json.dump(merged_summary, f, indent=2, ensure_ascii=False)
         print(f"\n[+] 全部模型汇总指标已写入: {summary_path}")
 
 

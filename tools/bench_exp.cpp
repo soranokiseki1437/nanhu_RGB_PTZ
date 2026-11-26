@@ -178,6 +178,7 @@ struct RedetectPolicy {
     float highConfBypassThr = 0.65f;
     float highConfMinHistSim = 0.50f;
     float scoreThreshold = 0.40f;
+    bool skipAnchorVerify = false;
     bool twoFrameGate = false;
     int twoFrameLag = 1; // 1 = immediate next frame, 10 = existing 10-frame wait
 };
@@ -318,11 +319,16 @@ static RedetectResult evalPolicyOnDetections(
                                  dw, dh);
         const float aspectWeight = std::max(0.0f, 1.0f - aspectDiff * 0.5f);
 
-        float anchorMatchScore = 0.0f;
-        if (!verifyWithPolicy(image, candBox, det.confidence, anchor, pol, dsst, sot, anchorMatchScore)) {
-            continue;
+        float candidateScore = 0.0f;
+        if (pol.skipAnchorVerify) {
+            candidateScore = 0.85f * det.confidence + 0.15f * aspectWeight;
+        } else {
+            float anchorMatchScore = 0.0f;
+            if (!verifyWithPolicy(image, candBox, det.confidence, anchor, pol, dsst, sot, anchorMatchScore)) {
+                continue;
+            }
+            candidateScore = 0.55f * anchorMatchScore + 0.30f * det.confidence + 0.15f * aspectWeight;
         }
-        float candidateScore = 0.55f * anchorMatchScore + 0.30f * det.confidence + 0.15f * aspectWeight;
 
         if (candidateScore > bestScore) {
             bestScore = candidateScore;
@@ -598,8 +604,252 @@ static bool runAntiHijackUnitTest(const RedetectPolicy& pol, OnnxSotTracker* sot
     return cle < 10.0f;
 }
 
+static int runMergedBenchmark(const std::vector<SeqSpec>& sequences)
+{
+    struct ModelDef {
+        std::string tag;
+        std::string path;
+        std::shared_ptr<OnnxDetector> det;
+    };
+    std::vector<ModelDef> models = {
+        {"U11n_FT", "models/yolo11n_uav_ft.onnx", nullptr},
+        {"U11s_FT", "models/yolo11s_uav_ft.onnx", nullptr},
+        {"U11n_Sc", "models/yolo11n_uav_scratch.onnx", nullptr},
+        {"M11n_Sc", "models/yolo11n_merged_scratch.onnx", nullptr},
+        {"M11s_Sc", "models/yolo11s_merged_scratch.onnx", nullptr},
+    };
+
+    DetectorConfig dcfg;
+    dcfg.useGpu = true;
+    dcfg.confThreshold = 0.20f;
+    dcfg.nmsThreshold = 0.45f;
+
+    cv::Mat warm = cv::imread("datasets/Anti-UAV/tracking/Anti-UAV-Tracking-V0/video01/00001.jpg");
+    for (auto& m : models) {
+        m.det = std::make_shared<OnnxDetector>();
+        if (!m.det->loadModel(QString::fromStdString(m.path), dcfg)) {
+            std::cerr << "Failed to load model: " << m.path << "\n";
+            return 1;
+        }
+        if (!warm.empty()) {
+            for (int i = 0; i < 3; ++i) m.det->detect(warm);
+        }
+    }
+
+    SotTrackerConfig scfg;
+    scfg.templateModel = "models/lighttrack_template.onnx";
+    scfg.searchModelSmall = "models/lighttrack_search_256.onnx";
+    scfg.searchModelBig = "models/lighttrack_search_288.onnx";
+    scfg.useGpu = true;
+    auto sot = std::make_shared<OnnxSotTracker>(scfg);
+    if (!sot->ensureLoaded()) return 1;
+
+    struct TestCase { RedetectPolicy pol; int detId; };
+    std::vector<TestCase> cases;
+    for (int id = 0; id < static_cast<int>(models.size()); ++id) {
+        const std::string& t = models[id].tag;
+        {
+            RedetectPolicy p;
+            p.name = t + "_RawBase";
+            p.skipAnchorVerify = true;
+            p.minConf = 0.35f; p.minAreaRatio = 0.15f; p.maxAreaRatio = 6.0f; p.maxAspectDiff = 1.5f;
+            p.scoreThreshold = 0.30f;
+            cases.push_back({p, id});
+        }
+        {
+            RedetectPolicy p;
+            p.name = t + "_RawArea03";
+            p.skipAnchorVerify = true;
+            p.minConf = 0.35f; p.minAreaRatio = 0.03f; p.maxAreaRatio = 16.0f; p.maxAspectDiff = 2.0f;
+            p.scoreThreshold = 0.30f;
+            cases.push_back({p, id});
+        }
+        {
+            RedetectPolicy p;
+            p.name = t + "_ExistLT";
+            p.kmode = KernelMode::LIGHTTRACK;
+            p.minConf = 0.35f; p.minAreaRatio = 0.15f; p.maxAreaRatio = 6.0f; p.maxAspectDiff = 1.5f;
+            cases.push_back({p, id});
+        }
+        {
+            RedetectPolicy p;
+            p.name = t + "_Area03_SoftLT";
+            p.kmode = KernelMode::LIGHTTRACK;
+            p.minConf = 0.35f; p.minAreaRatio = 0.03f; p.maxAreaRatio = 16.0f; p.maxAspectDiff = 2.0f;
+            p.allowSoftKernelOnHighConf = true; p.highConfBypassThr = 0.65f; p.highConfMinHistSim = 0.50f;
+            cases.push_back({p, id});
+        }
+        {
+            RedetectPolicy p;
+            p.name = t + "_Area03_SoftLT_Lag1";
+            p.kmode = KernelMode::LIGHTTRACK;
+            p.minConf = 0.35f; p.minAreaRatio = 0.03f; p.maxAreaRatio = 16.0f; p.maxAspectDiff = 2.0f;
+            p.allowSoftKernelOnHighConf = true; p.highConfBypassThr = 0.65f; p.highConfMinHistSim = 0.50f;
+            p.twoFrameGate = true; p.twoFrameLag = 1;
+            cases.push_back({p, id});
+        }
+    }
+
+    std::map<std::string, MethodStats> overall;
+    for (const auto& c : cases) overall[c.pol.name].name = c.pol.name;
+
+    std::cout << "\n=================================================================================================================================\n";
+    std::cout << "MERGED DATASET RE-DETECTION BENCHMARK (Anti-UAV 7 seqs, 925 Valid + 64 Absent, Frame-0 Anchor, Zero Prior)\n";
+    std::cout << "=================================================================================================================================\n";
+
+    for (const auto& sq : sequences) {
+        std::string gtPath = "datasets/Anti-UAV/tracking/Anti-UAV-Tracking-V0GT/" + sq.name + "_gt.txt";
+        std::string imgDir = "datasets/Anti-UAV/tracking/Anti-UAV-Tracking-V0/" + sq.name;
+        auto gts = loadGT(gtPath);
+        std::vector<std::string> imgFiles;
+        for (const auto& entry : fs::directory_iterator(imgDir)) {
+            auto ext = entry.path().extension().string();
+            if (ext == ".jpg" || ext == ".png") imgFiles.push_back(entry.path().string());
+        }
+        std::sort(imgFiles.begin(), imgFiles.end());
+        size_t nFrames = std::min(imgFiles.size(), gts.size());
+        if (nFrames < 2) continue;
+
+        cv::Mat img0 = cv::imread(imgFiles[0]);
+        cv::Rect2f gt0 = gts[0];
+        cv::Rect roi0(static_cast<int>(std::round(gt0.x)), static_cast<int>(std::round(gt0.y)),
+                      static_cast<int>(std::round(gt0.width)), static_cast<int>(std::round(gt0.height)));
+        roi0 &= cv::Rect(0, 0, img0.cols, img0.rows);
+
+        TargetAnchor anchor;
+        anchor.initBbox = cv::Rect2f(static_cast<float>(roi0.x), static_cast<float>(roi0.y),
+                                     static_cast<float>(roi0.width), static_cast<float>(roi0.height));
+        anchor.valid = extractPatchAppearance(img0, anchor.initBbox,
+                                              anchor.histHS, anchor.histV, anchor.patchNorm,
+                                              anchor.hasTexture, anchor.isColor, anchor.meanSat);
+        DsstCore dsst;
+        dsst.init(img0, roi0);
+        sot->init(img0, anchor.initBbox);
+
+        std::map<std::string, MethodStats> seqStats;
+        for (const auto& c : cases) seqStats[c.pol.name].name = c.pol.name;
+        int seqValid = 0;
+
+        for (size_t fIdx = 1; fIdx < nFrames; fIdx += sq.step) {
+            cv::Rect2f gt = gts[fIdx];
+            bool isValid = (gt.width > 0.0f && gt.height > 0.0f);
+            if (isValid) seqValid++;
+
+            cv::Mat imgCurr = cv::imread(imgFiles[fIdx]);
+            if (imgCurr.empty()) continue;
+
+            std::vector<std::vector<DetectionBox>> detsCurr(models.size());
+            std::vector<float> msCurr(models.size(), 0.0f);
+            for (size_t i = 0; i < models.size(); ++i) {
+                auto t0 = std::chrono::steady_clock::now();
+                detsCurr[i] = models[i].det->detect(imgCurr);
+                msCurr[i] = std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - t0).count();
+            }
+
+            cv::Mat imgLag1;
+            bool lagLoaded = false;
+            std::vector<bool> lagDetDone(models.size(), false);
+            std::vector<std::vector<DetectionBox>> detsLag1(models.size());
+
+            for (const auto& tc : cases) {
+                RedetectResult rr = evalPolicyOnDetections(
+                    detsCurr[tc.detId], imgCurr, anchor, tc.pol, dsst, sot.get(), msCurr[tc.detId]);
+                if (tc.pol.twoFrameGate && rr.accepted) {
+                    if (!lagLoaded) {
+                        imgLag1 = cv::imread(imgFiles[fIdx - 1]);
+                        lagLoaded = true;
+                    }
+                    if (imgLag1.empty()) {
+                        rr.accepted = false;
+                    } else {
+                        if (!lagDetDone[tc.detId]) {
+                            detsLag1[tc.detId] = models[tc.detId].det->detect(imgLag1);
+                            lagDetDone[tc.detId] = true;
+                        }
+                        auto pr = evalPolicyOnDetections(
+                            detsLag1[tc.detId], imgLag1, anchor, tc.pol, dsst, sot.get(), 0.0f);
+                        if (!pr.accepted || !passTwoFrameConsistency(pr.box, rr.box)) {
+                            rr.accepted = false;
+                        }
+                        rr.timeMs += pr.timeMs;
+                    }
+                }
+                seqStats[tc.pol.name].record(rr, isValid, gt);
+                overall[tc.pol.name].record(rr, isValid, gt);
+            }
+        }
+
+        std::cout << "[" << std::left << std::setw(7) << sq.name << " V=" << std::setw(3) << seqValid << "] "
+                  << std::fixed << std::setprecision(3)
+                  << "U11n_FT=" << computeSummary(seqStats["U11n_FT_Area03_SoftLT"]).auc
+                  << " | U11s_FT=" << computeSummary(seqStats["U11s_FT_Area03_SoftLT"]).auc
+                  << " | U11n_Sc=" << computeSummary(seqStats["U11n_Sc_Area03_SoftLT"]).auc
+                  << " | M11n_Sc=" << computeSummary(seqStats["M11n_Sc_Area03_SoftLT"]).auc
+                  << " | M11s_Sc=" << computeSummary(seqStats["M11s_Sc_Area03_SoftLT"]).auc << "\n";
+    }
+
+    std::cout << "\n=================================================================================================================================\n";
+    std::cout << std::left << std::setw(30) << "Method"
+              << std::right << std::setw(9) << "AUC(%)"
+              << std::setw(9) << "DP20(%)"
+              << std::setw(9) << "SR50(%)"
+              << std::setw(9) << "mIoU"
+              << std::setw(10) << "HitCLE"
+              << std::setw(10) << "Miss(%)"
+              << std::setw(11) << "Hijack(%)"
+              << std::setw(13) << "AbsentFP"
+              << std::setw(10) << "Time(ms)" << "\n";
+    std::cout << "---------------------------------------------------------------------------------------------------------------------------------\n";
+
+    std::ofstream jf("scripts/benchmark_merged_yolo.json");
+    if (jf.is_open()) jf << "{\n";
+    for (size_t i = 0; i < cases.size(); ++i) {
+        const auto& m = cases[i].pol.name;
+        const auto& st = overall[m];
+        SummaryMetrics s = computeSummary(st);
+        std::ostringstream fpStr;
+        fpStr << st.absentFP << "/" << st.absentFrames << "(" << std::fixed << std::setprecision(1) << s.absentFpRate * 100.0f << "%)";
+
+        std::cout << std::left << std::setw(30) << m
+                  << std::right << std::fixed
+                  << std::setw(9) << std::setprecision(2) << s.auc * 100.0f
+                  << std::setw(9) << std::setprecision(2) << s.dp20 * 100.0f
+                  << std::setw(9) << std::setprecision(2) << s.sr50 * 100.0f
+                  << std::setw(9) << std::setprecision(4) << s.meanIoU
+                  << std::setw(10) << std::setprecision(1) << s.meanCleHit
+                  << std::setw(10) << std::setprecision(2) << s.missRate * 100.0f
+                  << std::setw(11) << std::setprecision(2) << s.hijackOnValidRate * 100.0f
+                  << std::setw(13) << fpStr.str()
+                  << std::setw(10) << std::setprecision(2) << s.avgMs << "\n";
+
+        if (jf.is_open()) {
+            jf << "  \"" << m << "\": {"
+               << "\"auc\": " << s.auc << ", "
+               << "\"dp20\": " << s.dp20 << ", "
+               << "\"sr50\": " << s.sr50 << ", "
+               << "\"mean_iou\": " << s.meanIoU << ", "
+               << "\"mean_cle_hit\": " << s.meanCleHit << ", "
+               << "\"miss_rate\": " << s.missRate << ", "
+               << "\"hijack_on_valid_rate\": " << s.hijackOnValidRate << ", "
+               << "\"absent_fp\": " << st.absentFP << ", "
+               << "\"absent_total\": " << st.absentFrames << ", "
+               << "\"absent_fp_rate\": " << s.absentFpRate << ", "
+               << "\"avg_ms\": " << s.avgMs << "}"
+               << (i + 1 < cases.size() ? ",\n" : "\n");
+        }
+    }
+    if (jf.is_open()) {
+        jf << "}\n";
+        jf.close();
+    }
+    std::cout << "=================================================================================================================================\n";
+    return 0;
+}
+
 int main(int argc, char* argv[])
 {
+    std::cout.setf(std::ios::unitbuf);
+    std::cerr.setf(std::ios::unitbuf);
     QCoreApplication app(argc, argv);
     QLoggingCategory::setFilterRules("*.debug=false\n*.info=false");
 
@@ -612,6 +862,12 @@ int main(int argc, char* argv[])
         {"video11", 8,  "Medium UAV attitude change"},
         {"video16", 10, "Small UAV, low contrast"}
     };
+
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--merged") {
+            return runMergedBenchmark(sequences);
+        }
+    }
 
     DetectorConfig dcfg;
     dcfg.useGpu = true;

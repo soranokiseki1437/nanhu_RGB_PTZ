@@ -202,7 +202,7 @@ private:
                                 cv::Mat& outHistHS, cv::Mat& outHistV, cv::Mat& outPatchNorm,
                                 bool& outHasTexture, bool& outIsColor, float& outMeanSat) const;
     AnchorMatchScore evaluateAnchorSimilarity(const cv::Mat& image, const cv::Rect2f& candBox, bool runKernelCheck) const;
-    bool verifyRecoveryCandidate(const cv::Mat& image, const cv::Rect2f& candBox, bool isTotalLost, float& outMatchScore) const;
+    bool verifyRecoveryCandidate(const cv::Mat& image, const cv::Rect2f& candBox, float detConf, bool isTotalLost, float& outMatchScore) const;
     bool recoverWithAnchorState(const cv::Mat& image, const cv::Rect& newRoi);
 
     // === 纯局部跟踪模式稳态基线 ===

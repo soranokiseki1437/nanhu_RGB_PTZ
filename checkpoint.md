@@ -36,17 +36,17 @@ flowchart LR
 
 ---
 
-## 二、当前项目状态快照（2026-11-25 最新）
+## 二、当前项目状态快照（2026-11-26 最新）
 
 | 维度 | 当前状态 | 详细说明 |
 | :--- | :---: | :--- |
-| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 交付 5 款标准静态 ONNX)；目标跟踪：双内核 (DSST 滤波闭环 + LightTrack ONNX)；协同大脑：AMFT 状态机 + 初始锚点防劫持校验** | 1. 目标检测：YOLO 多模型领域微调与免重启动态热切换（方案 03）已闭环；<br>2. 协同大脑：AMFT 三维评估状态机（方案 02）与不可变初始目标外观锚点守护机制已闭环；<br>3. 控制与状态机强化：变焦双触发尺度校准、分级防误劫持重捕与伺服软启动（方案 04）代码已实施落地；<br>4. 深度跟踪基线：LightTrack 原版纯静态 ONNX 与 C++ DirectML 双内核分派已接入主工程（方案 05），待整机实机闭环验证；<br>5. 后续演进：推进 RK3588 边缘端量化移植（方案 06）与硕士课题算法深度创新及重训消融（方案 07，规划储备/尚未实现）。 |
-| **最新进展** | 🟢 **完成工作区过时文件集中清理与分级归档（保留既有在研训练/评测未提交改动）** | 将 `思考工作区/`（#70 异机微调排查报告）归档至 `_archive/思考工作区_20261116/`；已闭环方案 01~04 统一归档至 `待执行方案/archive/`；早期脚本、对拍工具、docx 依赖及中期草稿分别归档至 `scripts/_archive/`、`tools/_archive/`、`课题/_archive/` 与 `_archive/`，并同步校准全库引用链接。 |
-| **编译状态** | 🟢 **通过（0 错误）** | Release 构建已通过，主工程、`test_sot_tracker` 与 `test_amft` 基于 Qt 6.12.0 / C++17 / MinGW 13.1 64-bit 完好编译链接，全部 DLL 与 ONNX 模型自动同步 |
-| **GPU 推理基准** | 🟢 **DirectML 硬件加速：YOLO 检测 2.7~5.8ms；LightTrack 纯前向 1.83ms (0.58 GFLOPs)** | NVIDIA RTX 5070 Laptop GPU：满足 <=5ms 机电伺服硬实时要求；当前处于待整机实机闭环验证阶段 |
-| **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（4/4 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
-| **待执行核心任务** | 🟡 **推进 LightTrack 深度跟踪整机闭环验证（方案 05）、外场变焦联调、RK3588 边缘移植（方案 06）与学术创新重训实验准备（方案 07）** | 推进方案 05 序列与外场整机跟踪验证；连接相机与云台开展外场实机长焦变焦飞行跟踪测试；筹备方案 06 边缘端量化部署与方案 07 自研架构重训消融 |
-| **Git 工作区状态** | 🟢 **良好** | 过时文档与历史工具已完成归档清理；另有在研合并数据集与检测重训脚本保留于工作区待后续验证提交 |
+| **感知算法体系定位** | 🟢 **目标检测：深度学习 (YOLO 交付 DUT + Anti-UAV-Merged 7 款静态 ONNX)；目标跟踪：双内核 (DSST 滤波闭环 + LightTrack ONNX)；协同大脑：AMFT 状态机 + 锚点与软门控重捕** | 1. 目标检测：DUT 微调/从零 5 款模型与 `Anti-UAV-Merged` 300 轮重训 `yolo11n_merged_scratch.onnx` (93.27%)、`yolo11s_merged_scratch.onnx` (94.68%) 已全部交付并同步至上位机；<br>2. 协同大脑：AMFT 三维评估状态机（方案 02）与不可变初始目标外观锚点守护机制已闭环，`ObjectTracker` 完成 `areaRatio [0.03, 16.0]` 与高置信强直方图 `SoftKernelOnHighConf` 优化；<br>3. 控制与状态机强化：变焦双触发尺度校准、分级防误劫持重捕与伺服软启动（方案 04）代码已实施落地；<br>4. 深度跟踪基线：LightTrack 原版纯静态 ONNX 与 C++ DirectML 双内核分派已接入主工程（方案 05），待整机实机闭环验证；<br>5. 后续演进：推进 RK3588 边缘端量化移植（方案 06）与硕士课题算法深度创新及重训消融（方案 07，规划储备/尚未实现）。 |
+| **最新进展** | 🟢 **完成 `F:\yolo` 融合数据集重训产物归档、双集交叉验证、C++ DirectML 闭环重捕评测与 `ObjectTracker` 重捕门限优化** | 1. 同步 `yolo11{n,s}_merged_scratch.{pt,onnx}` 与 300 轮完整日志/曲线；<br>2. 完成 `Anti-UAV-Merged` (5,213 张) 与 `DUT` (2,600 张) 双集交叉验证及 7 序列 C++ DirectML 冷重捕基准（`M11s_Sc` 有效帧劫持降至 0.11%、HitCLE 降至 4.8~4.9 px、`M11n_Sc` 劫持降至 0.00%）；<br>3. `ObjectTracker` 落地 `areaRatio` 放宽与高置信软门控修复，`test_amft.exe` 5/5 PASS；主工程 Release 编译 0 错误通过。 |
+| **编译状态** | 🟢 **通过（0 错误）** | Release 构建已通过，主工程、`test_amft` 与 `bench_exp` 基于 Qt 6.12.0 / C++17 / MinGW 13.1 64-bit 完好编译链接，全部 DLL 与 7 款检测 ONNX 模型自动同步 |
+| **GPU 推理基准** | 🟢 **DirectML 硬件加速：YOLO11n_Merged 2.96ms / YOLO11s_Merged 4.73ms；LightTrack 纯前向 1.83ms (0.58 GFLOPs)** | NVIDIA RTX 5070 Laptop GPU：满足 <=5ms 机电伺服硬实时要求；`test_detector` 与 `test_amft` 离线验证通过，待整机实机闭环验证 |
+| **传统算法与伺服** | 🟢 **Step 1~6 完备** | DsstCore 传统相关滤波算法、AMFT 三维可靠度评估（5/5 PASS 100% 通过）、变焦动态纠偏与云台负反馈伺服闭环稳定运行 |
+| **待执行核心任务** | 🟡 **推进 LightTrack 深度跟踪整机闭环验证（方案 05）、外场变焦联调、`VaL_CNN` 抗虚警校验、RK3588 边缘移植（方案 06）与学术创新重训实验准备（方案 07）** | 推进方案 05 序列与外场整机跟踪验证；补充 `VaL_CNN` 压制出视野帧瞬态虚警；连接相机与云台开展外场实机长焦变焦飞行跟踪测试；筹备方案 06 与方案 07 |
+| **Git 工作区状态** | 🟢 **良好** | 脚本、C++ 重捕优化、评测数据与论文材料均已对齐，执行全量提交与远程同步 |
 
 ---
 
@@ -214,6 +214,9 @@ flowchart LR
   - **核心资产完整归档**：4 份最优权重入库 [weights/finetuned/](file:///d:/PyProjects/RGB_PTZ_Integrated/weights/finetuned/)，4 份部署级静态 ONNX 入库 [models/](file:///d:/PyProjects/RGB_PTZ_Integrated/models/)，UI 动态热加载已全面支持；
 - [x] **03-3-B 第二批次从零重新训练流水线 (Phase 2: Train from Scratch 验证)**：
   - 完成 YOLO11n 300 轮从零训练闭环，权重归档至 `weights/scratch/`，导出 `models/yolo11n_uav_scratch.onnx`，为硕士论文完成“微调 vs 从零”全维度消融对照。
+- [x] **03-3-C 视频域融合数据集 (`Anti-UAV-Merged`) 300 轮从零重训与闭环重捕评测**：
+  - 在 RTX 4080 SUPER 完成 `yolo11n_merged_scratch`（Merged mAP@50 **93.27%** / Recall **89.67%**）与 `yolo11s_merged_scratch`（Merged mAP@50 **94.68%** / Recall **91.94%**, DUT mAP@50-95 **57.38%**）全量 300 轮收敛与静态 ONNX 导出（DirectML 纯推理 2.96 ms / 4.73 ms）；
+  - 完成 7 序列 C++ DirectML 冷重捕基准评测与 `ObjectTracker` 尺度放宽/高置信软门控优化（`yolo11s_merged_scratch` 有效帧劫持降至 0.11%、HitCLE 降至 4.8~4.9 px）。
 - [x] **03-4 硕士论文 2×2×2 消融实验多维打点与选型论证**：在 2,600 张验证集上统一打点，量化核算 mAP@50、mAP@50-95、弱小目标召回率与推理时延，建立全景学术三线大表并完成 Word 报告。
 - [x] **03-5 C++ 多规格模型免重启热切换**：`OnnxDetector` 互斥锁加固与界面下拉菜单无缝实时重载。
 - [ ] **03-6 VaL_CNN 抗虚警二级校验**：放宽初筛低门限（0.2）同时抑制背景虚警（待补充数据集测试）。
@@ -242,20 +245,24 @@ flowchart LR
 
 ## 七、最近检查点记录（Latest Checkpoint Log）
 
-> **归档指引**：历史检查点（#01 ~ #79）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_79.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_79.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
+> **归档指引**：历史检查点（#01 ~ #80）已分流至独立小文件 [checkpoints/archive/checkpoint_archive_01_30.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_01_30.md) 至 [checkpoints/archive/checkpoint_archive_80.md](file:///d:/PyProjects/RGB_PTZ_Integrated/checkpoints/archive/checkpoint_archive_80.md)。本文件遵循轻量原则仅保留当前最新检查点，全量历史演进由 Git 提交记录客观承载。
 
-### Checkpoint 2026-11-25 #80
+### Checkpoint 2026-11-26 #81
 - **记录人**：Antigravity (Gemini 4 Hydrogen High)
-- **类型**：工作区过时文件分级归档与引用链接统一校准
+- **类型**：`F:\yolo` 融合数据集重训产物验收归档、C++ DirectML 闭环重捕评测与 `ObjectTracker` 重捕门限优化
 - **核心内容**：
-  1. **顶层临时排查目录与已闭环方案归档**：
-     - 将 2026-11-16 遗留的 [思考工作区/](file:///d:/PyProjects/RGB_PTZ_Integrated/_archive/思考工作区_20261116) 迁入 `_archive/思考工作区_20261116/`（通过 `.gitignore` 白名单保留版本跟踪）；
-     - 将已全面闭环的方案 01~04 移入 [待执行方案/archive/](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/archive)，使 `待执行方案/` 主目录仅保留总览规范 `00` 与待推进方案 `05~07`。
-  2. **根目录、工具与脚本清理归档**：
-     - 移除根目录历史 `docx` 生成器遗留配置 `package.json` / `package-lock.json`、临时图 `test_detection_vis.png` 及空目录 `日志/`；
-     - 清理 `tools/` 下旧版未跟踪可执行文件（`runner_port.exe`、`runner_ref.exe`、`test_amft.exe`），将早期 DSST 对拍工具 `offline_runner.cpp`、`compare_csv.py`、`ocv_stub/` 归档至 `tools/_archive/`；
-     - 将 15 份已完成或被 C++ 替代的历史脚本归档至 [scripts/_archive/](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/_archive/README.md) 并更新归档清单。
-  3. **课题、说明与导出素材归档及链接校准**：
-     - 将早期 `课题/sot_ablation_*` 试训结果移入 `课题/_archive/sot_ablation_20261110/`；将旧版 `RGB_PTZ_Integrated项目说明.docx`、`draft_20a5ead5_folder/` 与 `导出材料/20261026/` 迁入 `_archive/` 并删除 `.bkp` 临时备份；
-     - 同步更新 [README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/README.md)、[00_方案总览与执行推进管理规范.md](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/00_方案总览与执行推进管理规范.md)、[05](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/05_轻量单目标跟踪基准模型交付与工程链路跑通方案.md)、[06](file:///d:/PyProjects/RGB_PTZ_Integrated/待执行方案/06_光电跟踪系统RK3588边缘端量化与工程移植实操方案.md) 及 [datasets/README.md](file:///d:/PyProjects/RGB_PTZ_Integrated/datasets/README.md) 中的引用路径。
-- **下一步**：继续按方案 05 推进整机闭环验证，并依据 Checkpoint #79 评测结论决策后续重检测阈值调整与合并数据集检测重训工作。
+  1. **训练产物同步与静态 ONNX 验收**：
+     - 将 `F:\yolo` 300 轮训练产出 `yolo11n_merged_scratch.{pt,onnx}` 与 `yolo11s_merged_scratch.{pt,onnx}`、完整曲线/日志（`runs/detect_uav/scratch_merged/`、`runs/detect_uav/val_merged/`）及 `eval_summary.json` 同步入库；同步 `scripts/train_uav_detector.py` 跨平台 YAML 路径解析与摘要合并逻辑；
+     - 校验静态 ONNX 计算图规格均为 `[1,3,640,640] -> [1,5,8400]`、opset 17、`names={0: 'UAV'}`；`test_detector.exe` DirectML 纯推理实测 `yolo11n_merged_scratch.onnx` 为 **2.96 ms**（端到端 6.03 ms / 165.9 FPS，IoU 88.3%），`yolo11s_merged_scratch.onnx` 为 **4.73 ms**（端到端 6.93 ms / 144.3 FPS，IoU 92.0%）。
+  2. **双验证集交叉评测与 C++ DirectML 冷重捕基准**（[tools/bench_exp.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/tools/bench_exp.cpp) `--merged` & [scripts/benchmark_merged_yolo.json](file:///d:/PyProjects/RGB_PTZ_Integrated/scripts/benchmark_merged_yolo.json)）：
+     - **`Anti-UAV-Merged` (5,213 张)**：`yolo11n_merged_scratch` 达 P 96.89% / R **89.67%** / mAP@50 **93.27%** / mAP@50-95 **60.40%**；`yolo11s_merged_scratch` 达 P 97.15% / R **91.94%** / mAP@50 **94.68%** / mAP@50-95 **62.27%**（大幅超越 DUT 单源微调版的 81.52% / 84.53%）；
+     - **`DUT Anti-UAV` (2,600 张)**：`yolo11s_merged_scratch` mAP@50 为 90.19%、mAP@50-95 达 **57.38%**（超越 DUT 微调基线 56.74%）；
+     - **7 序列闭环冷重捕（925 有效帧 + 64 出视野缺失帧）**：
+       - 在 `Area03_SoftLT` 策略下，`yolo11n_merged_scratch` 有效帧劫持降至 **0.00%**、HitCLE 降至 **4.6 px**（AUC 68.38%, DP@20 83.24%）；`yolo11s_merged_scratch` 劫持降至 **0.11%**、HitCLE 降至 **4.9 px**（AUC 69.75%, DP@20 85.41%, Miss 13.30%；在 `RawArea03` 下更达 AUC **72.92%**, DP@20 **90.81%**, Miss **7.89%**）；
+       - 客观短板与抑制措施：`video07` 64 帧缺失帧上，`M11n_Sc` 单帧 AbsentFP 为 15.6%~17.2%（`M11s_Sc` 为 7.8%），开启双帧空间一致性门控（`Lag1`）后两者均降至 **4.7% (3/64)**，后续由 `VaL_CNN` 进一步压制瞬态空帧误报。
+  3. **`ObjectTracker` 生产重捕链路优化与全量构建验收**：
+     - 修改 [objecttracker.h](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.h) 与 [objecttracker.cpp](file:///d:/PyProjects/RGB_PTZ_Integrated/objecttracker.cpp)：将 `TRACK_LOST` 面积比率放宽至 `[0.03, 16.0]`（`TRACK_OCCLUDED` 为 `[0.08, 8.0]`）、长宽比差异放宽至 `2.0` 解决远距缩尺截断；`verifyRecoveryCandidate` 新增高置信强直方图 `SoftKernelOnHighConf`（`detConf >= 0.65 && histSim >= 0.50`）解决 3D 机动误截断；默认懒加载候选列表收录 `yolo11s_merged_scratch.onnx` 与 `yolo11n_merged_scratch.onnx`；
+     - 主工程 Release (`RGB_PTZ_Integrated.exe`) 与 `test_amft.exe`、`bench_exp.exe` 编译 0 错误通过；`test_amft.exe` 在 `yolo11s_merged_scratch.onnx` 与 `yolo11n_uav_ft.onnx` 下均 5/5 PASS。
+  4. **论文素材与汇总表同步**：
+     - 更新 [YOLO可见光反无人机目标检测训练与消融实验研究.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/论文碎片材料/02_YOLO可见光反无人机目标检测训练与消融实验研究/YOLO可见光反无人机目标检测训练与消融实验研究.md)、[轻量级跟踪基线实验分析与Rep-LightBackbone立项论证.md](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/轻量级跟踪基线实验分析与Rep-LightBackbone立项论证.md)，新增 [yolo_merged_eval_summary.csv](file:///d:/PyProjects/RGB_PTZ_Integrated/课题/论文碎片材料/02_YOLO可见光反无人机目标检测训练与消融实验研究/raw_data/yolo_merged_eval_summary.csv) 及 `figures/13~16` 融合训练曲线图。
+- **下一步**：推进方案 05 外场实机动态目标跟踪与变焦闭环验证；补齐 `VaL_CNN` 抗虚警数据集评测；筹备方案 06（RK3588 NPU 量化部署）与方案 07（`Rep-LightTrack` 重训消融）。
